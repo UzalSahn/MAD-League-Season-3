@@ -19,6 +19,7 @@ test('commissioner provisions designated player sessions', async () => {
       ...process.env,
       COMMISSIONER_NAME: 'Commissioner',
       COMMISSIONER_PIN: '1357',
+      ALLOWED_ORIGINS: 'https://league-owner.github.io',
       DATA_DIR: dataDir,
       PORT: '0'
     },
@@ -37,20 +38,35 @@ test('commissioner provisions designated player sessions', async () => {
     child.once('exit', code => { if (!port) reject(new Error(`Server exited (${code}): ${output}`)); });
   });
 
-  async function call(route, { method = 'GET', body, cookie } = {}) {
+  async function call(route, { method = 'GET', body, cookie, token, origin = 'https://league-owner.github.io' } = {}) {
     const response = await fetch(`http://127.0.0.1:${port}${route}`, {
       method,
       headers: {
+        origin,
         ...(body === undefined ? {} : { 'content-type': 'application/json' }),
-        ...(cookie ? { cookie } : {})
+        ...(cookie ? { cookie } : {}),
+        ...(token ? { authorization: 'Bearer ' + token } : {})
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) })
     });
-    return { response, data: await response.json() };
+    return { response, data: response.status === 204 ? {} : await response.json() };
   }
 
   try {
     await started;
+    const preflight = await fetch(`http://127.0.0.1:${port}/api/session`, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'https://league-owner.github.io',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'authorization,content-type'
+      }
+    });
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://league-owner.github.io');
+    const blockedOrigin = await call('/api/league', { origin: 'https://unrelated-site.example' });
+    assert.equal(blockedOrigin.response.status, 403);
+
     const unauthenticatedRead = await call('/api/league');
     assert.equal(unauthenticatedRead.response.status, 401);
 
@@ -61,8 +77,9 @@ test('commissioner provisions designated player sessions', async () => {
     assert.equal(badLogin.response.status, 401);
     const login = await call('/api/session', { method: 'POST', body: { name: 'Commissioner', pin: '1357' } });
     assert.equal(login.response.status, 200);
-    const commissionerCookie = login.response.headers.get('set-cookie').split(';')[0];
-    const authenticatedRead = await call('/api/league', { cookie: commissionerCookie });
+    assert.ok(login.data.token);
+    const commissionerToken = login.data.token;
+    const authenticatedRead = await call('/api/league', { token: commissionerToken });
     assert.equal(authenticatedRead.response.status, 200);
     assert.equal(authenticatedRead.data.league.name, 'MAD League');
     const localDatabase = new Database(path.join(dataDir, 'league.sqlite'), { readonly: true });
@@ -72,21 +89,21 @@ test('commissioner provisions designated player sessions', async () => {
     assert.ok(!savedData.includes('1357'));
 
     const created = await call('/api/players', {
-      method: 'POST', body: { name: 'Trainer One', pin: '2468' }, cookie: commissionerCookie
+      method: 'POST', body: { name: 'Trainer One', pin: '2468' }, token: commissionerToken
     });
     assert.equal(created.response.status, 201);
     const duplicate = await call('/api/players', {
-      method: 'POST', body: { name: 'trainer one', pin: '8642' }, cookie: commissionerCookie
+      method: 'POST', body: { name: 'trainer one', pin: '8642' }, token: commissionerToken
     });
     assert.equal(duplicate.response.status, 409);
 
     const playerLogin = await call('/api/session', { method: 'POST', body: { name: 'Trainer One', pin: '2468' } });
     assert.equal(playerLogin.response.status, 200);
-    const playerCookie = playerLogin.response.headers.get('set-cookie').split(';')[0];
-    const deniedPlayerManagement = await call('/api/players', { cookie: playerCookie });
+    const playerToken = playerLogin.data.token;
+    const deniedPlayerManagement = await call('/api/players', { token: playerToken });
     assert.equal(deniedPlayerManagement.response.status, 403);
     const deniedSettingsChange = await call('/api/league', {
-      method: 'PATCH', body: { updates: { settings: { maxTeams: 100 } } }, cookie: playerCookie
+      method: 'PATCH', body: { updates: { settings: { maxTeams: 100 } } }, token: playerToken
     });
     assert.equal(deniedSettingsChange.response.status, 403);
   } finally {

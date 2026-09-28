@@ -14,6 +14,7 @@ const loginAttempts = new Map();
 const listeners = new Set();
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || '').split(',').map(origin => origin.trim()).filter(Boolean));
 let store;
 let database;
 
@@ -100,7 +101,9 @@ function parseCookies(request) {
 }
 
 function getAccount(request) {
-  const token = parseCookies(request).league_session;
+  const authorization = request.headers.authorization || '';
+  const bearerToken = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
+  const token = bearerToken || parseCookies(request).league_session;
   const session = token && sessions.get(token);
   if (!session || session.expiresAt <= Date.now()) {
     if (token) sessions.delete(token);
@@ -113,6 +116,21 @@ function getAccount(request) {
 function send(response, status, data, headers = {}) {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers });
   response.end(data === undefined ? '' : JSON.stringify(data));
+}
+
+function corsHeaders(request) {
+  const origin = request.headers.origin;
+  if (!origin) return {};
+  const protocol = (request.headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+  const sameOrigin = `${protocol}://${request.headers.host}`;
+  if (origin !== sameOrigin && !allowedOrigins.has(origin)) return null;
+  return {
+    'access-control-allow-origin': origin,
+    'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'access-control-allow-headers': 'authorization, content-type',
+    'access-control-max-age': '600',
+    vary: 'Origin'
+  };
 }
 
 function readBody(request) {
@@ -187,6 +205,14 @@ async function serveStatic(request, response, pathname) {
 
 const server = createServer(async (request, response) => {
   try {
+    const cors = corsHeaders(request);
+    if (cors === null) return send(response, 403, { error: 'This website origin is not allowed.' });
+    Object.entries(cors).forEach(([name, value]) => response.setHeader(name, value));
+    if (request.method === 'OPTIONS') {
+      response.writeHead(204);
+      return response.end();
+    }
+
     const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
     const account = getAccount(request);
 
@@ -212,12 +238,13 @@ const server = createServer(async (request, response) => {
       const token = randomBytes(32).toString('base64url');
       sessions.set(token, { accountId: candidate.id, expiresAt: Date.now() + SESSION_MS });
       const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-      return send(response, 200, { user: publicAccount(candidate) }, {
+      return send(response, 200, { user: publicAccount(candidate), token }, {
         'set-cookie': `league_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(SESSION_MS / 1000)}${secure}`
       });
     }
     if (url.pathname === '/api/session' && request.method === 'DELETE') {
-      const token = parseCookies(request).league_session;
+      const authorization = request.headers.authorization || '';
+      const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1] || parseCookies(request).league_session;
       if (token) sessions.delete(token);
       return send(response, 200, { user: null }, { 'set-cookie': 'league_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
     }
@@ -233,7 +260,11 @@ const server = createServer(async (request, response) => {
       response.write(': connected\n\n');
       listeners.add(response);
       sendLeagueEvent(response);
-      request.on('close', () => listeners.delete(response));
+      const heartbeat = setInterval(() => response.write(': keep-alive\n\n'), 25000);
+      response.on('close', () => {
+        clearInterval(heartbeat);
+        listeners.delete(response);
+      });
       return;
     }
     if (url.pathname === '/api/league' && request.method === 'PATCH') {
