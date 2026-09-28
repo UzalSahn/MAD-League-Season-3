@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Format — Pokemon VGC Draft League</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D0D0D; --ink-soft:#161616; --panel:#1C1C1C; --cream:#FAFAF7; --cream-dim:#B8B7B2;
+    --gold:#FFCB05; --line: rgba(250,250,247,0.14);
+    --display: 'Big Shoulders Display', sans-serif; --body: 'Inter', sans-serif; --mono: 'Space Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--ink);color:var(--cream);font-family:var(--body);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  h1{font-family:var(--display);text-transform:uppercase;font-size:clamp(34px,5vw,52px);margin:14px 0 0;}
+  header.site-nav{position:sticky;top:0;z-index:60;background:rgba(13,13,13,0.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;max-width:1100px;margin:0 auto;}
+  .nav-left-group{display:flex;align-items:center;}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:0.02em;text-transform:uppercase;}
+  .brand-mark{width:22px;height:22px;flex-shrink:0;}
+  .nav-links{display:flex;align-items:center;gap:20px;font-size:13px;font-weight:600;}
+  .nav-former-champions{font-size:13px;font-weight:600;color:var(--cream-dim);margin-left:6px;padding-left:6px;}
+  .nav-former-champions:hover{color:var(--gold);}
+  .nav-links a{color:var(--cream-dim);}
+  .nav-links a:hover{color:var(--gold);}
+  .nav-account{display:flex;align-items:center;gap:12px;}
+  .nav-account #navUserEmail{color:var(--cream-dim);font-size:12.5px;}
+  .nav-leagues-wrap{position:relative;}
+  .nav-leagues-menu{
+    display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:100;
+  }
+  .nav-leagues-menu.open{display:block;}
+  .nlm-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:8px;}
+  .nlm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;}
+  .nlm-list li a{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream);
+  }
+  .nlm-list li a:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-commish{font-family:var(--mono);font-size:9px;color:var(--gold);background:rgba(255,203,5,0.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;}
+  .nlm-empty{font-size:12.5px;color:var(--cream-dim);padding:8px 10px;}
+  .nlm-divider{height:1px;background:var(--line);margin:10px 0;}
+  .nlm-action{display:block;padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream-dim);}
+  .nlm-action:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:8px 10px;border-radius:4px;font-size:13px;margin-bottom:8px;font-family:var(--body);
+  }
+  .nlm-input:focus{border-color:var(--gold);}
+  .nlm-form-actions{display:flex;gap:8px;}
+  .nlm-status{font-size:11.5px;color:var(--cream-dim);margin-top:8px;margin-bottom:0;}
+  .nav-links .nav-cta{background:var(--gold);color:var(--ink);padding:8px 16px;border-radius:3px;font-weight:700;text-transform:uppercase;font-size:12px;}
+  main{max-width:900px;margin:0 auto;padding:60px 22px 100px;}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold);}
+  p{color:var(--cream-dim);font-size:15.5px;margin-top:14px;line-height:1.65;}
+
+  .fmt-hero{text-align:center;padding-bottom:44px;border-bottom:1px solid var(--line);margin-bottom:44px;}
+  .fmt-hero h1{margin-top:10px;}
+  .fmt-hero-sub{max-width:560px;margin:14px auto 0;font-size:16.5px;}
+
+  .fmt-toc{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:64px;}
+  .fmt-toc a{
+    font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:0.05em;color:var(--cream-dim);
+    border:1px solid var(--line);border-radius:20px;padding:7px 16px;
+  }
+  .fmt-toc a:hover{color:var(--gold);border-color:var(--gold);}
+
+  .fmt-section{padding:48px 0;border-bottom:1px solid var(--line);scroll-margin-top:90px;}
+  .fmt-section:last-of-type{border-bottom:none;}
+  .fmt-section-head{display:flex;gap:24px;align-items:flex-start;}
+  .fmt-num{
+    font-family:var(--display);font-size:15px;font-weight:800;color:var(--ink);background:var(--gold);
+    width:40px;height:40px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  }
+  .fmt-section-head h2{font-family:var(--display);text-transform:uppercase;font-size:clamp(24px,3.4vw,32px);margin:0 0 4px;letter-spacing:0.01em;}
+  .fmt-section-head p{text-align:left;max-width:none;}
+
+  .fmt-example-card{
+    margin:26px 0 0 64px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:24px 26px;
+  }
+  .fmt-example-label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--gold);margin-bottom:18px;}
+  .fmt-mon-row{display:flex;flex-wrap:wrap;gap:16px;}
+  .fmt-mon-card{display:flex;flex-direction:column;align-items:center;gap:6px;width:88px;}
+  .fmt-mon-sprite{width:64px;height:64px;object-fit:contain;}
+  .fmt-mon-name{font-size:12.5px;font-weight:700;text-align:center;line-height:1.25;}
+  .fmt-mon-tier{
+    font-family:var(--mono);font-weight:700;font-size:11px;color:var(--gold);
+    background:rgba(255,203,5,0.12);border-radius:4px;padding:2px 8px;
+  }
+  .fmt-example-math{font-family:var(--mono);font-size:13px;color:var(--cream-dim);margin-top:20px;padding-top:16px;border-top:1px dashed var(--line);}
+  .fmt-example-math b{color:var(--gold);}
+
+  .fmt-swap-row{display:flex;align-items:center;gap:22px;flex-wrap:wrap;}
+  .fmt-swap-side{flex:1;min-width:220px;}
+  .fmt-swap-label{display:block;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--cream-dim);margin-bottom:12px;}
+  .fmt-swap-arrow{font-size:22px;color:var(--gold);flex-shrink:0;}
+
+  @media (max-width:600px){
+    .fmt-section-head{flex-direction:column;gap:12px;}
+    .fmt-example-card{margin-left:0;}
+  }
+</style>
+</head>
+<body>
+<header class="site-nav">
+  <div class="nav-inner">
+    <div class="nav-left-group">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="45" fill="#fff" stroke="#111" stroke-width="6"/>
+        <path d="M6,50 A44,44 0 0,1 94,50 Z" fill="#EE1515" stroke="#111" stroke-width="6"/>
+        <line x1="6" y1="50" x2="94" y2="50" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="15" fill="#fff" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="6" fill="#111"/>
+      </svg>
+      Pokemon VGC Draft League
+    </a>
+    <a href="champions.html" class="nav-former-champions">Past Champions</a>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="pool.html">Pool</a>
+      <a href="format.html">Format</a>
+      <span id="navSignedOut"><a href="signin.html" class="nav-cta">Sign In</a></span>
+      <span id="navSignedIn" class="nav-account" style="display:none;">
+        <div class="nav-leagues-wrap">
+          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
+          <div id="navLeaguesMenu" class="nav-leagues-menu">
+            <div id="navLeaguesDefaultView">
+              <div class="nlm-label">My Leagues</div>
+              <ul id="navLeaguesList" class="nlm-list"></ul>
+              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
+              <div class="nlm-divider"></div>
+              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
+            </div>
+            <div id="navJoinView" style="display:none;">
+              <div class="nlm-label">Join a League</div>
+              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
+              <div class="nlm-form-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
+                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
+              </div>
+              <p class="nlm-status" id="navJoinStatus"></p>
+            </div>
+          </div>
+        </div>
+        <span id="navUserEmail"></span>
+        <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
+      </span>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="fmt-hero">
+    <span class="eyebrow">Format</span>
+    <h1>How Victory Road Works</h1>
+    <p class="fmt-hero-sub">A points-budget draft league, run entirely through this site — from opening pick to championship bracket. Here's the whole system, section by section.</p>
+  </div>
+
+  <div class="fmt-toc">
+    <a href="#fmt-draft">Draft</a>
+    <a href="#fmt-fa">Free Agency &amp; Waivers</a>
+    <a href="#fmt-trades">Trades</a>
+    <a href="#fmt-matches">Weekly Matches</a>
+    <a href="#fmt-standings">Standings &amp; Playoffs</a>
+    <a href="#fmt-roles">Rosters &amp; Roles</a>
+  </div>
+
+  <section class="fmt-section" id="fmt-draft">
+    <div class="fmt-section-head">
+      <span class="fmt-num">01</span>
+      <div>
+        <h2>The Draft</h2>
+        <p>Every trainer starts with the same points budget — no auction, no bidding war, just picks. Order snakes back and forth each round, so the last pick in Round 1 gets the first pick in Round 2 (the commissioner can also manually set who picks first before the draft begins). Every roster fills to the same number of slots, and the site won't let you spend down to a point where you can't afford to fill the rest — you always have to leave at least 1 point per remaining slot.</p>
+        <p>You can build a personal <b style="color:var(--gold);">draft queue</b> ahead of time — star any Pokémon in the pool to rank it, and if your clock runs out, auto-pick works through your queue top to bottom instead of just grabbing the highest tier left on the board.</p>
+      </div>
+    </div>
+    <div class="fmt-example-card">
+      <div class="fmt-example-label">Example — a 100-point budget, five picks in</div>
+      <div class="fmt-mon-row" id="draftExampleRow"></div>
+      <div class="fmt-example-math" id="draftExampleMath"></div>
+    </div>
+  </section>
+
+  <section class="fmt-section" id="fmt-fa">
+    <div class="fmt-section-head">
+      <span class="fmt-num">02</span>
+      <div>
+        <h2>Free Agency &amp; Waivers</h2>
+        <p><b style="color:var(--gold);">Every roster must have exactly your league's roster size at all times</b> — no exceptions. Anything not drafted is a free agent, claimable for points equal to its tier. Because rosters can never drop below full, there's no way to drop a Pokémon on its own. Claiming is what triggers a drop instead: if your roster's already full, claiming opens a picker asking which Pokémon to send back — and both changes land together, atomically, in the same transaction, so you're never left short a Pokémon. Need more than one for the numbers to work? You can bundle multiple claims and multiple drops together, up to your league's per-transaction limit, as long as the count you claim and the count you drop line up exactly. A Pokémon already committed to a pending trade won't show up as an option to drop either — the two systems check each other.</p>
+        <p>Whatever gets dropped this way doesn't just vanish — it sits on <b style="color:var(--gold);">waivers</b> for a set number of days, where any trainer can place a claim (with images, types, and tiers shown right in the list, no more digging). If more than one team wants it, priority rotates — whoever's used their turn least goes to the front of the line. Commissioners can also set a <b style="color:var(--gold);">free agency deadline week</b> — trainers get a heads-up the week before it hits, and after that, no new claims or waiver placements go through for the rest of the season.</p>
+        <p><b style="color:var(--gold);">This season:</b> each team gets <b style="color:var(--gold);">1 free agency transaction</b> for the whole season, and that single transaction can add up to <b style="color:var(--gold);">2 Pokémon</b> (dropping 2 to match). The <b style="color:var(--gold);">free agency deadline is Week 8</b> — no claims or waiver placements after that.</p>
+      </div>
+    </div>
+    <div class="fmt-example-card">
+      <div class="fmt-example-label">Example — your roster's full, but you want in on a big claim</div>
+      <div class="fmt-swap-row">
+        <div class="fmt-swap-side">
+          <span class="fmt-swap-label">Dropping</span>
+          <div class="fmt-mon-row" id="faDropRow"></div>
+        </div>
+        <div class="fmt-swap-arrow">→</div>
+        <div class="fmt-swap-side">
+          <span class="fmt-swap-label">Claiming</span>
+          <div class="fmt-mon-row" id="faClaimRow"></div>
+        </div>
+      </div>
+      <div class="fmt-example-math" id="faExampleMath"></div>
+    </div>
+  </section>
+
+  <section class="fmt-section" id="fmt-trades">
+    <div class="fmt-section-head">
+      <span class="fmt-num">03</span>
+      <div>
+        <h2>Trades</h2>
+        <p>The same <b style="color:var(--gold);">roster must always stay at exactly your league's roster size</b> rule applies to trades too. Propose a trade with any other trainer — up to your league's per-side limit — and trades always have to be even: offer 1, get 1 back; offer 2, get 2 back. There's no way to throw in an extra drop to balance things out, since that would leave someone short a Pokémon — value gaps get absorbed entirely by budget instead, so a roster's size never changes from a trade. The site checks this live as you build the offer, disabling "Send" if the counts don't match or if either side's budget would go negative, and it won't let you offer or accept with a Pokémon that's already committed to a pending free agency move either.</p>
+        <p>They can accept, decline, or let it sit. If your league has veto enabled, an accepted trade opens a window where the rest of the league can vote it down before it locks in. Trades can only be proposed or accepted <b style="color:var(--gold);">Monday through Friday</b> — never on a weekend — so there's always at least a couple of days for the rest of the league to notice and weigh in before a trade locks in for Monday. Commissioners can also set a <b style="color:var(--gold);">trade deadline week</b> — trainers get a heads-up the week before it hits, and after that, no new trades can be proposed or accepted for the rest of the season.</p>
+        <p><b style="color:var(--gold);">This season:</b> each team gets <b style="color:var(--gold);">2 trades</b> for the whole season, and each trade can move up to <b style="color:var(--gold);">2 Pokémon</b> per side. The <b style="color:var(--gold);">trade deadline is Week 6</b> — no proposing or accepting trades after that.</p>
+      </div>
+    </div>
+    <div class="fmt-example-card">
+      <div class="fmt-example-label">Example — an even trade, balanced by budget</div>
+      <div class="fmt-swap-row">
+        <div class="fmt-swap-side">
+          <span class="fmt-swap-label">Team A gives</span>
+          <div class="fmt-mon-row" id="tradeGiveRow"></div>
+        </div>
+        <div class="fmt-swap-arrow">⇄</div>
+        <div class="fmt-swap-side">
+          <span class="fmt-swap-label">Team A gets</span>
+          <div class="fmt-mon-row" id="tradeGetRow"></div>
+        </div>
+      </div>
+      <div class="fmt-example-math" id="tradeExampleMath"></div>
+    </div>
+  </section>
+
+  <section class="fmt-section" id="fmt-matches">
+    <div class="fmt-section-head">
+      <span class="fmt-num">04</span>
+      <div>
+        <h2>Weekly Matches</h2>
+        <p>Every week runs <b style="color:var(--gold);">Monday 12:00 AM to Sunday 11:59 PM</b>. Any claim or accepted trade made mid-week doesn't touch your roster until the following Monday — so your opponent always knows exactly who they're playing that week, no last-minute surprises.</p>
+        <p>Matches are recorded game by game: enter how many Pokémon were left standing on each side, and the site totals up the differential automatically. The winning trainer can also tag an <b style="color:var(--gold);">MVP Pokémon</b> for the match. Once a result's locked in, only the commissioner can correct it — including declaring a winner outright by forfeit, no game data required, for whenever a match just needs to be closed out. Click either team's name on a match card to see their full roster and recent transaction history at a glance.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="fmt-section" id="fmt-standings">
+    <div class="fmt-section-head">
+      <span class="fmt-num">05</span>
+      <div>
+        <h2>Standings &amp; Playoffs</h2>
+        <p>Standings track <b style="color:var(--gold);">W, L, Win %, KO Differential, Waiver Priority,</b> and current <b style="color:var(--gold);">Streak</b>, with each team's logo shown right alongside their record. The regular season is round robin — everyone plays everyone. Ties are broken in order: <b style="color:var(--gold);">Wins → KO Differential → Head-to-Head Record → Losses.</b></p>
+        <p>Before the postseason, the Playoffs tab shows a live projection of the bracket based on today's standings. Once the commissioner generates the real bracket, seeding locks in — best record faces the worst qualifying record, working inward — and it becomes a real, playable bracket: enter results the same way you would in a regular match, and winners automatically advance to the next round. When the championship match locks in, the season is marked complete — a champion banner goes up, free agency and trading close for good, and rosters freeze as final.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="fmt-section" id="fmt-roles">
+    <div class="fmt-section-head">
+      <span class="fmt-num">06</span>
+      <div>
+        <h2>Rosters, Roles &amp; Commissioner Tools</h2>
+        <p>Every trainer manages their own team — logo, team name, and first name, all editable from the Team page, and required before the draft can start. The league itself has its own logo too, set by the commissioner, shown alongside Match, Standing, and Announcements. Every Pokémon in the Pool, Draft Room, and Free Agency also shows its abilities now, and you can search by ability directly — handy if you're hunting for a specific Intimidate or a hidden ability.</p>
+        <p>The <b style="color:var(--gold);">commissioner</b> sets the rules everyone else plays under: draft order, budgets, roster size, waiver and trade settings, free agency and trade deadlines, playoff size, and season start date. Beyond settings, they can remove a trainer who joined by mistake (before the draft starts), fast-track any pending free agency move or trade instead of waiting for Monday, correct a mis-entered match score, and undo a completed transaction if something genuinely went wrong — all from one place on the Commissioner page.</p>
+        <p>A "Needs Your Attention" panel on the League page also flags anything waiting specifically on you — a trade offer, a match result to enter — so nothing gets missed just because it wasn't the page you happened to open.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, collection, query, where, getDocs, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
+    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
+    projectId: "pokemon-vr-draft-league",
+    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
+    messagingSenderId: "400355118785",
+    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
+  };
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  const navSignedOut = document.getElementById("navSignedOut");
+  const navSignedIn = document.getElementById("navSignedIn");
+  const navUserEmail = document.getElementById("navUserEmail");
+  const navSignOutBtn = document.getElementById("navSignOutBtn");
+
+  const navLeaguesBtn = document.getElementById("navLeaguesBtn");
+  const navLeaguesMenu = document.getElementById("navLeaguesMenu");
+  const navLeaguesList = document.getElementById("navLeaguesList");
+  const navLeaguesEmpty = document.getElementById("navLeaguesEmpty");
+
+  navLeaguesBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    navLeaguesMenu.classList.toggle("open");
+  });
+  document.addEventListener("click", () => navLeaguesMenu.classList.remove("open"));
+  navLeaguesMenu.addEventListener("click", (e) => e.stopPropagation());
+
+  function generateJoinCode(){
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
+    return code;
+  }
+
+  const navLeaguesDefaultView = document.getElementById("navLeaguesDefaultView");
+  const navJoinView = document.getElementById("navJoinView");
+  const navShowJoinBtn = document.getElementById("navShowJoinBtn");
+  const navJoinCodeInput = document.getElementById("navJoinCodeInput");
+  const navJoinSubmitBtn = document.getElementById("navJoinSubmitBtn");
+  const navJoinCancelBtn = document.getElementById("navJoinCancelBtn");
+  const navJoinStatus = document.getElementById("navJoinStatus");
+  let navCurrentUser = null;
+
+  function showNavDefault(){
+    navLeaguesDefaultView.style.display = "block";
+    navJoinView.style.display = "none";
+    navJoinStatus.textContent = "";
+  }
+  navShowJoinBtn.addEventListener("click", () => {
+    navLeaguesDefaultView.style.display = "none";
+    navJoinView.style.display = "block";
+  });
+  navJoinCancelBtn.addEventListener("click", showNavDefault);
+
+  navJoinSubmitBtn.addEventListener("click", async () => {
+    if(!navCurrentUser) return;
+    const code = navJoinCodeInput.value.trim().toUpperCase();
+    if(!code){ navJoinStatus.textContent = "Enter a code."; return; }
+    navJoinSubmitBtn.disabled = true;
+    try{
+      const q = query(collection(db, "leagues"), where("joinCode", "==", code));
+      const snap = await getDocs(q);
+      if(snap.empty){
+        navJoinStatus.textContent = "No league found with that code.";
+        navJoinSubmitBtn.disabled = false;
+        return;
+      }
+      const leagueDoc = snap.docs[0];
+      const leagueData = leagueDoc.data();
+      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
+      const currentMemberCount = Object.keys(leagueData.members || {}).length;
+      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
+        if(currentMemberCount >= maxTeams){
+          navJoinStatus.textContent = "This league is full (" + maxTeams + " team limit).";
+          navJoinSubmitBtn.disabled = false;
+          return;
+        }
+      }
+      await updateDoc(doc(db, "leagues", leagueDoc.id), {
+        ["members." + navCurrentUser.uid]: {
+          displayName: navCurrentUser.displayName || "Trainer",
+          photoURL: navCurrentUser.photoURL || "",
+          joinedAt: Date.now()
+        }
+      });
+      navJoinCodeInput.value = "";
+      await loadNavLeagues(navCurrentUser);
+      showNavDefault();
+    }catch(err){
+      navJoinStatus.textContent = "Error: " + err.message;
+    }
+    navJoinSubmitBtn.disabled = false;
+  });
+
+
+  async function loadNavLeagues(user){
+    try{
+      const q = query(collection(db, "leagues"), where("members." + user.uid, "!=", null));
+      const snap = await getDocs(q);
+      navLeaguesList.innerHTML = "";
+      if(snap.empty){
+        navLeaguesEmpty.style.display = "block";
+        return;
+      }
+      navLeaguesEmpty.style.display = "none";
+      snap.forEach(docSnap => {
+        const league = docSnap.data();
+        const isCommish = league.commissionerUid === user.uid;
+        const li = document.createElement("li");
+        li.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(league.name || "Untitled League") + "</span>" + (isCommish ? '<span class="nlm-commish">Commish</span>' : "") + "</a>";
+        navLeaguesList.appendChild(li);
+      });
+    }catch(err){
+      navLeaguesEmpty.style.display = "block";
+      navLeaguesEmpty.textContent = "Could not load leagues.";
+    }
+  }
+
+  // ---------- illustrative examples ----------
+  const PLACEHOLDER_SPRITE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="#3A3A3A" stroke-width="2"/><line x1="3" y1="20" x2="37" y2="20" stroke="#3A3A3A" stroke-width="2"/><circle cx="20" cy="20" r="5" fill="#3A3A3A"/></svg>'
+  );
+  function spriteUrl(pokeapiId){
+    return 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/' + pokeapiId + '.png';
+  }
+  function monCard(name, tier, pokeapiId){
+    const card = document.createElement('div');
+    card.className = 'fmt-mon-card';
+    const img = document.createElement('img');
+    img.className = 'fmt-mon-sprite'; img.alt = name; img.loading = 'lazy';
+    img.src = spriteUrl(pokeapiId);
+    img.onerror = () => { img.onerror = null; img.src = PLACEHOLDER_SPRITE; img.style.opacity = '0.4'; };
+    card.appendChild(img);
+    const nameEl = document.createElement('div'); nameEl.className = 'fmt-mon-name'; nameEl.textContent = name;
+    card.appendChild(nameEl);
+    const tierEl = document.createElement('div'); tierEl.className = 'fmt-mon-tier'; tierEl.textContent = tier + ' pts';
+    card.appendChild(tierEl);
+    return card;
+  }
+  function fillRow(id, mons){
+    const row = document.getElementById(id);
+    if(!row) return;
+    mons.forEach(m => row.appendChild(monCard(m.name, m.tier, m.pokeapiId)));
+  }
+
+  fillRow('draftExampleRow', [
+    { name: 'Garchomp', tier: 18, pokeapiId: 445 },
+    { name: 'Incineroar', tier: 18, pokeapiId: 727 },
+    { name: 'Gholdengo', tier: 19, pokeapiId: 1000 },
+    { name: 'Mimikyu', tier: 11, pokeapiId: 778 },
+    { name: 'Pikachu', tier: 1, pokeapiId: 25 }
+  ]);
+  document.getElementById('draftExampleMath').innerHTML = '18 + 18 + 19 + 11 + 1 = <b>67 points spent</b> — 33 left for the rest of the roster.';
+
+  fillRow('faDropRow', [{ name: 'Pikachu', tier: 1, pokeapiId: 25 }]);
+  fillRow('faClaimRow', [{ name: 'Dragapult', tier: 15, pokeapiId: 887 }]);
+  document.getElementById('faExampleMath').innerHTML = 'Dropping Pikachu frees a slot and refunds <b>1 pt</b>. Claiming Dragapult costs <b>15 pts</b> — both land on your roster together, next Monday. Pikachu goes to waivers, not straight back to the pool.';
+
+  fillRow('tradeGiveRow', [{ name: 'Charizard', tier: 20, pokeapiId: 10035 }]);
+  fillRow('tradeGetRow', [{ name: 'Garchomp', tier: 18, pokeapiId: 445 }]);
+  document.getElementById('tradeExampleMath').innerHTML = 'Same number of Pokémon on each side — 1 for 1. Team A sends 20 points of value and receives 18 back; the 2-point gap is simply deducted from their remaining budget, no separate approval needed beyond accepting the trade itself.';
+
+  onAuthStateChanged(auth, (user) => {
+    if(user){
+      navSignedOut.style.display = "none";
+      navSignedIn.style.display = "flex";
+      navUserEmail.textContent = user.displayName || "Trainer";
+      navCurrentUser = user;
+      loadNavLeagues(user);
+    } else {
+      navSignedOut.style.display = "";
+      navSignedIn.style.display = "none";
+    }
+  });
+
+  navSignOutBtn.addEventListener("click", () => signOut(auth));
+</script>
+</body>
+</html>

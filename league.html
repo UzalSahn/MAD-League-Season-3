@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League — Pokemon VGC Draft League</title>
+<meta name="description" content="League dashboard — members, join code, and commissioner controls.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D0D0D;
+    --ink-soft:#161616;
+    --panel:#1C1C1C;
+    --cream:#FAFAF7;
+    --cream-dim:#B8B7B2;
+    --gold:#FFCB05;
+    --gold-soft:#C79A00;
+    --teal:#B00000;
+    --teal-bright:#FF5A5A;
+    --scarlet:#EE1515;
+    --slate:#3A3A3A;
+    --line: rgba(250,250,247,0.14);
+
+    --display: 'Big Shoulders Display', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'Space Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--cream);
+    font-family:var(--body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  ::selection{background:var(--gold);color:var(--ink);}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+  h1,h2{font-family:var(--display);text-transform:uppercase;letter-spacing:0.01em;line-height:0.96;margin:0;}
+
+  header.site-nav{position:sticky;top:0;z-index:60;background:rgba(13,13,13,0.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;max-width:900px;margin:0 auto;}
+  .nav-left-group{display:flex;align-items:center;}
+
+  .league-subnav{background:var(--ink-soft);border-bottom:1px solid var(--line);}
+  .league-subnav-inner{max-width:900px;margin:0 auto;display:flex;gap:4px;padding:0 22px;overflow-x:auto;}
+  .subnav-tab{
+    padding:14px 18px;font-family:var(--mono);font-size:12.5px;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--cream-dim);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0;
+  }
+  .subnav-tab:hover{color:var(--cream);}
+  .subnav-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+  .subnav-tab.subnav-tab-glow{color:var(--gold);animation:tradeTabGlow 1.5s ease-in-out infinite;}
+  @keyframes tradeTabGlow{0%,100%{text-shadow:0 0 2px rgba(255,203,5,0.15);}50%{text-shadow:0 0 12px rgba(255,203,5,0.95);}}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:0.02em;text-transform:uppercase;}
+  .brand-mark{width:22px;height:22px;flex-shrink:0;}
+
+  main{max-width:900px;margin:0 auto;padding:40px 22px 80px;}
+
+  .page-head{margin-bottom:28px;}
+  .page-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);}
+  .page-head h1{font-size:clamp(30px,5vw,46px);margin-top:8px;}
+  .action-items-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .action-items-list li a{
+    display:block;background:var(--ink-soft);border:1px solid var(--line);border-radius:5px;
+    padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--cream);
+  }
+  .action-items-list li a:hover{border-color:#EE1515;color:#FF8A8A;}
+  .commish-badge{
+    display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+    font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;
+    background:rgba(255,203,5,0.15);color:var(--gold);padding:4px 10px;border-radius:3px;
+  }
+
+  .nav-links{display:flex;align-items:center;gap:20px;font-size:13px;font-weight:600;}
+  .nav-former-champions{font-size:13px;font-weight:600;color:var(--cream-dim);margin-left:6px;padding-left:6px;}
+  .nav-former-champions:hover{color:var(--gold);}
+  .nav-links a{color:var(--cream-dim);}
+  .nav-links a:hover{color:var(--gold);}
+  .nav-account{display:flex;align-items:center;gap:12px;}
+  .nav-account #navUserEmail{color:var(--cream-dim);font-size:12.5px;}
+  .nav-leagues-wrap{position:relative;}
+  .nav-leagues-menu{
+    display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:100;
+  }
+  .nav-leagues-menu.open{display:block;}
+  .nlm-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:8px;}
+  .nlm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;}
+  .nlm-list li a{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream);
+  }
+  .nlm-list li a:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-commish{font-family:var(--mono);font-size:9px;color:var(--gold);background:rgba(255,203,5,0.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;}
+  .nlm-empty{font-size:12.5px;color:var(--cream-dim);padding:8px 10px;}
+  .nlm-divider{height:1px;background:var(--line);margin:10px 0;}
+  .nlm-action{display:block;padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream-dim);}
+  .nlm-action:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:8px 10px;border-radius:4px;font-size:13px;margin-bottom:8px;font-family:var(--body);
+  }
+  .nlm-input:focus{border-color:var(--gold);}
+  .nlm-form-actions{display:flex;gap:8px;}
+  .nlm-status{font-size:11.5px;color:var(--cream-dim);margin-top:8px;margin-bottom:0;}
+  .nav-links .nav-cta{
+    background:var(--gold);color:var(--ink);padding:8px 16px;border-radius:3px;
+    font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:0.03em;
+  }
+  .nav-links .nav-cta:hover{background:#ffd633;color:var(--ink);}
+  @media (max-width:640px){
+    .nav-links{gap:12px;font-size:12px;}
+    .nav-links .nav-cta{padding:7px 12px;}
+  }
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px;margin-bottom:20px;}
+
+  .draft-hype-banner{
+    position:relative;text-align:center;padding:36px 20px 28px;overflow:hidden;
+    background:radial-gradient(ellipse at center top, rgba(255,203,5,0.16), var(--panel) 65%);
+    border-color:rgba(255,203,5,0.5);
+    box-shadow:0 0 40px rgba(255,203,5,0.08) inset;
+  }
+  .draft-hype-banner::before{
+    content:"";position:absolute;top:-40%;left:50%;transform:translateX(-50%);width:320px;height:320px;
+    background:radial-gradient(circle, rgba(255,203,5,0.25), transparent 70%);
+    animation:hypePulse 3s ease-in-out infinite;pointer-events:none;
+  }
+  @keyframes hypePulse{
+    0%, 100%{opacity:0.5;transform:translateX(-50%) scale(1);}
+    50%{opacity:1;transform:translateX(-50%) scale(1.12);}
+  }
+  .draft-hype-sprite{
+    position:relative;width:110px;height:110px;object-fit:contain;margin-bottom:4px;
+    filter:drop-shadow(0 0 18px rgba(255,203,5,0.55));
+    animation:hypeBounce 2.2s ease-in-out infinite;
+  }
+  @keyframes hypeBounce{
+    0%, 100%{transform:translateY(0);}
+    50%{transform:translateY(-10px);}
+  }
+  .draft-hype-eyebrow{
+    position:relative;font-family:var(--display);font-size:clamp(20px,3.2vw,28px);text-transform:uppercase;
+    letter-spacing:0.04em;color:var(--gold);margin-top:4px;
+  }
+  .draft-hype-date{
+    position:relative;font-family:var(--display);font-size:clamp(24px,4vw,34px);text-transform:uppercase;
+    color:var(--cream);margin-top:8px;line-height:1.15;
+  }
+  .draft-hype-countdown{
+    position:relative;font-family:var(--mono);font-size:16px;font-weight:700;color:var(--gold);margin-top:10px;
+    letter-spacing:0.03em;
+  }
+  .panel h2{font-size:18px;margin-bottom:14px;}
+
+  .join-code-box{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    background:var(--ink-soft);border:1px dashed var(--gold);border-radius:6px;padding:16px 20px;
+  }
+  .join-code-value{font-family:var(--mono);font-size:28px;letter-spacing:0.14em;color:var(--gold);font-weight:700;}
+  .join-code-hint{font-size:13px;color:var(--cream-dim);margin-top:6px;}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    font-weight:700;font-size:13px;letter-spacing:0.02em;text-transform:uppercase;
+    padding:10px 18px;border-radius:3px;cursor:pointer;border:1px solid var(--line);
+    background:transparent;color:var(--cream);font-family:var(--body);
+    transition:transform .12s ease, border-color .15s ease;
+  }
+  .btn:hover{transform:translateY(-1px);border-color:var(--gold);color:var(--gold);}
+  .btn-primary{background:var(--gold);color:var(--ink);border-color:var(--gold);}
+  .btn-primary:hover{background:#ffd633;color:var(--ink);}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+  .member-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  .member-list li{
+    display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);
+  }
+  .member-list li:first-child{border-top:none;padding-top:0;}
+  .member-list img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--slate);}
+  .member-name{font-weight:600;font-size:14.5px;}
+  .commish-tag{
+    font-family:var(--mono);font-size:10px;color:var(--gold);text-transform:uppercase;
+    letter-spacing:0.06em;margin-left:8px;
+  }
+
+  .state-msg{text-align:center;padding:40px 20px;color:var(--cream-dim);font-size:14px;}
+  .state-msg.error{color:#FF8A8A;}
+
+  .draft-cta{text-align:center;padding:10px 0;}
+  .draft-cta p{color:var(--cream-dim);font-size:13.5px;max-width:420px;margin:0 auto 16px;}
+
+  .profile-field{margin-bottom:16px;}
+  .profile-field label{
+    display:block;font-family:var(--mono);font-size:11px;text-transform:uppercase;
+    letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:6px;
+  }
+  .profile-field input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:10px 12px;border-radius:3px;font-family:var(--body);font-size:14px;
+  }
+  .profile-field input:focus{border-color:var(--gold);}
+  .logo-row{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+  .logo-preview, .logo-placeholder{
+    width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--slate);flex-shrink:0;border:2px solid var(--line);
+  }
+  .profile-status{font-size:13px;margin-top:10px;display:none;}
+
+  .member-list .team-name{font-weight:700;font-size:15px;}
+  .member-list .coach-line{font-size:12px;color:var(--cream-dim);margin-top:1px;}
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <div class="nav-left-group">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="45" fill="#fff" stroke="#111" stroke-width="6"/>
+        <path d="M6,50 A44,44 0 0,1 94,50 Z" fill="#EE1515" stroke="#111" stroke-width="6"/>
+        <line x1="6" y1="50" x2="94" y2="50" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="15" fill="#fff" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="6" fill="#111"/>
+      </svg>
+      Pokemon VGC Draft League
+    </a>
+    <a href="champions.html" class="nav-former-champions">Past Champions</a>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="pool.html">Pool</a>
+      <a href="format.html">Format</a>
+      <span id="navSignedOut"><a href="signin.html" class="nav-cta">Sign In</a></span>
+      <span id="navSignedIn" class="nav-account" style="display:none;">
+        <div class="nav-leagues-wrap">
+          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
+          <div id="navLeaguesMenu" class="nav-leagues-menu">
+            <div id="navLeaguesDefaultView">
+              <div class="nlm-label">My Leagues</div>
+              <ul id="navLeaguesList" class="nlm-list"></ul>
+              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
+              <div class="nlm-divider"></div>
+              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
+            </div>
+            <div id="navJoinView" style="display:none;">
+              <div class="nlm-label">Join a League</div>
+              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
+              <div class="nlm-form-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
+                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
+              </div>
+              <p class="nlm-status" id="navJoinStatus"></p>
+            </div>
+          </div>
+        </div>
+        <span id="navUserEmail"></span>
+        <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<div class="league-subnav">
+  <div class="league-subnav-inner">
+    <a href="match.html" id="subnavMatch" class="subnav-tab">Match</a>
+    <a href="team.html" id="subnavTeam" class="subnav-tab">Team</a>
+    <a href="freeagency.html" id="subnavFA" class="subnav-tab">Free Agency</a>
+    <a href="trades.html" id="subnavTrades" class="subnav-tab">Trades</a>
+    <a href="standing.html" id="subnavStanding" class="subnav-tab">Standing</a>
+    <a href="announcements.html" id="subnavAnnouncements" class="subnav-tab">Announcements</a>
+    <a href="draft.html" id="subnavDraft" class="subnav-tab">Draft Room</a>
+    <a href="commissioner.html" id="subnavCommish" class="subnav-tab" style="display:none;">Commissioner</a>
+  </div>
+</div>
+
+<main>
+  <div id="content">
+    <div class="state-msg" id="stateMsg">Loading league…</div>
+  </div>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, onSnapshot, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
+    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
+    projectId: "pokemon-vr-draft-league",
+    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
+    messagingSenderId: "400355118785",
+    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
+  };
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function capitalize(s){
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  const content = document.getElementById('content');
+  const params = new URLSearchParams(window.location.search);
+  const leagueId = params.get('id');
+
+  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el && leagueId) el.href = el.getAttribute('href') + '?id=' + leagueId;
+  });
+
+  let currentUser = null;
+  function updateNavGlow(league){
+    const glowTab = (id, active) => {
+      const el = document.getElementById(id);
+      if(el) el.classList.toggle('subnav-tab-glow', !!active);
+    };
+    if(!currentUser || !league || !league.draft || !league.draft.trainers){
+      ['subnavMatch','subnavTrades','subnavStanding','subnavAnnouncements'].forEach(id => glowTab(id, false));
+      return;
+    }
+    const me = league.draft.trainers.find(t => t.uid === currentUser.uid);
+
+    const tradesSeenAt = (me && me.tradesSeenAt) || 0;
+    const tradesUnseen = (league.trades || []).some(t => t.recipientUid === currentUser.uid && t.status === 'pending' && (t.createdAt || 0) > tradesSeenAt);
+    glowTab('subnavTrades', tradesUnseen);
+
+    const announcementsSeenAt = (me && me.announcementsSeenAt) || 0;
+    const announcementsUnseen = (league.announcements || []).some(a => (a.timestamp || 0) > announcementsSeenAt);
+    glowTab('subnavAnnouncements', announcementsUnseen);
+
+    let matchToken = null;
+    if(league.playoffBracket){
+      for(let r = 0; r < league.playoffBracket.rounds.length; r++){
+        if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ matchToken = 'p' + r; break; }
+      }
+    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
+      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
+      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
+      matchToken = 'w' + idx;
+    }
+    const matchUnseen = matchToken !== null && matchToken !== (me && me.matchSeenToken);
+    glowTab('subnavMatch', matchUnseen);
+
+    let resultCount = Object.keys((league.schedule && league.schedule.results) || {}).length;
+    if(league.playoffBracket){
+      league.playoffBracket.rounds.forEach(r => (r.matches || []).forEach(m => { if(m.locked) resultCount++; }));
+    }
+    const standingToken = resultCount > 0 ? String(resultCount) : null;
+    const standingUnseen = standingToken !== null && standingToken !== (me && me.standingSeenToken);
+    glowTab('subnavStanding', standingUnseen);
+  }
+
+
+  function currentWeekIndexFor(startTs, numWeeks){
+    if(numWeeks <= 0) return 0;
+    const diffDays = Math.floor((Date.now() - startTs) / 86400000);
+    const idx = Math.floor(diffDays / 7);
+    return Math.min(Math.max(idx, 0), numWeeks - 1);
+  }
+
+  function computeActionItems(league, uid){
+    if(!uid) return [];
+    const items = [];
+
+    (league.trades || []).forEach(t => {
+      if(t.status === 'pending' && t.recipientUid === uid){
+        items.push({ label: 'Trade offer from ' + (t.proposerName || 'a trainer'), link: 'trades.html?id=' + leagueId });
+      }
+    });
+
+    if(league.schedule && league.draft){
+      const weekIdx = currentWeekIndexFor(league.schedule.startDate, league.schedule.weeks.length);
+      const round = league.schedule.weeks[weekIdx];
+      if(round){
+        round.matches.forEach((m, mIdx) => {
+          if((m.a === uid || m.b === uid) && m.a !== 'BYE' && m.b !== 'BYE'){
+            const key = weekIdx + '_' + mIdx;
+            const result = (league.schedule.results || {})[key];
+            if(!result || !result.locked){
+              items.push({ label: 'This week\'s match result needs entering', link: 'match.html?id=' + leagueId });
+            }
+          }
+        });
+      }
+    }
+
+    if(league.playoffBracket){
+      league.playoffBracket.rounds.forEach(round => {
+        round.matches.forEach(m => {
+          if((m.a === uid || m.b === uid) && !m.locked){
+            items.push({ label: 'Playoff match result needs entering', link: 'standing.html?id=' + leagueId });
+          }
+        });
+      });
+    }
+
+    return items;
+  }
+
+  let dashScheduleCountdownInterval = null;
+  function render(league){
+    const subnavCommish = document.getElementById('subnavCommish');
+    if(subnavCommish) subnavCommish.style.display = (currentUser && league.commissionerUid === currentUser.uid) ? '' : 'none';
+    const subnavDraft = document.getElementById('subnavDraft');
+    if(subnavDraft) subnavDraft.style.display = '';
+    updateNavGlow(league);
+
+    const isCommish = currentUser && league.commissionerUid === currentUser.uid;
+    const members = Object.entries(league.members || {});
+    const actionItems = computeActionItems(league, currentUser ? currentUser.uid : null);
+
+    const memberItems = members.map(([uid, m]) => {
+      const tag = uid === league.commissionerUid ? '<span class="commish-tag">Commissioner</span>' : '';
+      const avatarSrc = m.logo || m.photoURL || '';
+      const teamName = m.teamName || m.displayName || 'Trainer';
+      const coachLine = m.coachName || '';
+      return '<li><img src="' + escapeHtml(avatarSrc) + '" alt="">' +
+        '<div><div class="team-name">' + escapeHtml(teamName) + tag + '</div>' +
+        (coachLine ? '<div class="coach-line">' + escapeHtml(coachLine) + '</div>' : '') +
+        '</div></li>';
+    }).join('');
+
+    content.innerHTML =
+      '<div class="page-head">' +
+        '<span class="eyebrow">League</span>' +
+        '<h1>' + escapeHtml(league.name || 'Untitled League') + '</h1>' +
+        (isCommish ? '<div class="commish-badge">👑 You are the commissioner</div>' : '') +
+        '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">' +
+          '<span class="commish-badge" style="color:var(--cream-dim);background:rgba(250,250,247,0.08);">' + escapeHtml(capitalize(league.leagueType || 'redraft')) + '</span>' +
+          '<span class="commish-badge" style="color:var(--cream-dim);background:rgba(250,250,247,0.08);">' + escapeHtml(capitalize(league.draftType || 'snake')) + ' Draft</span>' +
+        '</div>' +
+      '</div>' +
+
+      (league.seasonComplete ? (() => {
+        const championTrainer = league.draft ? league.draft.trainers.find(t => t.uid === league.championUid) : null;
+        return '<div class="panel" style="text-align:center;padding:28px 20px;border-color:rgba(255,203,5,0.4);background:linear-gradient(180deg, rgba(255,203,5,0.08), var(--panel) 70%);">' +
+          '<div style="font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);margin-bottom:10px;">🏆 Season Complete</div>' +
+          (championTrainer ? '<div style="font-family:var(--display);font-size:26px;text-transform:uppercase;color:var(--gold);">' + escapeHtml(championTrainer.name) + ' — Champion</div>' : '') +
+          '<a href="standing.html?id=' + leagueId + '" style="display:inline-block;margin-top:12px;color:var(--cream-dim);text-decoration:underline;font-size:13px;">View final standings and bracket →</a>' +
+        '</div>';
+      })() : '') +
+
+      (!league.draft && league.draftScheduledAt ? (
+        '<div class="panel draft-hype-banner">' +
+          '<img class="draft-hype-sprite" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/25.png" alt="Pikachu">' +
+          '<div class="draft-hype-eyebrow">⚡ The Draft Is Coming ⚡</div>' +
+          '<div class="draft-hype-date">' + new Date(league.draftScheduledAt).toLocaleString(undefined, { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</div>' +
+          '<div class="draft-hype-countdown" id="dashScheduleCountdown"></div>' +
+          '<a href="draft.html?id=' + leagueId + '" class="btn btn-primary" style="margin-top:16px;">Go to Draft Room</a>' +
+        '</div>'
+      ) : '') +
+
+      (actionItems.length > 0 ? (
+        '<div class="panel" style="border-color:rgba(238,21,21,0.4);">' +
+          '<h2 style="margin-bottom:10px;color:#FF8A8A;">Needs Your Attention (' + actionItems.length + ')</h2>' +
+          '<ul class="action-items-list">' +
+            actionItems.map(item => '<li><a href="' + item.link + '">' + escapeHtml(item.label) + ' →</a></li>').join('') +
+          '</ul>' +
+        '</div>'
+      ) : '') +
+
+      (!league.draft && currentUser && league.members && league.members[currentUser.uid] && !(league.members[currentUser.uid].teamName && league.members[currentUser.uid].coachName && league.members[currentUser.uid].logo) ? (
+        '<div class="panel" style="border-color:rgba(255,203,5,0.4);">' +
+          '<h2 style="margin-bottom:6px;color:var(--gold);">Complete Your Profile</h2>' +
+          '<p style="margin:0 0 14px;">You need a logo, team name, and first name set before the draft can start. Head to the Team page to finish setting up.</p>' +
+          '<a class="btn btn-primary" href="team.html?id=' + leagueId + '">Go to Team Page</a>' +
+        '</div>'
+      ) : '') +
+
+      '<div class="panel">' +
+        '<h2>Members (' + members.length + ')</h2>' +
+        '<ul class="member-list">' + memberItems + '</ul>' +
+      '</div>' +
+
+      '<div class="panel draft-cta">' +
+        '<h2 style="margin-bottom:10px;">Draft Room</h2>' +
+        '<p>' + (isCommish ? 'Once everyone has joined, head to the Draft Room to invite trainers and start the draft.' : 'The commissioner will start the draft — head to the Draft Room to check on it.') + '</p>' +
+        '<a class="btn btn-primary" href="draft.html?id=' + leagueId + '">Go to Draft Room</a>' +
+      '</div>';
+
+    if(dashScheduleCountdownInterval){ clearInterval(dashScheduleCountdownInterval); dashScheduleCountdownInterval = null; }
+    if(!league.draft && league.draftScheduledAt){
+      const tick = () => {
+        const el = document.getElementById('dashScheduleCountdown');
+        if(!el){ clearInterval(dashScheduleCountdownInterval); dashScheduleCountdownInterval = null; return; }
+        const diff = league.draftScheduledAt - Date.now();
+        if(diff <= 0){ el.textContent = 'Starting any moment now'; return; }
+        const days = Math.floor(diff / 86400000);
+        const hours = Math.floor((diff % 86400000) / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        const secs = Math.floor((diff % 60000) / 1000);
+        el.textContent = days > 0 ? (days + 'd ' + hours + 'h ' + mins + 'm') : (hours > 0 ? (hours + 'h ' + mins + 'm ' + secs + 's') : (mins + 'm ' + secs + 's'));
+      };
+      tick();
+      dashScheduleCountdownInterval = setInterval(tick, 1000);
+    }
+  }
+
+  function loadLeague(){
+    if(!leagueId){
+      content.innerHTML = '<div class="state-msg error">No league specified — use a link from the sign-in page.</div>';
+      return;
+    }
+    onSnapshot(doc(db, 'leagues', leagueId), (snap) => {
+      if(!snap.exists()){
+        content.innerHTML = '<div class="state-msg error">This league doesn\'t exist or was deleted.</div>';
+        return;
+      }
+      render(snap.data());
+    }, (err) => {
+      content.innerHTML = '<div class="state-msg error">Could not load league: ' + escapeHtml(err.message) + '</div>';
+    });
+  }
+
+  const navSignedOut = document.getElementById('navSignedOut');
+  const navSignedIn = document.getElementById('navSignedIn');
+  const navUserEmail = document.getElementById('navUserEmail');
+  const navSignOutBtn = document.getElementById('navSignOutBtn');
+  navSignOutBtn.addEventListener('click', () => signOut(auth));
+
+  const navLeaguesBtn = document.getElementById('navLeaguesBtn');
+  const navLeaguesMenu = document.getElementById('navLeaguesMenu');
+  const navLeaguesList = document.getElementById('navLeaguesList');
+  const navLeaguesEmpty = document.getElementById('navLeaguesEmpty');
+  navLeaguesBtn.addEventListener('click', (e) => { e.stopPropagation(); navLeaguesMenu.classList.toggle('open'); });
+  document.addEventListener('click', () => navLeaguesMenu.classList.remove('open'));
+  navLeaguesMenu.addEventListener('click', (e) => e.stopPropagation());
+
+  function generateJoinCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
+    return code;
+  }
+
+  const navLeaguesDefaultView = document.getElementById('navLeaguesDefaultView');
+  const navJoinView = document.getElementById('navJoinView');
+  const navShowJoinBtn = document.getElementById('navShowJoinBtn');
+  const navJoinCodeInput = document.getElementById('navJoinCodeInput');
+  const navJoinSubmitBtn = document.getElementById('navJoinSubmitBtn');
+  const navJoinCancelBtn = document.getElementById('navJoinCancelBtn');
+  const navJoinStatus = document.getElementById('navJoinStatus');
+  let navCurrentUser = null;
+
+  function showNavDefault(){
+    navLeaguesDefaultView.style.display = 'block';
+    navJoinView.style.display = 'none';
+    navJoinStatus.textContent = '';
+  }
+  navShowJoinBtn.addEventListener('click', () => {
+    navLeaguesDefaultView.style.display = 'none';
+    navJoinView.style.display = 'block';
+  });
+  navJoinCancelBtn.addEventListener('click', showNavDefault);
+
+  navJoinSubmitBtn.addEventListener('click', async () => {
+    if(!navCurrentUser) return;
+    const code = navJoinCodeInput.value.trim().toUpperCase();
+    if(!code){ navJoinStatus.textContent = 'Enter a code.'; return; }
+    navJoinSubmitBtn.disabled = true;
+    try{
+      const q = query(collection(db, 'leagues'), where('joinCode', '==', code));
+      const snap = await getDocs(q);
+      if(snap.empty){
+        navJoinStatus.textContent = 'No league found with that code.';
+        navJoinSubmitBtn.disabled = false;
+        return;
+      }
+      const leagueDoc = snap.docs[0];
+      const leagueData = leagueDoc.data();
+      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
+      const currentMemberCount = Object.keys(leagueData.members || {}).length;
+      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
+        if(currentMemberCount >= maxTeams){
+          navJoinStatus.textContent = 'This league is full (' + maxTeams + ' team limit).';
+          navJoinSubmitBtn.disabled = false;
+          return;
+        }
+      }
+      await updateDoc(doc(db, 'leagues', leagueDoc.id), {
+        ['members.' + navCurrentUser.uid]: {
+          displayName: navCurrentUser.displayName || 'Trainer',
+          photoURL: navCurrentUser.photoURL || '',
+          joinedAt: Date.now()
+        }
+      });
+      navJoinCodeInput.value = '';
+      await loadNavLeagues(navCurrentUser);
+      showNavDefault();
+    }catch(err){
+      navJoinStatus.textContent = 'Error: ' + err.message;
+    }
+    navJoinSubmitBtn.disabled = false;
+  });
+
+
+  async function loadNavLeagues(user){
+    try{
+      const q = query(collection(db, 'leagues'), where('members.' + user.uid, '!=', null));
+      const snap = await getDocs(q);
+      navLeaguesList.innerHTML = '';
+      if(snap.empty){ navLeaguesEmpty.style.display = 'block'; return; }
+      navLeaguesEmpty.style.display = 'none';
+      snap.forEach(docSnap => {
+        const l = docSnap.data();
+        const isCommish = l.commissionerUid === user.uid;
+        const li = document.createElement('li');
+        li.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(l.name || 'Untitled League') + '</span>' + (isCommish ? '<span class="nlm-commish">Commish</span>' : '') + '</a>';
+        navLeaguesList.appendChild(li);
+      });
+    }catch(err){
+      navLeaguesEmpty.style.display = 'block';
+      navLeaguesEmpty.textContent = 'Could not load leagues.';
+    }
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+    if(user){
+      navSignedOut.style.display = 'none';
+      navSignedIn.style.display = 'flex';
+      navUserEmail.textContent = user.displayName || 'Trainer';
+      navCurrentUser = user;
+      loadNavLeagues(user);
+    } else {
+      navSignedOut.style.display = '';
+      navSignedIn.style.display = 'none';
+    }
+    if(!user){
+      content.innerHTML = '<div class="state-msg">Please <a href="signin.html" style="color:var(--gold);text-decoration:underline;">sign in</a> first.</div>';
+      return;
+    }
+    loadLeague();
+  });
+
+</script>
+
+</body>
+</html>

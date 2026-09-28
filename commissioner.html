@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League — Pokemon VGC Draft League</title>
+<meta name="description" content="League dashboard — members, join code, and commissioner controls.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D0D0D;
+    --ink-soft:#161616;
+    --panel:#1C1C1C;
+    --cream:#FAFAF7;
+    --cream-dim:#B8B7B2;
+    --gold:#FFCB05;
+    --gold-soft:#C79A00;
+    --teal:#B00000;
+    --teal-bright:#FF5A5A;
+    --scarlet:#EE1515;
+    --slate:#3A3A3A;
+    --line: rgba(250,250,247,0.14);
+
+    --display: 'Big Shoulders Display', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'Space Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--cream);
+    font-family:var(--body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  ::selection{background:var(--gold);color:var(--ink);}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+  h1,h2{font-family:var(--display);text-transform:uppercase;letter-spacing:0.01em;line-height:0.96;margin:0;}
+
+  header.site-nav{position:sticky;top:0;z-index:60;background:rgba(13,13,13,0.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;max-width:900px;margin:0 auto;}
+  .nav-left-group{display:flex;align-items:center;}
+
+  .league-subnav{background:var(--ink-soft);border-bottom:1px solid var(--line);}
+  .league-subnav-inner{max-width:900px;margin:0 auto;display:flex;gap:4px;padding:0 22px;overflow-x:auto;}
+  .subnav-tab{
+    padding:14px 18px;font-family:var(--mono);font-size:12.5px;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--cream-dim);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0;
+  }
+  .subnav-tab:hover{color:var(--cream);}
+  .subnav-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+  .subnav-tab.subnav-tab-glow{color:var(--gold);animation:tradeTabGlow 1.5s ease-in-out infinite;}
+  @keyframes tradeTabGlow{0%,100%{text-shadow:0 0 2px rgba(255,203,5,0.15);}50%{text-shadow:0 0 12px rgba(255,203,5,0.95);}}
+
+  .settings-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(220px,1fr));gap:16px;}
+  .settings-field label{
+    display:block;font-family:var(--mono);font-size:11px;text-transform:uppercase;
+    letter-spacing:0.06em;color:var(--cream-dim);margin-bottom:6px;
+  }
+  .settings-field input[type="number"], .settings-field input[type="text"]{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:10px 12px;border-radius:3px;font-family:var(--body);font-size:14px;
+  }
+  .settings-field input:focus{border-color:var(--gold);}
+  .settings-checkbox-label{
+    display:flex !important;align-items:center;gap:8px;font-family:var(--body) !important;
+    text-transform:none !important;letter-spacing:0 !important;font-size:14px !important;color:var(--cream) !important;
+    cursor:pointer;
+  }
+  .settings-note{font-size:12.5px;color:var(--cream-dim);margin:10px 0 0;}
+  .btn-sm{padding:7px 14px;font-size:11px;}
+  .btn-danger{border-color:rgba(238,21,21,0.4);color:#FF8A8A;}
+  .btn-danger:hover{border-color:#EE1515;color:#FF8A8A;}
+  .member-manage-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .member-manage-item{display:flex;align-items:center;gap:12px;background:var(--ink-soft);border:1px solid var(--line);border-radius:5px;padding:9px 14px;}
+  .member-manage-avatar, .member-manage-avatar-placeholder{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--slate,#333);flex-shrink:0;}
+  .member-manage-name{flex:1;font-weight:600;font-size:13.5px;}
+  .settings-hint{display:block;font-size:11px;color:var(--cream-dim);margin-top:5px;font-weight:400;text-transform:none;letter-spacing:0;}
+  .settings-status{font-size:13px;margin-top:12px;}
+  .trade-card{background:var(--ink-soft);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:12px;}
+  .trade-summary{font-size:13.5px;line-height:1.6;}
+  .trade-actions{display:flex;gap:8px;margin-top:12px;}
+  .veto-count{font-family:var(--mono);font-size:11.5px;color:var(--gold);margin-top:8px;}
+  .recent-tx-details summary{
+    cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;
+  }
+  .recent-tx-details summary::-webkit-details-marker{display:none;}
+  .recent-tx-details summary::before{content:"▸";color:var(--gold);font-size:16px;transition:transform .15s ease;flex-shrink:0;}
+  .recent-tx-details[open] summary::before{transform:rotate(90deg);}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:0.02em;text-transform:uppercase;}
+  .brand-mark{width:22px;height:22px;flex-shrink:0;}
+
+  main{max-width:900px;margin:0 auto;padding:40px 22px 80px;}
+
+  .page-head{margin-bottom:28px;}
+  .page-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);}
+  .page-head h1{font-size:clamp(30px,5vw,46px);margin-top:8px;}
+  .commish-badge{
+    display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+    font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;
+    background:rgba(255,203,5,0.15);color:var(--gold);padding:4px 10px;border-radius:3px;
+  }
+
+  .nav-links{display:flex;align-items:center;gap:20px;font-size:13px;font-weight:600;}
+  .nav-former-champions{font-size:13px;font-weight:600;color:var(--cream-dim);margin-left:6px;padding-left:6px;}
+  .nav-former-champions:hover{color:var(--gold);}
+  .nav-links a{color:var(--cream-dim);}
+  .nav-links a:hover{color:var(--gold);}
+  .nav-account{display:flex;align-items:center;gap:12px;}
+  .nav-account #navUserEmail{color:var(--cream-dim);font-size:12.5px;}
+  .nav-leagues-wrap{position:relative;}
+  .nav-leagues-menu{
+    display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:100;
+  }
+  .nav-leagues-menu.open{display:block;}
+  .nlm-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:8px;}
+  .nlm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;}
+  .nlm-list li a{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream);
+  }
+  .nlm-list li a:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-commish{font-family:var(--mono);font-size:9px;color:var(--gold);background:rgba(255,203,5,0.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;}
+  .nlm-empty{font-size:12.5px;color:var(--cream-dim);padding:8px 10px;}
+  .nlm-divider{height:1px;background:var(--line);margin:10px 0;}
+  .nlm-action{display:block;padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream-dim);}
+  .nlm-action:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:8px 10px;border-radius:4px;font-size:13px;margin-bottom:8px;font-family:var(--body);
+  }
+  .nlm-input:focus{border-color:var(--gold);}
+  .nlm-form-actions{display:flex;gap:8px;}
+  .nlm-status{font-size:11.5px;color:var(--cream-dim);margin-top:8px;margin-bottom:0;}
+  .nav-links .nav-cta{
+    background:var(--gold);color:var(--ink);padding:8px 16px;border-radius:3px;
+    font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:0.03em;
+  }
+  .nav-links .nav-cta:hover{background:#ffd633;color:var(--ink);}
+  @media (max-width:640px){
+    .nav-links{gap:12px;font-size:12px;}
+    .nav-links .nav-cta{padding:7px 12px;}
+  }
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px;margin-bottom:20px;}
+  .panel h2{font-size:18px;margin-bottom:14px;}
+
+  .join-code-box{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    background:var(--ink-soft);border:1px dashed var(--gold);border-radius:6px;padding:16px 20px;
+  }
+  .join-code-value{font-family:var(--mono);font-size:28px;letter-spacing:0.14em;color:var(--gold);font-weight:700;}
+  .join-code-hint{font-size:13px;color:var(--cream-dim);margin-top:6px;}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    font-weight:700;font-size:13px;letter-spacing:0.02em;text-transform:uppercase;
+    padding:10px 18px;border-radius:3px;cursor:pointer;border:1px solid var(--line);
+    background:transparent;color:var(--cream);font-family:var(--body);
+    transition:transform .12s ease, border-color .15s ease;
+  }
+  .btn:hover{transform:translateY(-1px);border-color:var(--gold);color:var(--gold);}
+  .btn-primary{background:var(--gold);color:var(--ink);border-color:var(--gold);}
+  .btn-primary:hover{background:#ffd633;color:var(--ink);}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+  .member-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  .member-list li{
+    display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);
+  }
+  .member-list li:first-child{border-top:none;padding-top:0;}
+  .member-list img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--slate);}
+  .member-name{font-weight:600;font-size:14.5px;}
+  .commish-tag{
+    font-family:var(--mono);font-size:10px;color:var(--gold);text-transform:uppercase;
+    letter-spacing:0.06em;margin-left:8px;
+  }
+
+  .state-msg{text-align:center;padding:40px 20px;color:var(--cream-dim);font-size:14px;}
+  .state-msg.error{color:#FF8A8A;}
+
+  .draft-cta{text-align:center;padding:10px 0;}
+  .draft-cta p{color:var(--cream-dim);font-size:13.5px;max-width:420px;margin:0 auto 16px;}
+
+  .profile-field{margin-bottom:16px;}
+  .profile-field label{
+    display:block;font-family:var(--mono);font-size:11px;text-transform:uppercase;
+    letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:6px;
+  }
+  .profile-field input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:10px 12px;border-radius:3px;font-family:var(--body);font-size:14px;
+  }
+  .profile-field input:focus{border-color:var(--gold);}
+  .logo-row{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+  .logo-preview, .logo-placeholder{
+    width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--slate);flex-shrink:0;border:2px solid var(--line);
+  }
+  .profile-status{font-size:13px;margin-top:10px;display:none;}
+
+  .member-list .team-name{font-weight:700;font-size:15px;}
+  .member-list .coach-line{font-size:12px;color:var(--cream-dim);margin-top:1px;}
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <div class="nav-left-group">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="45" fill="#fff" stroke="#111" stroke-width="6"/>
+        <path d="M6,50 A44,44 0 0,1 94,50 Z" fill="#EE1515" stroke="#111" stroke-width="6"/>
+        <line x1="6" y1="50" x2="94" y2="50" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="15" fill="#fff" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="6" fill="#111"/>
+      </svg>
+      Pokemon VGC Draft League
+    </a>
+    <a href="champions.html" class="nav-former-champions">Past Champions</a>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="pool.html">Pool</a>
+      <a href="format.html">Format</a>
+      <span id="navSignedOut"><a href="signin.html" class="nav-cta">Sign In</a></span>
+      <span id="navSignedIn" class="nav-account" style="display:none;">
+        <div class="nav-leagues-wrap">
+          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
+          <div id="navLeaguesMenu" class="nav-leagues-menu">
+            <div id="navLeaguesDefaultView">
+              <div class="nlm-label">My Leagues</div>
+              <ul id="navLeaguesList" class="nlm-list"></ul>
+              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
+              <div class="nlm-divider"></div>
+              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
+            </div>
+            <div id="navJoinView" style="display:none;">
+              <div class="nlm-label">Join a League</div>
+              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
+              <div class="nlm-form-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
+                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
+              </div>
+              <p class="nlm-status" id="navJoinStatus"></p>
+            </div>
+          </div>
+        </div>
+        <span id="navUserEmail"></span>
+        <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<div class="league-subnav">
+  <div class="league-subnav-inner">
+    <a href="match.html" id="subnavMatch" class="subnav-tab">Match</a>
+    <a href="team.html" id="subnavTeam" class="subnav-tab">Team</a>
+    <a href="freeagency.html" id="subnavFA" class="subnav-tab">Free Agency</a>
+    <a href="trades.html" id="subnavTrades" class="subnav-tab">Trades</a>
+    <a href="standing.html" id="subnavStanding" class="subnav-tab">Standing</a>
+    <a href="announcements.html" id="subnavAnnouncements" class="subnav-tab">Announcements</a>
+    <a href="draft.html" id="subnavDraft" class="subnav-tab">Draft Room</a>
+    <a href="commissioner.html" id="subnavCommish" class="subnav-tab active">Commissioner</a>
+  </div>
+</div>
+
+<main>
+  <div id="content">
+    <div class="state-msg" id="stateMsg">Loading league…</div>
+  </div>
+  <div id="cropModal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(13,13,13,0.85);align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+    <span class="eyebrow" style="color:var(--gold);">Drag to reposition · scroll or use the slider to zoom</span>
+    <div id="cropViewport" style="width:220px;height:220px;border-radius:50%;overflow:hidden;position:relative;border:2px solid var(--gold);cursor:grab;background:var(--ink-soft);touch-action:none;">
+      <img id="cropImage" style="position:absolute;left:0;top:0;user-select:none;pointer-events:none;" alt="">
+    </div>
+    <input type="range" id="cropZoomSlider" min="0" max="1" step="0.001" value="0" style="width:220px;">
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" id="cropConfirmBtn">Use this photo</button>
+      <button class="btn" id="cropCancelBtn">Cancel</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, onSnapshot, updateDoc, arrayUnion, deleteDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
+    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
+    projectId: "pokemon-vr-draft-league",
+    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
+    messagingSenderId: "400355118785",
+    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
+  };
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  const DEFAULT_SETTINGS = {
+    draftBudget: 100,
+    rosterSize: 10,
+    maxTeams: 12,
+    playoffTeams: 4,
+    faPickupsPerSeason: 2,
+    waiverPeriodDays: 2,
+    faMaxPerSwap: 2,
+    tradesPerSeason: 5,
+    maxPokemonPerSide: 3,
+    vetoEnabled: true,
+    vetoThreshold: 4,
+    tradeDeadlineWeek: 0,
+    faDeadlineWeek: 0
+  };
+
+  const content = document.getElementById('content');
+  const params = new URLSearchParams(window.location.search);
+  const leagueId = params.get('id');
+
+  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el && leagueId) el.href = el.getAttribute('href') + '?id=' + leagueId;
+  });
+
+  let currentUser = null;
+  function updateNavGlow(league){
+    const glowTab = (id, active) => {
+      const el = document.getElementById(id);
+      if(el) el.classList.toggle('subnav-tab-glow', !!active);
+    };
+    if(!currentUser || !league || !league.draft || !league.draft.trainers){
+      ['subnavMatch','subnavTrades','subnavStanding','subnavAnnouncements'].forEach(id => glowTab(id, false));
+      return;
+    }
+    const me = league.draft.trainers.find(t => t.uid === currentUser.uid);
+
+    const tradesSeenAt = (me && me.tradesSeenAt) || 0;
+    const tradesUnseen = (league.trades || []).some(t => t.recipientUid === currentUser.uid && t.status === 'pending' && (t.createdAt || 0) > tradesSeenAt);
+    glowTab('subnavTrades', tradesUnseen);
+
+    const announcementsSeenAt = (me && me.announcementsSeenAt) || 0;
+    const announcementsUnseen = (league.announcements || []).some(a => (a.timestamp || 0) > announcementsSeenAt);
+    glowTab('subnavAnnouncements', announcementsUnseen);
+
+    let matchToken = null;
+    if(league.playoffBracket){
+      for(let r = 0; r < league.playoffBracket.rounds.length; r++){
+        if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ matchToken = 'p' + r; break; }
+      }
+    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
+      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
+      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
+      matchToken = 'w' + idx;
+    }
+    const matchUnseen = matchToken !== null && matchToken !== (me && me.matchSeenToken);
+    glowTab('subnavMatch', matchUnseen);
+
+    let resultCount = Object.keys((league.schedule && league.schedule.results) || {}).length;
+    if(league.playoffBracket){
+      league.playoffBracket.rounds.forEach(r => (r.matches || []).forEach(m => { if(m.locked) resultCount++; }));
+    }
+    const standingToken = resultCount > 0 ? String(resultCount) : null;
+    const standingUnseen = standingToken !== null && standingToken !== (me && me.standingSeenToken);
+    glowTab('subnavStanding', standingUnseen);
+  }
+
+
+  function pendingMoveId(){ return 'm' + Date.now() + Math.random().toString(36).slice(2,6); }
+  function getNextMondayMidnight(){
+    const now = new Date();
+    const day = now.getDay();
+    const daysAhead = day === 0 ? 1 : (8 - day);
+    const next = new Date(now);
+    next.setDate(now.getDate() + daysAhead);
+    next.setHours(0,0,0,0);
+    return next.getTime();
+  }
+  function committedMonIds(league, uid){
+    const ids = [];
+    (league.trades || []).filter(t => t.status === 'finalized_pending' && (t.proposerUid === uid || t.recipientUid === uid)).forEach(t => {
+      if(t.proposerUid === uid){ t.offered.forEach(m => ids.push(m.id)); }
+      if(t.recipientUid === uid){ t.requested.forEach(m => ids.push(m.id)); }
+    });
+    (league.pendingMoves || []).filter(m => (m.type === 'fa_swap' || m.type === 'fa_pickup') && m.trainerUid === uid).forEach(m => {
+      if(m.type === 'fa_swap') (m.drops || []).forEach(d => ids.push(d.id));
+      if(m.type === 'fa_pickup' && m.conditionalDrop) ids.push(m.conditionalDrop.id);
+    });
+    return ids;
+  }
+  function tierSum(mons){ return (mons||[]).reduce((s,m) => s + m.tier, 0); }
+  function buildWaiverEntry(mon, droppedByUid, droppedByName, settings){
+    return {
+      monId: mon.id, mon,
+      droppedByUid, droppedByName,
+      expiresAt: Date.now() + settings.waiverPeriodDays * 86400000,
+      claims: []
+    };
+  }
+  const DISCORD_WEBHOOK_FA_TRADES = 'https://discordapp.com/api/webhooks/1545831209819439227/_bllM9VAiCKJcaDnNiltjyJBzKcYjwZnd-EKqVjMuSDPbQHXs_SNC6Kks4pjW7lh5Ixz';
+  async function sendDiscordFATrade(content, embeds){
+    try{
+      await fetch(DISCORD_WEBHOOK_FA_TRADES, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(embeds ? { content, embeds } : { content })
+      });
+    }catch(err){ /* non-critical */ }
+  }
+  const ID_TO_POKEAPI_ID = {"3": "3", "4": "10033", "7": "6", "8": "10034", "9": "10035", "12": "9", "13": "10036", "19": "15", "20": "10090", "23": "18", "24": "10073", "32": "24", "33": "25", "35": "26", "36": "10100", "1217": "10304", "1218": "10305", "48": "36", "1219": "10278", "51": "38", "52": "10104", "59": "45", "79": "59", "80": "10230", "86": "65", "87": "10037", "90": "68", "93": "71", "1220": "10279", "108": "80", "109": "10071", "110": "10165", "127": "94", "128": "10038", "154": "115", "155": "10039", "161": "121", "1221": "10280", "168": "127", "169": "10040", "170": "128", "171": "10250", "172": "10251", "173": "10252", "175": "130", "176": "10041", "178": "132", "181": "134", "182": "135", "183": "136", "189": "142", "190": "10042", "191": "143", "200": "149", "1222": "10281", "207": "154", "1223": "10282", "210": "157", "211": "10233", "214": "160", "1224": "10283", "222": "168", "235": "181", "236": "10045", "239": "184", "241": "186", "252": "196", "253": "197", "255": "199", "256": "10172", "262": "205", "265": "208", "266": "10072", "269": "211", "271": "212", "272": "10046", "274": "214", "275": "10047", "290": "227", "1225": "10284", "292": "229", "293": "10048", "312": "248", "313": "10049", "319": "254", "320": "10065", "323": "257", "324": "10050", "327": "260", "328": "10064", "349": "279", "352": "282", "353": "10051", "373": "302", "374": "10066", "375": "303", "376": "10052", "379": "306", "380": "10053", "382": "308", "383": "10054", "385": "310", "386": "10055", "395": "319", "396": "10070", "400": "323", "401": "10087", "402": "324", "412": "334", "413": "10067", "429": "350", "430": "351", "436": "354", "437": "10056", "441": "358", "1226": "10306", "442": "359", "443": "10057", "446": "362", "447": "10074", "462": "376", "463": "10076", "484": "389", "487": "392", "490": "395", "493": "398", "1227": "10308", "500": "405", "502": "407", "504": "409", "506": "411", "527": "428", "528": "10088", "542": "442", "545": "445", "546": "10058", "549": "448", "550": "10059", "552": "450", "556": "454", "562": "460", "563": "10060", "564": "461", "567": "464", "573": "470", "574": "471", "575": "472", "576": "473", "578": "475", "579": "10068", "582": "478", "1228": "10285", "583": "479", "584": "10008", "585": "10009", "586": "10010", "587": "10011", "588": "10012", "610": "497", "613": "500", "1231": "10286", "616": "503", "617": "10236", "619": "505", "624": "510", "626": "512", "628": "514", "630": "516", "632": "518", "644": "530", "1232": "10287", "645": "531", "646": "10069", "649": "534", "660": "545", "1233": "10288", "662": "547", "671": "553", "682": "560", "1234": "10289", "686": "563", "692": "569", "695": "571", "696": "10239", "704": "579", "709": "584", "712": "587", "729": "604", "1235": "10290", "734": "609", "1236": "10291", "739": "614", "743": "618", "744": "10180", "749": "623", "1237": "10313", "762": "635", "764": "637", "786": "652", "1238": "10292", "789": "655", "1239": "10293", "792": "658", "1240": "10294", "795": "660", "798": "663", "801": "666", "803": "668", "1241": "10295", "805": "670", "1242": "10296", "806": "671", "810": "675", "811": "676", "813": "678", "814": "10025", "1243": "10314", "817": "681", "820": "683", "822": "685", "824": "687", "1244": "10297", "826": "689", "1245": "10298", "828": "691", "1246": "10299", "830": "693", "832": "695", "834": "697", "836": "699", "837": "700", "838": "701", "1247": "10300", "839": "702", "844": "706", "845": "10242", "846": "707", "848": "709", "853": "711", "858": "713", "859": "10243", "861": "715", "874": "724", "875": "10244", "878": "727", "881": "730", "884": "733", "891": "740", "1249": "10315", "900": "745", "901": "10126", "902": "10152", "906": "748", "908": "750", "910": "752", "916": "758", "921": "763", "923": "765", "924": "766", "937": "778", "939": "780", "1251": "10302", "943": "784", "985": "823", "1003": "841", "1004": "842", "1006": "844", "1018": "855", "1021": "858", "1024": "861", "1029": "866", "1030": "867", "1032": "869", "1033": "870", "1254": "10303", "1042": "877", "1053": "887", "1071": "899", "1072": "900", "1074": "902", "1075": "10248", "1076": "903", "1077": "904", "1082": "908", "1085": "911", "1088": "914", "1100": "925", "1113": "934", "1115": "936", "1116": "937", "1118": "939", "1131": "952", "1255": "10320", "1135": "956", "1138": "959", "1143": "964", "1148": "968", "1150": "970", "1256": "10321", "1152": "972", "1159": "979", "1161": "981", "1164": "983", "1182": "1000", "1198": "1013", "1206": "1018", "1207": "1019", "1300": "83", "1302": "122", "1303": "317", "1304": "865", "1305": "40", "1306": "53", "1307": "10108", "1308": "10307", "1309": "10089", "1310": "373", "1311": "10309", "1312": "10310", "1313": "673", "1314": "768", "1315": "10316", "1316": "812", "1317": "815", "1318": "818", "1319": "828", "1320": "849", "1321": "853", "1322": "863", "1323": "871", "1324": "10186", "1325": "876", "1326": "923", "1327": "930", "1328": "931", "1329": "943", "1330": "998", "1331": "10325"};
+  function discordSpriteUrl(mon){
+    const pokeapiId = ID_TO_POKEAPI_ID[mon.id];
+    return pokeapiId ? ('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/' + pokeapiId + '.png') : null;
+  }
+  const DISCORD_LOGO_URLS = {
+    king: 'https://aminrahul001.github.io/Season-2/logos/king.png',
+    priyesh: 'https://aminrahul001.github.io/Season-2/logos/priyesh.png',
+    anmol: 'https://aminrahul001.github.io/Season-2/logos/anmol.png',
+    daniel: 'https://aminrahul001.github.io/Season-2/logos/daniel.png',
+    danny: 'https://aminrahul001.github.io/Season-2/logos/daniel.png',
+    rahul: 'https://aminrahul001.github.io/Season-2/logos/rahul.png',
+    gatlin: 'https://aminrahul001.github.io/Season-2/logos/gatlin.png',
+    nirav: 'https://aminrahul001.github.io/Season-2/logos/nirav.png',
+    ardale: 'https://aminrahul001.github.io/Season-2/logos/ardale.png'
+  };
+  function discordLogoFor(trainer){
+    if(!trainer || !trainer.coachName) return null;
+    return DISCORD_LOGO_URLS[trainer.coachName.trim().toLowerCase()] || null;
+  }
+  function discordMonEmbeds(mons){
+    return mons.slice(0, 8).map(mon => {
+      const url = discordSpriteUrl(mon);
+      if(!url) return null;
+      return { title: mon.name + (mon.variation ? ' (' + mon.variation + ')' : ''), thumbnail: { url }, color: 16759813 };
+    }).filter(Boolean);
+  }
+  function discordTrainerMonEmbeds(trainer, mons){
+    const embeds = discordMonEmbeds(mons);
+    const logo = discordLogoFor(trainer);
+    if(logo){
+      const authorField = { name: trainer.coachName || trainer.name, icon_url: logo };
+      if(embeds.length) embeds[0].author = authorField;
+      else embeds.push({ author: authorField, color: 16759813 });
+    }
+    return embeds;
+  }
+
+  function pushAnnouncementHere(league, type, message, mons, droppedIds){
+    const entry = { type, message, mons: mons || [], droppedIds: droppedIds || [], timestamp: Date.now() };
+    return updateDoc(doc(db, 'leagues', leagueId), { announcements: arrayUnion(entry) }).catch(() => {});
+  }
+
+  async function commishProcessFAPickupNow(league, move){
+    const idx = league.draft.trainers.findIndex(t => t.uid === move.trainerUid);
+    if(idx === -1) return;
+    if(league.draft.draftedIds[move.mon.id]){ alert('That Pokémon is already on a roster.'); return; }
+    const updatedDraft = JSON.parse(JSON.stringify(league.draft));
+    const t = updatedDraft.trainers[idx];
+    t.roster.push(move.mon);
+    t.budget -= move.mon.tier;
+    t.faPickupsUsed = (t.faPickupsUsed || 0) + 1;
+    updatedDraft.draftedIds[move.mon.id] = { trainerIdx: idx, tier: move.mon.tier };
+    let newWaiver = null;
+    if(move.conditionalDrop && t.roster.some(x => x.id === move.conditionalDrop.id)){
+      t.roster = t.roster.filter(x => x.id !== move.conditionalDrop.id);
+      t.budget += move.conditionalDrop.tier;
+      delete updatedDraft.draftedIds[move.conditionalDrop.id];
+      const settings = Object.assign({}, DEFAULT_SETTINGS, league.settings || {});
+      if(settings.waiverPeriodDays > 0){
+        newWaiver = buildWaiverEntry(move.conditionalDrop, move.trainerUid, move.trainerName, settings);
+      }
+    }
+    const updatedPending = (league.pendingMoves || []).filter(m => m.id !== move.id);
+    const log = { id: pendingMoveId(), type: 'fa_swap', timestamp: Date.now(), reversed: false,
+      trainerUid: move.trainerUid, trainerName: move.trainerName, claims: [move.mon], drops: move.conditionalDrop ? [move.conditionalDrop] : [] };
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { draft: updatedDraft, pendingMoves: updatedPending, waivers: newWaiver ? (league.waivers || []).concat([newWaiver]) : (league.waivers || []), transactionLog: (league.transactionLog || []).concat([log]) });
+      pushAnnouncementHere(league, 'pickup', 'Commissioner' + ' manually processed ' + move.trainerName + '\'s pickup of ' + move.mon.name + ' immediately' + (move.conditionalDrop ? ' (and dropped ' + move.conditionalDrop.name + ')' : ''), move.conditionalDrop ? [move.mon, move.conditionalDrop] : [move.mon], move.conditionalDrop ? [move.conditionalDrop.id] : []);
+      sendDiscordFATrade('📥 **' + move.trainerName + '** officially added **' + move.mon.name + '** to their roster' + (move.conditionalDrop ? ' and dropped **' + move.conditionalDrop.name + '**' : '') + '.', discordTrainerMonEmbeds(t, move.conditionalDrop ? [move.mon, move.conditionalDrop] : [move.mon]));
+    }catch(err){ alert('Could not process: ' + err.message); }
+  }
+
+  async function commishProcessSwapNow(league, move){
+    const idx = league.draft.trainers.findIndex(t => t.uid === move.trainerUid);
+    if(idx === -1) return;
+    const updatedDraft = JSON.parse(JSON.stringify(league.draft));
+    const t = updatedDraft.trainers[idx];
+    const claims = (move.claims || []).filter(c => !updatedDraft.draftedIds[c.id]);
+    const drops = (move.drops || []).filter(d => t.roster.some(x => x.id === d.id));
+    claims.forEach(mon => {
+      t.roster.push(mon);
+      t.budget -= mon.tier;
+      updatedDraft.draftedIds[mon.id] = { trainerIdx: idx, tier: mon.tier };
+    });
+    if(claims.length > 0){
+      t.faPickupsUsed = (t.faPickupsUsed || 0) + 1; // one whole transaction, regardless of how many Pokémon it claimed
+    }
+    const dropIds = drops.map(d => d.id);
+    t.roster = t.roster.filter(x => !dropIds.includes(x.id));
+    const settings = Object.assign({}, DEFAULT_SETTINGS, league.settings || {});
+    const newWaivers = [];
+    drops.forEach(mon => {
+      t.budget += mon.tier;
+      delete updatedDraft.draftedIds[mon.id];
+      if(settings.waiverPeriodDays > 0) newWaivers.push(buildWaiverEntry(mon, move.trainerUid, move.trainerName, settings));
+    });
+    const updatedPending = (league.pendingMoves || []).filter(m => m.id !== move.id);
+    const log = { id: pendingMoveId(), type: 'fa_swap', timestamp: Date.now(), reversed: false,
+      trainerUid: move.trainerUid, trainerName: move.trainerName, claims, drops };
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { draft: updatedDraft, pendingMoves: updatedPending, waivers: (league.waivers || []).concat(newWaivers), transactionLog: (league.transactionLog || []).concat([log]) });
+      const claimNames = claims.map(c => c.name).join(', ') || 'nothing';
+      const dropNote = drops.length ? (' and dropped ' + drops.map(d => d.name).join(', ')) : '';
+      pushAnnouncementHere(league, 'pickup', 'Commissioner' + ' manually processed ' + move.trainerName + '\'s claim of ' + claimNames + dropNote + ' immediately', claims.concat(drops), drops.map(d=>d.id));
+      sendDiscordFATrade('📥 **' + move.trainerName + '** officially added **' + claimNames + '** to their roster' + (drops.length ? ' and dropped **' + drops.map(d=>d.name).join(', ') + '**' : '') + '.', discordTrainerMonEmbeds(t, claims.concat(drops)));
+    }catch(err){ alert('Could not process: ' + err.message); }
+  }
+
+  async function commishProcessTradeNow(league, move, tradeId){
+    const pIdx = league.draft.trainers.findIndex(t => t.uid === move.proposerUid);
+    const rIdx = league.draft.trainers.findIndex(t => t.uid === move.recipientUid);
+    if(pIdx === -1 || rIdx === -1) return;
+    const updatedDraft = JSON.parse(JSON.stringify(league.draft));
+    const proposer = updatedDraft.trainers[pIdx];
+    const recipient = updatedDraft.trainers[rIdx];
+    const offeredIds = move.offered.map(x => x.id);
+    const requestedIds = move.requested.map(x => x.id);
+    const proposerHasAll = offeredIds.every(id => proposer.roster.some(x => x.id === id));
+    const recipientHasAll = requestedIds.every(id => recipient.roster.some(x => x.id === id));
+    if(!proposerHasAll || !recipientHasAll){
+      alert('This trade can no longer be completed — a Pokémon involved has already moved.');
+      return;
+    }
+    proposer.roster = proposer.roster.filter(x => !offeredIds.includes(x.id)).concat(move.requested);
+    recipient.roster = recipient.roster.filter(x => !requestedIds.includes(x.id)).concat(move.offered);
+    proposer.budget += tierSum(move.offered) - tierSum(move.requested);
+    recipient.budget += tierSum(move.requested) - tierSum(move.offered);
+    proposer.tradesUsed = (proposer.tradesUsed || 0) + 1;
+    recipient.tradesUsed = (recipient.tradesUsed || 0) + 1;
+    offeredIds.forEach(id => { updatedDraft.draftedIds[id] = { trainerIdx: rIdx, tier: move.offered.find(x=>x.id===id).tier }; });
+    requestedIds.forEach(id => { updatedDraft.draftedIds[id] = { trainerIdx: pIdx, tier: move.requested.find(x=>x.id===id).tier }; });
+
+    const updatedPending = (league.pendingMoves || []).filter(m => m.id !== move.id);
+    const updatedTrades = (league.trades || []).map(t => t.id === tradeId ? Object.assign({}, t, { status: 'finalized' }) : t);
+    const log = { id: pendingMoveId(), type: 'trade', timestamp: Date.now(), reversed: false,
+      proposerUid: move.proposerUid, proposerName: move.proposerName, recipientUid: move.recipientUid, recipientName: move.recipientName,
+      offered: move.offered, requested: move.requested };
+
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { draft: updatedDraft, pendingMoves: updatedPending, trades: updatedTrades, transactionLog: (league.transactionLog || []).concat([log]) });
+      pushAnnouncementHere(league, 'trade', 'Commissioner' + ' manually processed the trade between ' + move.proposerName + ' and ' + move.recipientName + ' immediately', move.offered.concat(move.requested));
+      sendDiscordFATrade('🔄 Trade complete: **' + move.proposerName + '** sent ' + move.offered.map(x=>x.name).join(', ') + ' to **' + move.recipientName + '** for ' + move.requested.map(x=>x.name).join(', ') + '.', discordTrainerMonEmbeds(proposer, move.offered).concat(discordTrainerMonEmbeds(recipient, move.requested)));
+    }catch(err){
+      alert('Could not process trade: ' + err.message);
+    }
+  }
+
+  async function removeMember(league, uid){
+    if(league.draft){ alert('The draft has already started — members can no longer be removed.'); return; }
+    const m = (league.members || {})[uid];
+    const name = m ? (m.teamName || m.displayName || 'this trainer') : 'this trainer';
+    if(!confirm('Are you sure you want to remove ' + name + ' from the league? They\'ll need a new invite code to rejoin.')) return;
+    const updatedMembers = Object.assign({}, league.members || {});
+    delete updatedMembers[uid];
+    const entry = { type: 'league', message: 'Commissioner' + ' removed ' + name + ' from the league', timestamp: Date.now() };
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { members: updatedMembers, announcements: arrayUnion(entry) });
+    }catch(err){ alert('Could not remove member: ' + err.message); }
+  }
+
+  function txSummaryHtml(log){
+    if(log.type === 'fa_swap'){
+      const claimNames = (log.claims||[]).map(m => m.name).join(', ') || 'nothing';
+      const dropNames = (log.drops||[]).map(m => m.name).join(', ');
+      return '<b>' + escapeHtml(log.trainerName) + '</b> claimed ' + escapeHtml(claimNames) + (dropNames ? ' and dropped ' + escapeHtml(dropNames) : '');
+    }
+    if(log.type === 'trade'){
+      const offeredNames = (log.offered||[]).map(m => m.name).join(', ');
+      const requestedNames = (log.requested||[]).map(m => m.name).join(', ');
+      return 'Trade: <b>' + escapeHtml(log.proposerName) + '</b> sent ' + escapeHtml(offeredNames) + ' to <b>' + escapeHtml(log.recipientName) + '</b> for ' + escapeHtml(requestedNames);
+    }
+    return 'Transaction';
+  }
+
+  async function finalizeTradeFromVeto(league, trade){
+    const proposer = league.draft.trainers.find(t => t.uid === trade.proposerUid);
+    const recipient = league.draft.trainers.find(t => t.uid === trade.recipientUid);
+    if(!proposer || !recipient) return;
+    const offeredIds = trade.offered.map(m => m.id);
+    const requestedIds = trade.requested.map(m => m.id);
+    const proposerHasAll = offeredIds.every(id => proposer.roster.some(m => m.id === id));
+    const recipientHasAll = requestedIds.every(id => recipient.roster.some(m => m.id === id));
+    if(!proposerHasAll || !recipientHasAll){
+      alert('This trade can no longer be completed — one of the Pokémon involved has already been moved.');
+      return cancelVetoTrade(league, trade, 'declined');
+    }
+    const proposerCommitted = committedMonIds(league, trade.proposerUid);
+    const recipientCommitted = committedMonIds(league, trade.recipientUid);
+    if(offeredIds.some(id => proposerCommitted.includes(id)) || requestedIds.some(id => recipientCommitted.includes(id))){
+      alert('This trade can no longer be completed — one of the Pokémon involved is now committed to a pending free agency move.');
+      return cancelVetoTrade(league, trade, 'declined');
+    }
+    const move = {
+      id: pendingMoveId(), type: 'trade',
+      proposerUid: trade.proposerUid, proposerName: trade.proposerName,
+      recipientUid: trade.recipientUid, recipientName: trade.recipientName,
+      offered: trade.offered, requested: trade.requested,
+      effectiveAt: getNextMondayMidnight()
+    };
+    const updatedPending = (league.pendingMoves || []).concat([move]);
+    const updatedTrades = (league.trades || []).map(t => t.id === trade.id ? Object.assign({}, t, { status: 'finalized_pending', effectiveAt: move.effectiveAt }) : t);
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { pendingMoves: updatedPending, trades: updatedTrades });
+      pushAnnouncementHere(league, 'trade', escapeHtml(trade.proposerName) + ' and ' + escapeHtml(trade.recipientName) + ' accepted a trade — takes effect Monday', trade.offered.concat(trade.requested));
+    }catch(err){ alert('Could not finalize trade: ' + err.message); }
+  }
+
+  async function cancelVetoTrade(league, trade, newStatus){
+    const updatedTrades = (league.trades || []).map(t => t.id === trade.id ? Object.assign({}, t, { status: newStatus }) : t);
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { trades: updatedTrades });
+    }catch(err){ alert('Could not update trade: ' + err.message); }
+  }
+
+  function renderVetoTrades(league){
+    const wrap = document.getElementById('vetoAdminWrap');
+    const section = document.getElementById('vetoAdminSection');
+    if(!wrap || !section) return;
+    const settings = Object.assign({}, DEFAULT_SETTINGS, league.settings || {});
+    const vetoTrades = (league.trades || []).filter(t => t.status === 'accepted_pending_veto');
+    if(vetoTrades.length === 0){ section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    wrap.innerHTML = '';
+    vetoTrades.forEach(trade => {
+      const card = document.createElement('div');
+      card.className = 'trade-card';
+      const voterNames = (trade.vetoVotes || []).map(uid => {
+        const t = league.draft.trainers.find(x => x.uid === uid);
+        return t ? t.coachName : 'Unknown';
+      });
+      const voteMet = voterNames.length >= settings.vetoThreshold;
+      card.innerHTML =
+        '<div class="trade-summary"><b>' + escapeHtml(trade.proposerName) + '</b> ↔ <b>' + escapeHtml(trade.recipientName) + '</b></div>' +
+        '<div class="veto-count">' + voterNames.length + ' / ' + settings.vetoThreshold + ' votes to veto' + (voterNames.length ? ' — voted: ' + voterNames.map(escapeHtml).join(', ') : '') + '</div>';
+      const actions = document.createElement('div');
+      actions.className = 'trade-actions';
+      actions.style.marginTop = '10px';
+      const finalizeBtn = document.createElement('button');
+      finalizeBtn.className = 'btn btn-primary btn-sm';
+      finalizeBtn.textContent = 'Finalize Trade';
+      finalizeBtn.addEventListener('click', () => finalizeTradeFromVeto(league, trade));
+      const vetoExecBtn = document.createElement('button');
+      vetoExecBtn.className = 'btn btn-sm btn-danger';
+      vetoExecBtn.textContent = 'Veto This Trade';
+      vetoExecBtn.disabled = !voteMet;
+      vetoExecBtn.addEventListener('click', () => cancelVetoTrade(league, trade, 'vetoed'));
+      actions.appendChild(finalizeBtn);
+      actions.appendChild(vetoExecBtn);
+      card.appendChild(actions);
+      wrap.appendChild(card);
+    });
+  }
+
+  async function fixMegaZTypes(league){
+    const CORRECTIONS = { '1308': ['dark', 'ghost'], '1311': ['dragon'] };
+    let changed = 0;
+    const updatedTrainers = league.draft.trainers.map(t => {
+      const updatedRoster = (t.roster || []).map(mon => {
+        if(CORRECTIONS[mon.id]){
+          changed++;
+          return Object.assign({}, mon, { types: CORRECTIONS[mon.id] });
+        }
+        return mon;
+      });
+      return Object.assign({}, t, { roster: updatedRoster });
+    });
+    if(changed === 0){
+      alert('No Mega Absol Z or Mega Garchomp Z found in any roster — nothing to fix.');
+      return;
+    }
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { 'draft.trainers': updatedTrainers });
+      alert('Fixed ' + changed + ' Pokémon ' + (changed === 1 ? 'entry' : 'entries') + ' across your league\'s rosters.');
+    }catch(err){
+      alert('Could not apply fix: ' + err.message);
+    }
+  }
+
+  function renderPendingTransactions(league){
+    const wrap = document.getElementById('pendingTxWrap');
+    if(!wrap) return;
+    const pendingFA = (league.pendingMoves || []).filter(m => m.type === 'fa_pickup' || m.type === 'fa_swap');
+    const pendingTrades = (league.trades || []).filter(t => t.status === 'finalized_pending');
+    if(pendingFA.length === 0 && pendingTrades.length === 0){
+      wrap.innerHTML = '<p class="settings-note">Nothing pending right now.</p>';
+      return;
+    }
+    wrap.innerHTML = '';
+    pendingFA.forEach(m => {
+      const effectiveDate = new Date(m.effectiveAt).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+      const row = document.createElement('div');
+      row.className = 'member-manage-item';
+      row.style.flexDirection = 'column';
+      row.style.alignItems = 'flex-start';
+      row.style.gap = '8px';
+      const summary = document.createElement('div');
+      summary.innerHTML = '<b>' + escapeHtml(m.trainerName) + '</b> has a pending free agency move — takes effect ' + effectiveDate +
+        '<div class="settings-note" style="margin:4px 0 0;">Details are hidden until it lands, same as everyone else — this just forces it through early if needed.</div>';
+      row.appendChild(summary);
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary btn-sm';
+      btn.textContent = 'Process Now';
+      btn.addEventListener('click', () => m.type === 'fa_pickup' ? commishProcessFAPickupNow(league, m) : commishProcessSwapNow(league, m));
+      row.appendChild(btn);
+      wrap.appendChild(row);
+    });
+    pendingTrades.forEach(trade => {
+      const move = (league.pendingMoves || []).find(m => m.type === 'trade' && m.proposerUid === trade.proposerUid && m.recipientUid === trade.recipientUid && m.effectiveAt === trade.effectiveAt);
+      if(!move) return;
+      const effectiveDate = new Date(trade.effectiveAt).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+      const offeredNames = (trade.offered||[]).map(m=>m.name).join(', ');
+      const requestedNames = (trade.requested||[]).map(m=>m.name).join(', ');
+      const row = document.createElement('div');
+      row.className = 'member-manage-item';
+      row.style.flexDirection = 'column';
+      row.style.alignItems = 'flex-start';
+      row.style.gap = '8px';
+      const summary = document.createElement('div');
+      summary.innerHTML = 'Trade: <b>' + escapeHtml(trade.proposerName) + '</b> sent ' + escapeHtml(offeredNames) + ' to <b>' + escapeHtml(trade.recipientName) + '</b> for ' + escapeHtml(requestedNames) +
+        '<div class="settings-note" style="margin:4px 0 0;">Takes effect ' + effectiveDate + '</div>';
+      row.appendChild(summary);
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-primary btn-sm';
+      btn.textContent = 'Process Now';
+      btn.addEventListener('click', () => commishProcessTradeNow(league, move, trade.id));
+      row.appendChild(btn);
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderTransactionLog(league){
+    const wrap = document.getElementById('txLogWrap');
+    if(!wrap) return;
+    const log = (league.transactionLog || []).slice().reverse().slice(0, 15);
+    if(log.length === 0){
+      wrap.innerHTML = '<p class="settings-note">No transactions yet.</p>';
+      return;
+    }
+    wrap.innerHTML = '';
+    log.forEach(entry => {
+      const row = document.createElement('div');
+      row.className = 'member-manage-item';
+      row.style.flexDirection = 'column';
+      row.style.alignItems = 'flex-start';
+      row.style.gap = '8px';
+      const summary = document.createElement('div');
+      summary.innerHTML = txSummaryHtml(entry) + (entry.reversed ? ' <span style="color:var(--gold);">(reversed)</span>' : '');
+      row.appendChild(summary);
+      const time = document.createElement('div');
+      time.className = 'settings-note';
+      time.style.margin = '0';
+      time.textContent = new Date(entry.timestamp).toLocaleString();
+      row.appendChild(time);
+      if(!entry.reversed){
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-danger';
+        btn.textContent = 'Undo';
+        btn.addEventListener('click', () => undoTransaction(league, entry));
+        row.appendChild(btn);
+      }
+      wrap.appendChild(row);
+    });
+  }
+
+  async function undoTransaction(league, log){
+    if(!confirm('Undo this transaction? This reverses the roster and budget changes if the Pokémon involved haven\'t moved again since.')) return;
+    const updatedDraft = JSON.parse(JSON.stringify(league.draft));
+    const notes = [];
+
+    if(log.type === 'fa_swap'){
+      const idx = updatedDraft.trainers.findIndex(t => t.uid === log.trainerUid);
+      if(idx === -1){ alert('That trainer is no longer in the league.'); return; }
+      const t = updatedDraft.trainers[idx];
+      let anyClaimUndone = false;
+      (log.claims || []).forEach(mon => {
+        if(t.roster.some(x => x.id === mon.id)){
+          t.roster = t.roster.filter(x => x.id !== mon.id);
+          t.budget += mon.tier;
+          delete updatedDraft.draftedIds[mon.id];
+          anyClaimUndone = true;
+        } else {
+          notes.push(mon.name + ' has already moved again — couldn\'t undo that part.');
+        }
+      });
+      if(anyClaimUndone){
+        t.faPickupsUsed = Math.max(0, (t.faPickupsUsed || 0) - 1); // one whole transaction refunded, not one per Pokémon
+      }
+      (log.drops || []).forEach(mon => {
+        if(!updatedDraft.draftedIds[mon.id]){
+          t.roster.push(mon);
+          t.budget -= mon.tier;
+          updatedDraft.draftedIds[mon.id] = { trainerIdx: idx, tier: mon.tier };
+        } else {
+          notes.push(mon.name + ' is already owned by someone else — couldn\'t undo that part.');
+        }
+      });
+    } else if(log.type === 'trade'){
+      const pIdx = updatedDraft.trainers.findIndex(t => t.uid === log.proposerUid);
+      const rIdx = updatedDraft.trainers.findIndex(t => t.uid === log.recipientUid);
+      if(pIdx === -1 || rIdx === -1){ alert('One of the trainers is no longer in the league.'); return; }
+      const proposer = updatedDraft.trainers[pIdx];
+      const recipient = updatedDraft.trainers[rIdx];
+      const requestedIds = (log.requested||[]).map(m=>m.id);
+      const offeredIds = (log.offered||[]).map(m=>m.id);
+      const proposerHasRequested = requestedIds.every(id => proposer.roster.some(x=>x.id===id));
+      const recipientHasOffered = offeredIds.every(id => recipient.roster.some(x=>x.id===id));
+      if(!proposerHasRequested || !recipientHasOffered){
+        alert('Could not undo — one of the Pokémon involved has already moved again.');
+        return;
+      }
+      proposer.roster = proposer.roster.filter(x => !requestedIds.includes(x.id)).concat(log.offered);
+      recipient.roster = recipient.roster.filter(x => !offeredIds.includes(x.id)).concat(log.requested);
+      proposer.budget += (log.requested||[]).reduce((s,x)=>s+x.tier,0) - (log.offered||[]).reduce((s,x)=>s+x.tier,0);
+      recipient.budget += (log.offered||[]).reduce((s,x)=>s+x.tier,0) - (log.requested||[]).reduce((s,x)=>s+x.tier,0);
+      proposer.tradesUsed = Math.max(0, (proposer.tradesUsed||0) - 1);
+      recipient.tradesUsed = Math.max(0, (recipient.tradesUsed||0) - 1);
+      offeredIds.forEach(id => { updatedDraft.draftedIds[id] = { trainerIdx: pIdx, tier: log.offered.find(x=>x.id===id).tier }; });
+      requestedIds.forEach(id => { updatedDraft.draftedIds[id] = { trainerIdx: rIdx, tier: log.requested.find(x=>x.id===id).tier }; });
+    }
+
+    const updatedLog = (league.transactionLog || []).map(l => l.id === log.id ? Object.assign({}, l, { reversed: true }) : l);
+    const entry = { type: 'league', message: 'Commissioner' + ' undid a transaction' + (notes.length ? ' (partially — see commissioner page for details)' : ''), timestamp: Date.now() };
+
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { draft: updatedDraft, transactionLog: updatedLog, announcements: arrayUnion(entry) });
+      if(notes.length) alert('Undo completed with some exceptions:\n\n' + notes.join('\n'));
+    }catch(err){ alert('Could not undo: ' + err.message); }
+  }
+
+  // ---------- crop / zoom tool for league logo ----------
+  const cropModalEl = document.getElementById('cropModal');
+  const cropViewportEl = document.getElementById('cropViewport');
+  const cropImageEl = document.getElementById('cropImage');
+  const cropZoomSlider = document.getElementById('cropZoomSlider');
+  const cropConfirmBtn = document.getElementById('cropConfirmBtn');
+  const cropCancelBtn = document.getElementById('cropCancelBtn');
+
+  const CROP_VIEWPORT_SIZE = 220;
+  const CROP_OUTPUT_SIZE = 200;
+  let cropState = { naturalW: 0, naturalH: 0, scale: 1, minScale: 1, left: 0, top: 0 };
+  let cropDragging = false;
+  let cropDragStart = { x: 0, y: 0, left: 0, top: 0 };
+  let pendingLeagueLogoDataUrl = null;
+
+  function openCropModal(dataUrl){
+    const img = new Image();
+    img.onload = function(){
+      cropState.naturalW = img.naturalWidth;
+      cropState.naturalH = img.naturalHeight;
+      cropState.minScale = Math.max(CROP_VIEWPORT_SIZE / img.naturalWidth, CROP_VIEWPORT_SIZE / img.naturalHeight);
+      cropState.scale = cropState.minScale;
+      cropState.left = (CROP_VIEWPORT_SIZE - cropState.naturalW * cropState.scale) / 2;
+      cropState.top = (CROP_VIEWPORT_SIZE - cropState.naturalH * cropState.scale) / 2;
+
+      cropImageEl.src = dataUrl;
+      cropZoomSlider.min = cropState.minScale;
+      cropZoomSlider.max = cropState.minScale * 4;
+      cropZoomSlider.step = (cropState.minScale * 3) / 200;
+      cropZoomSlider.value = cropState.minScale;
+
+      applyCropTransform();
+      cropModalEl.style.display = 'flex';
+    };
+    img.src = dataUrl;
+  }
+
+  function clampCropOffsets(){
+    const dispW = cropState.naturalW * cropState.scale;
+    const dispH = cropState.naturalH * cropState.scale;
+    cropState.left = Math.min(0, Math.max(CROP_VIEWPORT_SIZE - dispW, cropState.left));
+    cropState.top = Math.min(0, Math.max(CROP_VIEWPORT_SIZE - dispH, cropState.top));
+  }
+
+  function applyCropTransform(){
+    clampCropOffsets();
+    const dispW = cropState.naturalW * cropState.scale;
+    const dispH = cropState.naturalH * cropState.scale;
+    cropImageEl.style.width = dispW + 'px';
+    cropImageEl.style.height = dispH + 'px';
+    cropImageEl.style.left = cropState.left + 'px';
+    cropImageEl.style.top = cropState.top + 'px';
+  }
+
+  cropZoomSlider.addEventListener('input', function(){
+    const newScale = parseFloat(this.value);
+    const centerX = CROP_VIEWPORT_SIZE / 2, centerY = CROP_VIEWPORT_SIZE / 2;
+    const imgX = (centerX - cropState.left) / cropState.scale;
+    const imgY = (centerY - cropState.top) / cropState.scale;
+    cropState.scale = newScale;
+    cropState.left = centerX - imgX * newScale;
+    cropState.top = centerY - imgY * newScale;
+    applyCropTransform();
+  });
+
+  cropViewportEl.addEventListener('wheel', function(e){
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 1.05 : 0.95;
+    const newScale = Math.min(parseFloat(cropZoomSlider.max), Math.max(parseFloat(cropZoomSlider.min), cropState.scale * delta));
+    cropZoomSlider.value = newScale;
+    cropZoomSlider.dispatchEvent(new Event('input'));
+  }, { passive: false });
+
+  cropViewportEl.addEventListener('pointerdown', function(e){
+    cropDragging = true;
+    cropViewportEl.style.cursor = 'grabbing';
+    cropDragStart = { x: e.clientX, y: e.clientY, left: cropState.left, top: cropState.top };
+    cropViewportEl.setPointerCapture(e.pointerId);
+  });
+  cropViewportEl.addEventListener('pointermove', function(e){
+    if(!cropDragging) return;
+    cropState.left = cropDragStart.left + (e.clientX - cropDragStart.x);
+    cropState.top = cropDragStart.top + (e.clientY - cropDragStart.y);
+    applyCropTransform();
+  });
+  ['pointerup', 'pointercancel'].forEach(evt => {
+    cropViewportEl.addEventListener(evt, function(){
+      cropDragging = false;
+      cropViewportEl.style.cursor = 'grab';
+    });
+  });
+
+  cropCancelBtn.addEventListener('click', function(){
+    cropModalEl.style.display = 'none';
+    const logoInput = document.getElementById('leagueLogoInput');
+    if(logoInput) logoInput.value = '';
+  });
+
+  cropConfirmBtn.addEventListener('click', function(){
+    const sx = -cropState.left / cropState.scale;
+    const sy = -cropState.top / cropState.scale;
+    const sSize = CROP_VIEWPORT_SIZE / cropState.scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = CROP_OUTPUT_SIZE;
+    canvas.height = CROP_OUTPUT_SIZE;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(cropImageEl, sx, sy, sSize, sSize, 0, 0, CROP_OUTPUT_SIZE, CROP_OUTPUT_SIZE);
+    pendingLeagueLogoDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const preview = document.getElementById('leagueLogoPreview');
+    const placeholder = document.getElementById('leagueLogoPlaceholder');
+    if(preview){ preview.src = pendingLeagueLogoDataUrl; preview.style.display = ''; }
+    if(placeholder) placeholder.style.display = 'none';
+    cropModalEl.style.display = 'none';
+    const logoInput = document.getElementById('leagueLogoInput');
+    if(logoInput) logoInput.value = '';
+  });
+
+  function render(league){
+    const isCommish = currentUser && league.commissionerUid === currentUser.uid;
+
+    const subnavDraft = document.getElementById('subnavDraft');
+    if(subnavDraft) subnavDraft.style.display = '';
+    updateNavGlow(league);
+
+    if(!isCommish){
+      content.innerHTML = '<div class="panel state-msg">Only the league commissioner can access this page.</div>';
+      return;
+    }
+
+    const s = Object.assign({}, DEFAULT_SETTINGS, league.settings || {});
+    const draftLocked = !!league.draft;
+
+    content.innerHTML =
+      '<div class="page-head">' +
+        '<span class="eyebrow">Commissioner</span>' +
+        '<h1>League Settings</h1>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>League Branding</h2>' +
+        '<p class="settings-note" style="margin:0 0 14px;">This logo shows up on Match, Standing, and Announcements.</p>' +
+        '<div class="logo-row">' +
+          (league.logo
+            ? '<img class="logo-preview" id="leagueLogoPreview" src="' + escapeHtml(league.logo) + '" alt="">'
+            : '<span class="logo-placeholder" id="leagueLogoPlaceholder"></span><img class="logo-preview" id="leagueLogoPreview" src="" alt="" style="display:none;">') +
+          '<label class="btn" style="cursor:pointer;">Upload Logo<input type="file" id="leagueLogoInput" accept="image/*" style="display:none;"></label>' +
+        '</div>' +
+        '<button class="btn btn-primary" id="saveLeagueLogoBtn" style="margin-top:14px;">Save Logo</button>' +
+        '<p class="settings-status" id="leagueLogoStatus"></p>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>Draft Settings</h2>' +
+        (draftLocked ? '<p class="settings-note">The draft for this league has already started, so these two settings are locked in and shown for reference only.</p>' : '') +
+        '<div class="settings-grid">' +
+          '<div class="settings-field"><label>Draft Budget (points per trainer)</label><input type="number" id="setDraftBudget" min="1" value="' + s.draftBudget + '" ' + (draftLocked ? 'disabled' : '') + '></div>' +
+          '<div class="settings-field"><label>Roster Size (Pokémon per team)</label><input type="number" id="setRosterSize" min="1" value="' + s.rosterSize + '" ' + (draftLocked ? 'disabled' : '') + '></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>League Size</h2>' +
+        '<div class="settings-grid">' +
+          '<div class="settings-field"><label>Max Teams Allowed to Join</label><input type="number" id="setMaxTeams" min="' + Object.keys(league.members||{}).length + '" value="' + s.maxTeams + '"></div>' +
+        '</div>' +
+        '<p class="settings-note">Currently ' + Object.keys(league.members||{}).length + ' trainer(s) have joined. The join code will stop working once this limit is reached.</p>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>Members</h2>' +
+        (draftLocked
+          ? '<p class="settings-note">The draft has already started, so members can no longer be removed here.</p>'
+          : '<p class="settings-note" style="margin-bottom:14px;">Remove a trainer who joined by mistake or needs to be replaced before the draft starts.</p>') +
+        '<ul class="member-manage-list">' +
+          Object.entries(league.members || {}).map(([uid, m]) => {
+            const isSelf = uid === currentUser.uid;
+            return '<li class="member-manage-item">' +
+              (m.logo ? '<img class="member-manage-avatar" src="' + escapeHtml(m.logo) + '" alt="">' : '<span class="member-manage-avatar-placeholder"></span>') +
+              '<span class="member-manage-name">' + escapeHtml(m.teamName || m.displayName || 'Trainer') + (isSelf ? ' <span style="color:var(--gold);">(you)</span>' : '') + '</span>' +
+              (!draftLocked && !isSelf ? '<button class="btn btn-sm btn-danger member-remove-btn" data-uid="' + escapeHtml(uid) + '">Remove</button>' : '') +
+            '</li>';
+          }).join('') +
+        '</ul>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>Data Fix: Mega Absol Z / Mega Garchomp Z Types</h2>' +
+        '<p class="settings-note" style="margin-bottom:14px;">These two were added to the pool with the wrong types before being corrected. If either was drafted before the fix, that team\'s copy still has the old, incorrect types baked in. This one-time button corrects any already-drafted copies — safe to run even if neither was drafted, or if you\'ve already run it before.</p>' +
+        '<button class="btn btn-sm" id="fixMegaZBtn">Fix Types</button>' +
+      '</div>' +
+
+      '<div class="panel" id="vetoAdminSection" style="display:none;">' +
+        '<h2>Trades Awaiting Veto</h2>' +
+        '<p class="settings-note" style="margin-bottom:14px;">Finalize a trade early, or veto it outright once enough trainers have voted.</p>' +
+        '<div id="vetoAdminWrap"></div>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>Pending Transactions</h2>' +
+        '<p class="settings-note" style="margin-bottom:14px;">Fast-track a free agency move or trade that\'s locked in but hasn\'t landed yet. This is the only place these can be force-processed from.</p>' +
+        '<div id="pendingTxWrap"></div>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<details class="recent-tx-details">' +
+          '<summary><h2 style="display:inline;">Recent Transactions</h2></summary>' +
+          '<p class="settings-note" style="margin:14px 0;">Reverse a completed pickup, swap, or trade if it was a mistake. Only works if the Pokémon involved haven\'t moved again since.</p>' +
+          '<div id="txLogWrap"></div>' +
+        '</details>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>Playoffs</h2>' +
+        '<div class="settings-grid">' +
+          '<div class="settings-field"><label>Number of Teams in Playoffs</label><input type="number" id="setPlayoffTeams" min="2" max="' + Math.max(2, Object.keys(league.members||{}).length) + '" value="' + s.playoffTeams + '"></div>' +
+        '</div>' +
+        '<p class="settings-note">Regular season is round robin — everyone plays everyone. The top ' + s.playoffTeams + ' teams by record will advance once playoffs are built.</p>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>Free Agency</h2>' +
+        '<div class="settings-grid">' +
+          '<div class="settings-field"><label>Free Agent Pickups (per team, per season)</label><input type="number" id="setFAPickups" min="0" value="' + s.faPickupsPerSeason + '"></div>' +
+          '<div class="settings-field"><label>Max Pokémon Per Transaction</label><input type="number" id="setFAMaxPerSwap" min="1" value="' + s.faMaxPerSwap + '"><span class="settings-hint">Caps how many Pokémon can be claimed or dropped together in a single transaction.</span></div>' +
+          '<div class="settings-field"><label>Waiver Period (days)</label><input type="number" id="setWaiverDays" min="0" value="' + s.waiverPeriodDays + '"><span class="settings-hint">How long a dropped Pokémon sits on waivers before it\'s free for anyone to grab.</span></div>' +
+          '<div class="settings-field"><label>Free Agency Deadline (week)</label><input type="number" id="setFADeadlineWeek" min="0" value="' + s.faDeadlineWeek + '"><span class="settings-hint">Last week claims and waivers are allowed. 0 means no deadline.</span></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="panel">' +
+        '<h2>Trades</h2>' +
+        '<div class="settings-grid">' +
+          '<div class="settings-field"><label>Trades Allowed (per team, per season)</label><input type="number" id="setTradesPerSeason" min="0" value="' + s.tradesPerSeason + '"></div>' +
+          '<div class="settings-field"><label>Max Pokémon Per Side, Per Trade</label><input type="number" id="setMaxPerTrade" min="1" value="' + s.maxPokemonPerSide + '"><span class="settings-hint">Each trainer can send up to this many. A value of 2 allows trades up to 2-for-2.</span></div>' +
+          '<div class="settings-field"><label>Trade Deadline (week)</label><input type="number" id="setTradeDeadlineWeek" min="0" value="' + s.tradeDeadlineWeek + '"><span class="settings-hint">Last week trades are allowed. 0 means no deadline.</span></div>' +
+        '</div>' +
+        '<div class="settings-field" style="margin-top:14px;">' +
+          '<label class="settings-checkbox-label"><input type="checkbox" id="setVetoEnabled" ' + (s.vetoEnabled ? 'checked' : '') + '> Enable trade vetoes</label>' +
+        '</div>' +
+        '<div class="settings-field" id="vetoThresholdField" style="margin-top:10px;' + (s.vetoEnabled ? '' : 'display:none;') + '">' +
+          '<label>Votes Needed to Veto a Trade</label><input type="number" id="setVetoThreshold" min="1" value="' + s.vetoThreshold + '">' +
+        '</div>' +
+      '</div>' +
+
+      '<button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>' +
+      '<p class="settings-status" id="settingsStatus"></p>' +
+
+      '<div class="panel" style="border-color:rgba(238,21,21,0.4);margin-top:32px;">' +
+        '<h2 style="color:#FF8A8A;">Danger Zone</h2>' +
+        '<p class="settings-note" style="margin-bottom:14px;">Permanently deletes this league and everything in it — draft results, rosters, trades, standings, all of it. This cannot be undone.</p>' +
+        '<button class="btn btn-sm btn-danger" id="deleteLeagueBtn">Delete League</button>' +
+        '<div id="deleteLeagueConfirmWrap" style="display:none;margin-top:16px;">' +
+          '<p class="settings-note" style="margin-bottom:10px;">Type the league\'s exact name — <b style="color:var(--cream);">' + escapeHtml(league.name || '') + '</b> — to confirm.</p>' +
+          '<div class="settings-field" style="margin-bottom:10px;max-width:280px;"><input type="text" id="deleteLeagueConfirmInput" placeholder="League name"></div>' +
+          '<button class="btn btn-sm btn-danger" id="deleteLeagueConfirmBtn" disabled>Permanently Delete This League</button>' +
+          '<button class="btn btn-sm" id="deleteLeagueCancelBtn" style="margin-left:8px;">Cancel</button>' +
+          '<p class="settings-status" id="deleteLeagueStatus"></p>' +
+        '</div>' +
+      '</div>';
+
+    document.querySelectorAll('.member-remove-btn').forEach(btn => {
+      btn.addEventListener('click', () => removeMember(league, btn.getAttribute('data-uid')));
+    });
+
+    renderVetoTrades(league);
+    const fixMegaZBtn = document.getElementById('fixMegaZBtn');
+    if(fixMegaZBtn) fixMegaZBtn.addEventListener('click', () => fixMegaZTypes(league));
+    renderPendingTransactions(league);
+    renderTransactionLog(league);
+
+    const deleteLeagueBtn = document.getElementById('deleteLeagueBtn');
+    const deleteLeagueConfirmWrap = document.getElementById('deleteLeagueConfirmWrap');
+    const deleteLeagueConfirmInput = document.getElementById('deleteLeagueConfirmInput');
+    const deleteLeagueConfirmBtn = document.getElementById('deleteLeagueConfirmBtn');
+    const deleteLeagueCancelBtn = document.getElementById('deleteLeagueCancelBtn');
+    const deleteLeagueStatus = document.getElementById('deleteLeagueStatus');
+
+    deleteLeagueBtn.addEventListener('click', () => {
+      deleteLeagueConfirmWrap.style.display = 'block';
+      deleteLeagueBtn.style.display = 'none';
+    });
+    deleteLeagueCancelBtn.addEventListener('click', () => {
+      deleteLeagueConfirmWrap.style.display = 'none';
+      deleteLeagueBtn.style.display = '';
+      deleteLeagueConfirmInput.value = '';
+      deleteLeagueStatus.textContent = '';
+    });
+    deleteLeagueConfirmInput.addEventListener('input', () => {
+      deleteLeagueConfirmBtn.disabled = deleteLeagueConfirmInput.value.trim() !== (league.name || '').trim();
+    });
+    deleteLeagueConfirmBtn.addEventListener('click', async () => {
+      deleteLeagueConfirmBtn.disabled = true;
+      deleteLeagueConfirmBtn.textContent = 'Deleting…';
+      try{
+        await deleteDoc(doc(db, 'leagues', leagueId));
+        window.location.href = 'index.html';
+      }catch(err){
+        deleteLeagueStatus.textContent = 'Could not delete league: ' + err.message;
+        deleteLeagueStatus.style.color = '#FF8A8A';
+        deleteLeagueConfirmBtn.disabled = false;
+        deleteLeagueConfirmBtn.textContent = 'Permanently Delete This League';
+      }
+    });
+
+    document.getElementById('leagueLogoInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = () => openCropModal(reader.result);
+      reader.readAsDataURL(file);
+    });
+    document.getElementById('saveLeagueLogoBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('saveLeagueLogoBtn');
+      const statusEl = document.getElementById('leagueLogoStatus');
+      if(!pendingLeagueLogoDataUrl){
+        statusEl.textContent = 'Choose and crop a photo first.';
+        statusEl.style.color = '#FF8A8A';
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Saving…';
+      try{
+        await updateDoc(doc(db, 'leagues', leagueId), { logo: pendingLeagueLogoDataUrl });
+        statusEl.textContent = 'Saved!';
+        statusEl.style.color = 'var(--gold)';
+      }catch(err){
+        statusEl.textContent = 'Could not save: ' + err.message;
+        statusEl.style.color = '#FF8A8A';
+      }
+      btn.disabled = false; btn.textContent = 'Save Logo';
+    });
+
+    const vetoCheckbox = document.getElementById('setVetoEnabled');
+    const vetoField = document.getElementById('vetoThresholdField');
+    vetoCheckbox.addEventListener('change', () => {
+      vetoField.style.display = vetoCheckbox.checked ? '' : 'none';
+    });
+
+    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('saveSettingsBtn');
+      const status = document.getElementById('settingsStatus');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      const newSettings = {
+        draftBudget: parseInt(document.getElementById('setDraftBudget').value, 10) || DEFAULT_SETTINGS.draftBudget,
+        rosterSize: parseInt(document.getElementById('setRosterSize').value, 10) || DEFAULT_SETTINGS.rosterSize,
+        maxTeams: parseInt(document.getElementById('setMaxTeams').value, 10) || DEFAULT_SETTINGS.maxTeams,
+        playoffTeams: parseInt(document.getElementById('setPlayoffTeams').value, 10) || DEFAULT_SETTINGS.playoffTeams,
+        faPickupsPerSeason: parseInt(document.getElementById('setFAPickups').value, 10) || 0,
+        waiverPeriodDays: parseInt(document.getElementById('setWaiverDays').value, 10) || 0,
+        faMaxPerSwap: parseInt(document.getElementById('setFAMaxPerSwap').value, 10) || 1,
+        tradesPerSeason: parseInt(document.getElementById('setTradesPerSeason').value, 10) || 0,
+        maxPokemonPerSide: parseInt(document.getElementById('setMaxPerTrade').value, 10) || 1,
+        vetoEnabled: vetoCheckbox.checked,
+        vetoThreshold: parseInt(document.getElementById('setVetoThreshold').value, 10) || DEFAULT_SETTINGS.vetoThreshold,
+        tradeDeadlineWeek: parseInt(document.getElementById('setTradeDeadlineWeek').value, 10) || 0,
+        faDeadlineWeek: parseInt(document.getElementById('setFADeadlineWeek').value, 10) || 0
+      };
+      try{
+        await updateDoc(doc(db, 'leagues', leagueId), { settings: newSettings });
+        status.textContent = 'Saved!';
+        status.style.color = 'var(--gold)';
+      }catch(err){
+        status.textContent = 'Could not save: ' + err.message;
+        status.style.color = '#FF8A8A';
+      }
+      btn.disabled = false;
+      btn.textContent = 'Save Settings';
+    });
+  }
+
+  function loadLeague(){
+    if(!leagueId){
+      content.innerHTML = '<div class="state-msg error">No league specified — use a link from the sign-in page.</div>';
+      return;
+    }
+    onSnapshot(doc(db, 'leagues', leagueId), (snap) => {
+      if(!snap.exists()){
+        content.innerHTML = '<div class="state-msg error">This league doesn\'t exist or was deleted.</div>';
+        return;
+      }
+      render(snap.data());
+    }, (err) => {
+      content.innerHTML = '<div class="state-msg error">Could not load league: ' + escapeHtml(err.message) + '</div>';
+    });
+  }
+
+  const navSignedOut = document.getElementById('navSignedOut');
+  const navSignedIn = document.getElementById('navSignedIn');
+  const navUserEmail = document.getElementById('navUserEmail');
+  const navSignOutBtn = document.getElementById('navSignOutBtn');
+  navSignOutBtn.addEventListener('click', () => signOut(auth));
+
+  const navLeaguesBtn = document.getElementById('navLeaguesBtn');
+  const navLeaguesMenu = document.getElementById('navLeaguesMenu');
+  const navLeaguesList = document.getElementById('navLeaguesList');
+  const navLeaguesEmpty = document.getElementById('navLeaguesEmpty');
+  navLeaguesBtn.addEventListener('click', (e) => { e.stopPropagation(); navLeaguesMenu.classList.toggle('open'); });
+  document.addEventListener('click', () => navLeaguesMenu.classList.remove('open'));
+  navLeaguesMenu.addEventListener('click', (e) => e.stopPropagation());
+
+  function generateJoinCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
+    return code;
+  }
+
+  const navLeaguesDefaultView = document.getElementById('navLeaguesDefaultView');
+  const navJoinView = document.getElementById('navJoinView');
+  const navShowJoinBtn = document.getElementById('navShowJoinBtn');
+  const navJoinCodeInput = document.getElementById('navJoinCodeInput');
+  const navJoinSubmitBtn = document.getElementById('navJoinSubmitBtn');
+  const navJoinCancelBtn = document.getElementById('navJoinCancelBtn');
+  const navJoinStatus = document.getElementById('navJoinStatus');
+  let navCurrentUser = null;
+
+  function showNavDefault(){
+    navLeaguesDefaultView.style.display = 'block';
+    navJoinView.style.display = 'none';
+    navJoinStatus.textContent = '';
+  }
+  navShowJoinBtn.addEventListener('click', () => {
+    navLeaguesDefaultView.style.display = 'none';
+    navJoinView.style.display = 'block';
+  });
+  navJoinCancelBtn.addEventListener('click', showNavDefault);
+
+  navJoinSubmitBtn.addEventListener('click', async () => {
+    if(!navCurrentUser) return;
+    const code = navJoinCodeInput.value.trim().toUpperCase();
+    if(!code){ navJoinStatus.textContent = 'Enter a code.'; return; }
+    navJoinSubmitBtn.disabled = true;
+    try{
+      const q = query(collection(db, 'leagues'), where('joinCode', '==', code));
+      const snap = await getDocs(q);
+      if(snap.empty){
+        navJoinStatus.textContent = 'No league found with that code.';
+        navJoinSubmitBtn.disabled = false;
+        return;
+      }
+      const leagueDoc = snap.docs[0];
+      const leagueData = leagueDoc.data();
+      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
+      const currentMemberCount = Object.keys(leagueData.members || {}).length;
+      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
+        if(currentMemberCount >= maxTeams){
+          navJoinStatus.textContent = 'This league is full (' + maxTeams + ' team limit).';
+          navJoinSubmitBtn.disabled = false;
+          return;
+        }
+      }
+      await updateDoc(doc(db, 'leagues', leagueDoc.id), {
+        ['members.' + navCurrentUser.uid]: {
+          displayName: navCurrentUser.displayName || 'Trainer',
+          photoURL: navCurrentUser.photoURL || '',
+          joinedAt: Date.now()
+        }
+      });
+      navJoinCodeInput.value = '';
+      await loadNavLeagues(navCurrentUser);
+      showNavDefault();
+    }catch(err){
+      navJoinStatus.textContent = 'Error: ' + err.message;
+    }
+    navJoinSubmitBtn.disabled = false;
+  });
+
+
+  async function loadNavLeagues(user){
+    try{
+      const q = query(collection(db, 'leagues'), where('members.' + user.uid, '!=', null));
+      const snap = await getDocs(q);
+      navLeaguesList.innerHTML = '';
+      if(snap.empty){ navLeaguesEmpty.style.display = 'block'; return; }
+      navLeaguesEmpty.style.display = 'none';
+      snap.forEach(docSnap => {
+        const l = docSnap.data();
+        const isCommish = l.commissionerUid === user.uid;
+        const li = document.createElement('li');
+        li.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(l.name || 'Untitled League') + '</span>' + (isCommish ? '<span class="nlm-commish">Commish</span>' : '') + '</a>';
+        navLeaguesList.appendChild(li);
+      });
+    }catch(err){
+      navLeaguesEmpty.style.display = 'block';
+      navLeaguesEmpty.textContent = 'Could not load leagues.';
+    }
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+    if(user){
+      navSignedOut.style.display = 'none';
+      navSignedIn.style.display = 'flex';
+      navUserEmail.textContent = user.displayName || 'Trainer';
+      navCurrentUser = user;
+      loadNavLeagues(user);
+    } else {
+      navSignedOut.style.display = '';
+      navSignedIn.style.display = 'none';
+    }
+    if(!user){
+      content.innerHTML = '<div class="state-msg">Please <a href="signin.html" style="color:var(--gold);text-decoration:underline;">sign in</a> first.</div>';
+      return;
+    }
+    loadLeague();
+  });
+</script>
+
+</body>
+</html>

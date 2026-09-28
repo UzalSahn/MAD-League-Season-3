@@ -1,0 +1,1756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League — Pokemon VGC Draft League</title>
+<meta name="description" content="League dashboard — members, join code, and commissioner controls.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D0D0D;
+    --ink-soft:#161616;
+    --panel:#1C1C1C;
+    --cream:#FAFAF7;
+    --cream-dim:#B8B7B2;
+    --gold:#FFCB05;
+    --gold-soft:#C79A00;
+    --teal:#B00000;
+    --teal-bright:#FF5A5A;
+    --scarlet:#EE1515;
+    --slate:#3A3A3A;
+    --line: rgba(250,250,247,0.14);
+
+    --display: 'Big Shoulders Display', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'Space Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--cream);
+    font-family:var(--body);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none;}
+  ::selection{background:var(--gold);color:var(--ink);}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+  h1,h2{font-family:var(--display);text-transform:uppercase;letter-spacing:0.01em;line-height:0.96;margin:0;}
+
+  header.site-nav{position:sticky;top:0;z-index:60;background:rgba(13,13,13,0.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;max-width:900px;margin:0 auto;}
+  .nav-left-group{display:flex;align-items:center;}
+
+  .league-subnav{background:var(--ink-soft);border-bottom:1px solid var(--line);}
+  .league-subnav-inner{max-width:900px;margin:0 auto;display:flex;gap:4px;padding:0 22px;overflow-x:auto;}
+  .subnav-tab{
+    padding:14px 18px;font-family:var(--mono);font-size:12.5px;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--cream-dim);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0;
+  }
+  .subnav-tab:hover{color:var(--cream);}
+  .subnav-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+  .subnav-tab.subnav-tab-glow{color:var(--gold);animation:tradeTabGlow 1.5s ease-in-out infinite;}
+  @keyframes tradeTabGlow{0%,100%{text-shadow:0 0 2px rgba(255,203,5,0.15);}50%{text-shadow:0 0 12px rgba(255,203,5,0.95);}}
+
+  h2{font-family:var(--display);text-transform:uppercase;letter-spacing:0.01em;line-height:0.96;margin:0 0 14px;font-size:19px;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px;margin-bottom:16px;}
+  .page-head{margin-bottom:20px;}
+  .week-nav{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px;}
+  .week-nav-btn{
+    background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:10px 16px;border-radius:4px;cursor:pointer;font-family:var(--body);font-weight:600;font-size:13px;
+  }
+  .week-nav-btn:hover{border-color:var(--gold);}
+  .week-nav-btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .week-nav-label{text-align:center;font-size:13.5px;color:var(--cream-dim);line-height:1.5;}
+  .week-nav-current{color:var(--gold);font-weight:700;}
+  .page-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);}
+  .btn-danger{border-color:rgba(238,21,21,0.4);color:#FF8A8A;}
+  .btn-danger:hover{border-color:#EE1515;color:#FF8A8A;}
+  .btn-sm{padding:7px 14px;font-size:11px;}
+  .settings-note{font-size:12.5px;color:var(--cream-dim);margin:10px 0 0;}
+
+  .match-panel{padding:20px;position:relative;padding-top:56px;}
+  .match-vs-head{display:flex;flex-direction:column;align-items:center;gap:10px;font-family:var(--display);font-size:26px;text-transform:uppercase;margin-bottom:18px;}
+  .match-team-name.winner{color:var(--gold);}
+  .match-vs-label{font-family:var(--mono);font-size:13px;color:var(--cream-dim);text-transform:none;}
+  .match-team{display:flex;align-items:center;justify-content:center;gap:12px;}
+  .match-avatar, .match-avatar-placeholder{width:56px;height:56px;border-radius:50%;object-fit:cover;background:var(--slate);flex-shrink:0;}
+  .preview-teams-btn{position:absolute;top:20px;left:20px;margin:0;}
+  .intro-btn-corner{position:absolute;top:20px;right:20px;margin:0;}
+  .match-is-over-btn{display:block;margin:20px auto 0;}
+  .tier-chip{font-family:var(--mono);font-weight:700;font-size:11px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:4px;background:rgba(255,203,5,0.15);color:var(--gold);}
+  .type-badges{display:flex;gap:4px;margin-top:4px;flex-wrap:nowrap;}
+  .type-badge{font-family:var(--mono);font-size:9px;font-weight:700;text-transform:uppercase;padding:2px 6px;border-radius:3px;}
+
+  .matchup-modal{
+    position:fixed;inset:0;z-index:500;background:rgba(13,13,13,0.85);backdrop-filter:blur(6px);
+    display:none;align-items:center;justify-content:center;padding:20px;
+  }
+  .matchup-modal.show{display:flex;}
+  .matchup-modal-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;
+    max-width:1080px;width:100%;max-height:90vh;overflow-y:auto;padding:26px;position:relative;
+    scroll-behavior:smooth;
+    scrollbar-width:thin;scrollbar-color:var(--gold-soft) transparent;
+  }
+  .matchup-modal-card::-webkit-scrollbar{width:8px;}
+  .matchup-modal-card::-webkit-scrollbar-track{background:transparent;}
+  .matchup-modal-card::-webkit-scrollbar-thumb{background:var(--gold-soft);border-radius:8px;}
+  .matchup-modal-card::-webkit-scrollbar-thumb:hover{background:var(--gold);}
+  .matchup-modal-close{
+    position:absolute;top:16px;right:20px;background:none;border:none;color:var(--cream-dim);
+    font-size:24px;cursor:pointer;line-height:1;
+  }
+  .matchup-modal-close:hover{color:var(--gold);}
+  .matchup-modal-title{text-align:center;font-family:var(--mono);font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:20px;}
+  .matchup-columns{display:grid;grid-template-columns:1fr auto 1fr;gap:20px;align-items:start;}
+  .matchup-columns.intro-align{align-items:center;}
+  .matchup-columns.intro-align .matchup-vs-divider{padding-top:0;}
+  .matchup-vs-divider{font-family:var(--display);font-size:38px;text-transform:uppercase;letter-spacing:0.04em;color:var(--gold);padding-top:40px;}
+  .matchup-vs-divider.fade-vs{opacity:0;transition:opacity 1s ease-in;}
+  .matchup-vs-divider.fade-vs.visible{opacity:1;}
+  .matchup-team-col{min-width:0;}
+  .intro-crawl-viewport{position:relative;height:400px;overflow:hidden;-webkit-mask-image:linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);mask-image:linear-gradient(to bottom, transparent, black 12%, black 88%, transparent);}
+  .intro-crawl-viewport.settled{height:auto;overflow:visible;-webkit-mask-image:none;mask-image:none;}
+  .intro-crawl-viewport.settled .matchup-roster-list{position:static;transform:none !important;transition:none !important;}
+  .intro-crawl-viewport .matchup-roster-list{position:absolute;top:0;left:0;width:100%;transform:translateY(0);will-change:transform;}
+  .intro-reveal-card{list-style:none;display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:36px;gap:8px;min-height:210px;box-sizing:border-box;width:100%;}
+  .intro-reveal-avatar, .intro-reveal-avatar-placeholder{width:110px;height:110px;border-radius:50%;object-fit:cover;background:var(--ink-soft);border:3px solid var(--gold);}
+  .intro-reveal-name{font-family:var(--display);font-size:30px;text-transform:uppercase;color:var(--cream);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .intro-reveal-coach{font-family:var(--display);font-size:26px;text-transform:uppercase;letter-spacing:0.04em;color:var(--gold);opacity:0;transition:opacity 1.1s ease-in;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+  .intro-reveal-coach.visible{opacity:1;}
+  .matchup-team-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line);}
+  #previewATeamHead{flex-direction:row-reverse;text-align:right;}
+  #previewATeamHead, #previewBTeamHead{display:none;}
+  .matchup-team-coach{font-size:12px;color:var(--cream-dim);margin-top:2px;}
+  .matchup-team-head .avatar-thumb, .matchup-team-head .avatar-thumb-placeholder{width:46px;height:46px;border-radius:50%;object-fit:cover;background:var(--slate);flex-shrink:0;}
+  .matchup-team-head h3{font-family:var(--display);text-transform:uppercase;font-size:19px;margin:0;}
+  .matchup-roster-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  .matchup-roster-list li{display:flex;align-items:center;gap:8px;font-size:13.5px;padding-top:9px;border-top:1px solid var(--line);min-height:84px;box-sizing:border-box;}
+  #previewARoster li{flex-direction:row-reverse;text-align:right;}
+  #previewARoster li.intro-reveal-card{flex-direction:column;text-align:center;}
+  #previewARoster li .type-badges{justify-content:flex-end;}
+  .matchup-roster-list li:first-child{border-top:none;padding-top:0;}
+  .matchup-roster-list .mon-sprite{width:84px;height:84px;object-fit:contain;flex-shrink:0;}
+  .matchup-roster-list .mon-info{flex:1;min-width:0;overflow:hidden;}
+  .matchup-roster-list .mon-title-line{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .matchup-roster-list .mon-name{font-weight:600;}
+  .matchup-roster-list .mon-var{font-family:var(--mono);font-size:10.5px;color:#FF5A5A;margin-left:4px;}
+
+  .clickable-team-name{cursor:pointer;text-decoration:underline;text-decoration-color:transparent;transition:text-decoration-color .15s;}
+  .clickable-team-name:hover{text-decoration-color:var(--gold);}
+
+  .team-details-head{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--line);}
+  .team-details-head h3{font-family:var(--display);text-transform:uppercase;font-size:22px;margin:0;}
+  .team-details-coach{font-size:13px;color:var(--cream-dim);margin-top:2px;}
+  .team-details-budget{font-family:var(--mono);font-size:12px;color:var(--gold);margin-top:3px;}
+  .team-details-section-label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--gold);margin:18px 0 10px;}
+  .team-details-roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:14px;}
+  .team-details-roster-cell{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;}
+  .team-details-sprite{width:64px;height:64px;object-fit:contain;}
+  .team-details-roster-cell span{font-size:12px;font-weight:600;line-height:1.2;}
+  .team-details-tx-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .team-details-tx-list li{font-size:12.5px;color:var(--cream-dim);padding-bottom:8px;border-bottom:1px solid var(--line);}
+  .team-details-tx-list li:last-child{border-bottom:none;}
+
+  @media (max-width:640px){
+    .matchup-columns{grid-template-columns:1fr;}
+    .matchup-vs-divider{text-align:center;padding-top:0;}
+  }
+  .winner-pick-row{display:flex;gap:10px;justify-content:center;margin-bottom:16px;flex-wrap:wrap;}
+  .mvp-picker{display:flex;flex-direction:column;align-items:center;gap:6px;margin:14px 0;position:relative;}
+  .mvp-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--cream-dim);}
+  .mvp-dropdown{position:relative;min-width:220px;}
+  .mvp-dropdown-trigger{
+    display:flex;align-items:center;gap:8px;width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:6px 10px;border-radius:4px;font-family:var(--body);font-size:13px;cursor:pointer;text-align:left;
+  }
+  .mvp-dropdown-trigger:hover{border-color:var(--gold);}
+  .mvp-dropdown-trigger span:first-of-type{flex:1;}
+  .mvp-dropdown-caret{color:var(--cream-dim);font-size:11px;flex-shrink:0;}
+  .mvp-dropdown-sprite{width:22px;height:22px;object-fit:contain;flex-shrink:0;}
+  .mvp-dropdown-menu{
+    display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:50;max-height:240px;overflow-y:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  .mvp-dropdown-menu.show{display:block;}
+  .mvp-dropdown-option{
+    display:flex;align-items:center;gap:8px;padding:7px 10px;font-size:12.5px;cursor:pointer;color:var(--cream);
+  }
+  .mvp-dropdown-option:hover{background:var(--ink-soft);}
+  .mvp-dropdown-option.active{background:rgba(255,203,5,0.1);color:var(--gold);}
+  .mvp-display{display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0;}
+  .mvp-display-sprite{width:32px;height:32px;object-fit:contain;}
+  .mvp-display-tag{font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink);background:var(--gold);padding:2px 6px;border-radius:3px;margin-right:4px;}
+
+  .games-editor{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
+  .games-caption{font-family:var(--mono);font-size:11px;color:var(--cream-dim);margin-bottom:8px;text-align:center;}
+  .game-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;color:var(--cream-dim);justify-content:center;}
+  .game-label{font-family:var(--mono);min-width:52px;font-size:11px;}
+  .game-vs{font-family:var(--mono);font-size:10px;}
+  .game-alive-input{
+    width:44px;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:5px 6px;border-radius:3px;font-family:var(--mono);font-size:13px;text-align:center;
+  }
+  .game-alive-input:focus{border-color:var(--gold);}
+  .game-diff{font-family:var(--mono);font-weight:700;min-width:32px;text-align:right;color:var(--gold);}
+  .game-remove-btn{background:none;border:none;color:var(--cream-dim);cursor:pointer;font-size:13px;padding:0 2px;}
+  .game-remove-btn:hover{color:var(--scarlet, #EE1515);}
+  .add-game-btn{
+    display:block;margin:8px auto 0;background:none;border:1px dashed var(--line);color:var(--cream-dim);font-family:var(--mono);
+    font-size:11px;padding:5px 12px;border-radius:3px;cursor:pointer;
+  }
+  .add-game-btn:hover{border-color:var(--gold);color:var(--gold);}
+  .total-diff-row{margin-top:10px;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--gold);text-align:center;}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:0.02em;text-transform:uppercase;}
+  .brand-mark{width:22px;height:22px;flex-shrink:0;}
+
+  main{max-width:900px;margin:0 auto;padding:40px 22px 80px;}
+
+  .page-head{margin-bottom:28px;}
+  .page-head .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--gold);}
+  .page-head h1{font-size:clamp(30px,5vw,46px);margin-top:8px;}
+  .league-logo-header{width:44px;height:44px;border-radius:50%;object-fit:cover;float:right;}
+  .commish-badge{
+    display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+    font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;
+    background:rgba(255,203,5,0.15);color:var(--gold);padding:4px 10px;border-radius:3px;
+  }
+
+  .nav-links{display:flex;align-items:center;gap:20px;font-size:13px;font-weight:600;}
+  .nav-former-champions{font-size:13px;font-weight:600;color:var(--cream-dim);margin-left:6px;padding-left:6px;}
+  .nav-former-champions:hover{color:var(--gold);}
+  .nav-links a{color:var(--cream-dim);}
+  .nav-links a:hover{color:var(--gold);}
+  .nav-account{display:flex;align-items:center;gap:12px;}
+  .nav-account #navUserEmail{color:var(--cream-dim);font-size:12.5px;}
+  .nav-leagues-wrap{position:relative;}
+  .nav-leagues-menu{
+    display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:100;
+  }
+  .nav-leagues-menu.open{display:block;}
+  .nlm-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:8px;}
+  .nlm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;}
+  .nlm-list li a{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream);
+  }
+  .nlm-list li a:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-commish{font-family:var(--mono);font-size:9px;color:var(--gold);background:rgba(255,203,5,0.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;}
+  .nlm-empty{font-size:12.5px;color:var(--cream-dim);padding:8px 10px;}
+  .nlm-divider{height:1px;background:var(--line);margin:10px 0;}
+  .nlm-action{display:block;padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream-dim);}
+  .nlm-action:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:8px 10px;border-radius:4px;font-size:13px;margin-bottom:8px;font-family:var(--body);
+  }
+  .nlm-input:focus{border-color:var(--gold);}
+  .nlm-form-actions{display:flex;gap:8px;}
+  .nlm-status{font-size:11.5px;color:var(--cream-dim);margin-top:8px;margin-bottom:0;}
+  .nav-links .nav-cta{
+    background:var(--gold);color:var(--ink);padding:8px 16px;border-radius:3px;
+    font-weight:700;text-transform:uppercase;font-size:12px;letter-spacing:0.03em;
+  }
+  .nav-links .nav-cta:hover{background:#ffd633;color:var(--ink);}
+  @media (max-width:640px){
+    .nav-links{gap:12px;font-size:12px;}
+    .nav-links .nav-cta{padding:7px 12px;}
+  }
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px;margin-bottom:20px;}
+  .panel h2{font-size:18px;margin-bottom:14px;}
+
+  .join-code-box{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    background:var(--ink-soft);border:1px dashed var(--gold);border-radius:6px;padding:16px 20px;
+  }
+  .join-code-value{font-family:var(--mono);font-size:28px;letter-spacing:0.14em;color:var(--gold);font-weight:700;}
+  .join-code-hint{font-size:13px;color:var(--cream-dim);margin-top:6px;}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    font-weight:700;font-size:13px;letter-spacing:0.02em;text-transform:uppercase;
+    padding:10px 18px;border-radius:3px;cursor:pointer;border:1px solid var(--line);
+    background:transparent;color:var(--cream);font-family:var(--body);
+    transition:transform .12s ease, border-color .15s ease;
+  }
+  .btn:hover{transform:translateY(-1px);border-color:var(--gold);color:var(--gold);}
+  .btn-primary{background:var(--gold);color:var(--ink);border-color:var(--gold);}
+  .btn-primary:hover{background:#ffd633;color:var(--ink);}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+  .member-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+  .member-list li{
+    display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);
+  }
+  .member-list li:first-child{border-top:none;padding-top:0;}
+  .member-list img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--slate);}
+  .member-name{font-weight:600;font-size:14.5px;}
+  .commish-tag{
+    font-family:var(--mono);font-size:10px;color:var(--gold);text-transform:uppercase;
+    letter-spacing:0.06em;margin-left:8px;
+  }
+
+  .state-msg{text-align:center;padding:40px 20px;color:var(--cream-dim);font-size:14px;}
+  .state-msg.error{color:#FF8A8A;}
+
+  .draft-cta{text-align:center;padding:10px 0;}
+  .draft-cta p{color:var(--cream-dim);font-size:13.5px;max-width:420px;margin:0 auto 16px;}
+
+  .profile-field{margin-bottom:16px;}
+  .profile-field label{
+    display:block;font-family:var(--mono);font-size:11px;text-transform:uppercase;
+    letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:6px;
+  }
+  .profile-field input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:10px 12px;border-radius:3px;font-family:var(--body);font-size:14px;
+  }
+  .profile-field input:focus{border-color:var(--gold);}
+  .logo-row{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+  .logo-preview, .logo-placeholder{
+    width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--slate);flex-shrink:0;border:2px solid var(--line);
+  }
+  .profile-status{font-size:13px;margin-top:10px;display:none;}
+
+  .member-list .team-name{font-weight:700;font-size:15px;}
+  .member-list .coach-line{font-size:12px;color:var(--cream-dim);margin-top:1px;}
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <div class="nav-left-group">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="45" fill="#fff" stroke="#111" stroke-width="6"/>
+        <path d="M6,50 A44,44 0 0,1 94,50 Z" fill="#EE1515" stroke="#111" stroke-width="6"/>
+        <line x1="6" y1="50" x2="94" y2="50" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="15" fill="#fff" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="6" fill="#111"/>
+      </svg>
+      Pokemon VGC Draft League
+    </a>
+    <a href="champions.html" class="nav-former-champions">Past Champions</a>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="pool.html">Pool</a>
+      <a href="format.html">Format</a>
+      <span id="navSignedOut"><a href="signin.html" class="nav-cta">Sign In</a></span>
+      <span id="navSignedIn" class="nav-account" style="display:none;">
+        <div class="nav-leagues-wrap">
+          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
+          <div id="navLeaguesMenu" class="nav-leagues-menu">
+            <div id="navLeaguesDefaultView">
+              <div class="nlm-label">My Leagues</div>
+              <ul id="navLeaguesList" class="nlm-list"></ul>
+              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
+              <div class="nlm-divider"></div>
+              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
+            </div>
+            <div id="navJoinView" style="display:none;">
+              <div class="nlm-label">Join a League</div>
+              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
+              <div class="nlm-form-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
+                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
+              </div>
+              <p class="nlm-status" id="navJoinStatus"></p>
+            </div>
+          </div>
+        </div>
+        <span id="navUserEmail"></span>
+        <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<div class="league-subnav">
+  <div class="league-subnav-inner">
+    <a href="match.html" id="subnavMatch" class="subnav-tab active">Match</a>
+    <a href="team.html" id="subnavTeam" class="subnav-tab">Team</a>
+    <a href="freeagency.html" id="subnavFA" class="subnav-tab">Free Agency</a>
+    <a href="trades.html" id="subnavTrades" class="subnav-tab">Trades</a>
+    <a href="standing.html" id="subnavStanding" class="subnav-tab">Standing</a>
+    <a href="announcements.html" id="subnavAnnouncements" class="subnav-tab">Announcements</a>
+    <a href="draft.html" id="subnavDraft" class="subnav-tab">Draft Room</a>
+    <a href="commissioner.html" id="subnavCommish" class="subnav-tab" style="display:none;">Commissioner</a>
+  </div>
+
+<main>
+  <div id="content">
+    <div class="state-msg" id="stateMsg">Loading league…</div>
+  </div>
+  <div class="matchup-modal" id="teamPreviewModal">
+    <div class="matchup-modal-card">
+      <button class="matchup-modal-close" id="teamPreviewClose">&times;</button>
+      <div class="matchup-modal-title">Team Preview</div>
+      <div class="matchup-columns" id="teamPreviewColumns">
+        <div class="matchup-team-col">
+          <div class="matchup-team-head" id="previewATeamHead">
+            <img class="avatar-thumb" id="previewAAvatar" src="" alt="" style="display:none;">
+            <span class="avatar-thumb-placeholder" id="previewAAvatarPlaceholder"></span>
+            <div>
+              <h3 id="previewAName"></h3>
+              <div class="matchup-team-coach" id="previewACoach"></div>
+            </div>
+          </div>
+          <div class="intro-crawl-viewport" id="previewACrawlViewport">
+            <ul class="matchup-roster-list" id="previewARoster"></ul>
+          </div>
+        </div>
+        <div class="matchup-vs-divider" id="teamPreviewVsDivider">VS</div>
+        <div class="matchup-team-col">
+          <div class="matchup-team-head" id="previewBTeamHead">
+            <img class="avatar-thumb" id="previewBAvatar" src="" alt="" style="display:none;">
+            <span class="avatar-thumb-placeholder" id="previewBAvatarPlaceholder"></span>
+            <div>
+              <h3 id="previewBName"></h3>
+              <div class="matchup-team-coach" id="previewBCoach"></div>
+            </div>
+          </div>
+          <div class="intro-crawl-viewport" id="previewBCrawlViewport">
+            <ul class="matchup-roster-list" id="previewBRoster"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="matchup-modal" id="teamDetailsModal">
+    <div class="matchup-modal-card" style="max-width:520px;">
+      <button class="matchup-modal-close" id="teamDetailsClose">&times;</button>
+      <div class="team-details-head">
+        <img class="avatar-thumb" id="detailsAvatar" src="" alt="" style="display:none;">
+        <span class="avatar-thumb-placeholder" id="detailsAvatarPlaceholder"></span>
+        <div>
+          <h3 id="detailsName"></h3>
+          <div class="team-details-coach" id="detailsCoach"></div>
+          <div class="team-details-budget" id="detailsBudget"></div>
+        </div>
+      </div>
+      <div class="team-details-section-label">Roster</div>
+      <div class="team-details-roster-grid" id="detailsRosterGrid"></div>
+      <div class="team-details-section-label">Recent Transactions</div>
+      <div id="detailsTxList"></div>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, onSnapshot, updateDoc, arrayUnion, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
+    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
+    projectId: "pokemon-vr-draft-league",
+    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
+    messagingSenderId: "400355118785",
+    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
+  };
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- sprites ----------
+  const PLACEHOLDER_SPRITE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="#3A3A3A" stroke-width="2"/><line x1="3" y1="20" x2="37" y2="20" stroke="#3A3A3A" stroke-width="2"/><circle cx="20" cy="20" r="5" fill="#3A3A3A"/></svg>'
+  );
+  function kebab(s){ return String(s||'').toLowerCase().replace(/['".]/g,'').trim().replace(/\s+/g,'-'); }
+  const REGIONAL_SLUG_MAP = { alola:'alolan', galar:'galarian', hisui:'hisuian' };
+  const ID_TO_POKEAPI_ID = {"3": "3", "4": "10033", "7": "6", "8": "10034", "9": "10035", "12": "9", "13": "10036", "19": "15", "20": "10090", "23": "18", "24": "10073", "32": "24", "33": "25", "35": "26", "36": "10100", "1217": "10304", "1218": "10305", "48": "36", "1219": "10278", "51": "38", "52": "10104", "59": "45", "79": "59", "80": "10230", "86": "65", "87": "10037", "90": "68", "93": "71", "1220": "10279", "108": "80", "109": "10071", "110": "10165", "127": "94", "128": "10038", "154": "115", "155": "10039", "161": "121", "1221": "10280", "168": "127", "169": "10040", "170": "128", "171": "10250", "172": "10251", "173": "10252", "175": "130", "176": "10041", "178": "132", "181": "134", "182": "135", "183": "136", "189": "142", "190": "10042", "191": "143", "200": "149", "1222": "10281", "207": "154", "1223": "10282", "210": "157", "211": "10233", "214": "160", "1224": "10283", "222": "168", "235": "181", "236": "10045", "239": "184", "241": "186", "252": "196", "253": "197", "255": "199", "256": "10172", "262": "205", "265": "208", "266": "10072", "269": "211", "271": "212", "272": "10046", "274": "214", "275": "10047", "290": "227", "1225": "10284", "292": "229", "293": "10048", "312": "248", "313": "10049", "319": "254", "320": "10065", "323": "257", "324": "10050", "327": "260", "328": "10064", "349": "279", "352": "282", "353": "10051", "373": "302", "374": "10066", "375": "303", "376": "10052", "379": "306", "380": "10053", "382": "308", "383": "10054", "385": "310", "386": "10055", "395": "319", "396": "10070", "400": "323", "401": "10087", "402": "324", "412": "334", "413": "10067", "429": "350", "430": "351", "436": "354", "437": "10056", "441": "358", "1226": "10306", "442": "359", "443": "10057", "446": "362", "447": "10074", "462": "376", "463": "10076", "484": "389", "487": "392", "490": "395", "493": "398", "1227": "10308", "500": "405", "502": "407", "504": "409", "506": "411", "527": "428", "528": "10088", "542": "442", "545": "445", "546": "10058", "549": "448", "550": "10059", "552": "450", "556": "454", "562": "460", "563": "10060", "564": "461", "567": "464", "573": "470", "574": "471", "575": "472", "576": "473", "578": "475", "579": "10068", "582": "478", "1228": "10285", "583": "479", "584": "10008", "585": "10009", "586": "10010", "587": "10011", "588": "10012", "610": "497", "613": "500", "1231": "10286", "616": "503", "617": "10236", "619": "505", "624": "510", "626": "512", "628": "514", "630": "516", "632": "518", "644": "530", "1232": "10287", "645": "531", "646": "10069", "649": "534", "660": "545", "1233": "10288", "662": "547", "671": "553", "682": "560", "1234": "10289", "686": "563", "692": "569", "695": "571", "696": "10239", "704": "579", "709": "584", "712": "587", "729": "604", "1235": "10290", "734": "609", "1236": "10291", "739": "614", "743": "618", "744": "10180", "749": "623", "1237": "10313", "762": "635", "764": "637", "786": "652", "1238": "10292", "789": "655", "1239": "10293", "792": "658", "1240": "10294", "795": "660", "798": "663", "801": "666", "803": "668", "1241": "10295", "805": "670", "1242": "10296", "806": "671", "810": "675", "811": "676", "813": "678", "814": "10025", "1243": "10314", "817": "681", "820": "683", "822": "685", "824": "687", "1244": "10297", "826": "689", "1245": "10298", "828": "691", "1246": "10299", "830": "693", "832": "695", "834": "697", "836": "699", "837": "700", "838": "701", "1247": "10300", "839": "702", "844": "706", "845": "10242", "846": "707", "848": "709", "853": "711", "858": "713", "859": "10243", "861": "715", "874": "724", "875": "10244", "878": "727", "881": "730", "884": "733", "891": "740", "1249": "10315", "900": "745", "901": "10126", "902": "10152", "906": "748", "908": "750", "910": "752", "916": "758", "921": "763", "923": "765", "924": "766", "937": "778", "939": "780", "1251": "10302", "943": "784", "985": "823", "1003": "841", "1004": "842", "1006": "844", "1018": "855", "1021": "858", "1024": "861", "1029": "866", "1030": "867", "1032": "869", "1033": "870", "1254": "10303", "1042": "877", "1053": "887", "1071": "899", "1072": "900", "1074": "902", "1075": "10248", "1076": "903", "1077": "904", "1082": "908", "1085": "911", "1088": "914", "1100": "925", "1113": "934", "1115": "936", "1116": "937", "1118": "939", "1131": "952", "1255": "10320", "1135": "956", "1138": "959", "1143": "964", "1148": "968", "1150": "970", "1256": "10321", "1152": "972", "1159": "979", "1161": "981", "1164": "983", "1182": "1000", "1198": "1013", "1206": "1018", "1207": "1019", "1300": "83", "1302": "122", "1303": "317", "1304": "865", "1305": "40", "1306": "53", "1307": "10108", "1308": "10307", "1309": "10089", "1310": "373", "1311": "10309", "1312": "10310", "1313": "673", "1314": "768", "1315": "10316", "1316": "812", "1317": "815", "1318": "818", "1319": "828", "1320": "849", "1321": "853", "1322": "863", "1323": "871", "1324": "10186", "1325": "876", "1326": "923", "1327": "930", "1328": "931", "1329": "943", "1330": "998", "1331": "10325"};
+  function spriteCandidates(mon){
+    const pokeapiId = ID_TO_POKEAPI_ID[mon.id];
+    if(!pokeapiId) return [];
+    return ['https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/' + pokeapiId + '.png'];
+  }
+  function makeSpriteImg(mon, cssClass, eager){
+    const candidates = spriteCandidates(mon);
+    const img = document.createElement('img');
+    img.className = cssClass; img.alt=''; img.loading = eager ? 'eager' : 'lazy'; img.src = candidates[0];
+    let idx=0;
+    img.addEventListener('error', () => {
+      idx++;
+      if(idx < candidates.length){ img.src = candidates[idx]; }
+      else { img.onerror=null; img.src = PLACEHOLDER_SPRITE; img.style.opacity='0.4'; }
+    });
+    return img;
+  }
+
+  const TYPE_COLORS = {
+    normal:'#A8A878', fire:'#F08030', water:'#6890F0', electric:'#F8D030',
+    grass:'#78C850', ice:'#98D8D8', fighting:'#C03028', poison:'#A040A0',
+    ground:'#E0C068', flying:'#A890F0', psychic:'#F85888', bug:'#A8B820',
+    rock:'#B8A038', ghost:'#705898', dragon:'#7038F8', dark:'#705848',
+    steel:'#B8B8D0', fairy:'#EE99AC'
+  };
+  function textColorFor(hex){
+    const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+    return (0.299*r+0.587*g+0.114*b)/255 > 0.6 ? '#111' : '#fff';
+  }
+  function typeBadgesHtml(types){
+    return (types||[]).map(t=>{
+      const bg = TYPE_COLORS[t]||'#888'; const fg = textColorFor(bg);
+      return '<span class="type-badge" style="background:'+bg+';color:'+fg+';">'+escapeHtml(t)+'</span>';
+    }).join('');
+  }
+
+  const content = document.getElementById('content');
+  const params = new URLSearchParams(window.location.search);
+  const leagueId = params.get('id');
+
+  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el && leagueId) el.href = el.getAttribute('href') + '?id=' + leagueId;
+  });
+
+  let currentUser = null;
+  function updateNavGlow(league){
+    const glowTab = (id, active) => {
+      const el = document.getElementById(id);
+      if(el) el.classList.toggle('subnav-tab-glow', !!active);
+    };
+    if(!currentUser || !league || !league.draft || !league.draft.trainers){
+      ['subnavMatch','subnavTrades','subnavStanding','subnavAnnouncements'].forEach(id => glowTab(id, false));
+      return;
+    }
+    const me = league.draft.trainers.find(t => t.uid === currentUser.uid);
+
+    const tradesSeenAt = (me && me.tradesSeenAt) || 0;
+    const tradesUnseen = (league.trades || []).some(t => t.recipientUid === currentUser.uid && t.status === 'pending' && (t.createdAt || 0) > tradesSeenAt);
+    glowTab('subnavTrades', tradesUnseen);
+
+    const announcementsSeenAt = (me && me.announcementsSeenAt) || 0;
+    const announcementsUnseen = (league.announcements || []).some(a => (a.timestamp || 0) > announcementsSeenAt);
+    glowTab('subnavAnnouncements', announcementsUnseen);
+
+    let matchToken = null;
+    if(league.playoffBracket){
+      for(let r = 0; r < league.playoffBracket.rounds.length; r++){
+        if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ matchToken = 'p' + r; break; }
+      }
+    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
+      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
+      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
+      matchToken = 'w' + idx;
+    }
+    const matchUnseen = matchToken !== null && matchToken !== (me && me.matchSeenToken);
+    glowTab('subnavMatch', matchUnseen);
+
+    let resultCount = Object.keys((league.schedule && league.schedule.results) || {}).length;
+    if(league.playoffBracket){
+      league.playoffBracket.rounds.forEach(r => (r.matches || []).forEach(m => { if(m.locked) resultCount++; }));
+    }
+    const standingToken = resultCount > 0 ? String(resultCount) : null;
+    const standingUnseen = standingToken !== null && standingToken !== (me && me.standingSeenToken);
+    glowTab('subnavStanding', standingUnseen);
+  }
+
+  let currentLeague = null;
+  let viewingWeekIdx = null;
+  let introRevealCount = 0;
+  let previewGeneration = 0;
+
+  const DISCORD_WEBHOOK_GENERAL = 'https://discordapp.com/api/webhooks/1524151344137637978/zxF_BqbOQN_cmS70FpQdNinG8Kui2gzceAwWvgDxnn3T_-kMVlvwjOxdtjEy7surWluW';
+  async function sendDiscordGeneral(content, embeds){
+    try{
+      await fetch(DISCORD_WEBHOOK_GENERAL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(embeds ? { content, embeds } : { content })
+      });
+    }catch(err){ /* non-critical */ }
+  }
+  const DISCORD_LOGO_URLS = {
+    king: 'https://aminrahul001.github.io/Season-2/logos/king.png',
+    priyesh: 'https://aminrahul001.github.io/Season-2/logos/priyesh.png',
+    anmol: 'https://aminrahul001.github.io/Season-2/logos/anmol.png',
+    daniel: 'https://aminrahul001.github.io/Season-2/logos/daniel.png',
+    danny: 'https://aminrahul001.github.io/Season-2/logos/daniel.png',
+    rahul: 'https://aminrahul001.github.io/Season-2/logos/rahul.png',
+    gatlin: 'https://aminrahul001.github.io/Season-2/logos/gatlin.png',
+    nirav: 'https://aminrahul001.github.io/Season-2/logos/nirav.png',
+    ardale: 'https://aminrahul001.github.io/Season-2/logos/ardale.png'
+  };
+  function discordLogoFor(trainer){
+    if(!trainer || !trainer.coachName) return null;
+    return DISCORD_LOGO_URLS[trainer.coachName.trim().toLowerCase()] || null;
+  }
+
+  function discordSpriteUrl(mon){
+    const pokeapiId = ID_TO_POKEAPI_ID[mon.id];
+    return pokeapiId ? ('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/' + pokeapiId + '.png') : null;
+  }
+  function discordMatchEmbed(winnerTrainer, mvpMon){
+    const logo = discordLogoFor(winnerTrainer);
+    const spriteUrl = mvpMon ? discordSpriteUrl(mvpMon) : null;
+    if(!logo && !spriteUrl) return null;
+    const embed = { color: 16759813 };
+    if(logo) embed.author = { name: winnerTrainer.coachName || winnerTrainer.name, icon_url: logo };
+    if(mvpMon && spriteUrl){
+      embed.title = 'MVP: ' + mvpMon.name + (mvpMon.variation ? ' (' + mvpMon.variation + ')' : '');
+      embed.thumbnail = { url: spriteUrl };
+    }
+    return [embed];
+  }
+
+  function pushAnnouncement(league, type, message, mons, mvpId){
+    const entry = { type, message, mons: mons || [], mvpId: mvpId || null, timestamp: Date.now() };
+    return updateDoc(doc(db, 'leagues', leagueId), { announcements: arrayUnion(entry) }).catch(() => {});
+  }
+
+  // ---------- date helpers (Monday-Sunday weeks) ----------
+  function parseLocalDate(ts){ const d = new Date(ts); d.setHours(0,0,0,0); return d; }
+  function upcomingOrTodayMonday(){
+    const now = new Date();
+    const day = now.getDay();
+    const daysBack = day === 0 ? 6 : (day - 1);
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - daysBack);
+    monday.setHours(0,0,0,0);
+    return monday.getTime();
+  }
+  function weekDateRange(startTs, weekIdx){
+    const start = new Date(startTs + weekIdx * 7 * 86400000);
+    const end = new Date(start.getTime() + 6 * 86400000);
+    const fmt = d => (d.getMonth()+1) + '/' + d.getDate();
+    return fmt(start) + ' – ' + fmt(end);
+  }
+  function currentWeekIndex(startTs, numWeeks){
+    if(numWeeks <= 0) return 0;
+    const diffDays = Math.floor((Date.now() - startTs) / 86400000);
+    const idx = Math.floor(diffDays / 7);
+    return Math.min(Math.max(idx, 0), numWeeks - 1);
+  }
+
+  function buildRoundRobin(uids, double){
+    const list = uids.slice();
+    if(list.length % 2 !== 0) list.push('BYE');
+    const n = list.length;
+    const rounds = [];
+    const arr = list.slice();
+    for(let r = 0; r < n - 1; r++){
+      const matches = [];
+      for(let i = 0; i < n/2; i++){
+        const a = arr[i], b = arr[n-1-i];
+        if(a !== 'BYE' && b !== 'BYE') matches.push({ a, b });
+        else matches.push({ a: a === 'BYE' ? b : a, b: 'BYE' });
+      }
+      rounds.push({ matches });
+      arr.splice(1, 0, arr.pop());
+    }
+    if(double){
+      const mirrored = rounds.map(r => ({ matches: r.matches.map(m => ({ a: m.b, b: m.a })) }));
+      return rounds.concat(mirrored);
+    }
+    return rounds;
+  }
+
+  function trainerName(league, uid){
+    if(uid === 'BYE') return 'BYE';
+    const t = league.draft.trainers.find(x => x.uid === uid);
+    return t ? t.name : 'Unknown';
+  }
+  function trainerFirstName(league, uid){
+    if(uid === 'BYE') return 'BYE';
+    const t = league.draft.trainers.find(x => x.uid === uid);
+    return t ? (t.coachName || t.name) : 'Unknown';
+  }
+  function trainerAvatar(league, uid){
+    const t = league.draft.trainers.find(x => x.uid === uid);
+    return t ? t.avatar : '';
+  }
+  function trainerCoachName(league, uid){
+    if(uid === 'BYE') return '';
+    const t = league.draft.trainers.find(x => x.uid === uid);
+    return t ? (t.coachName || '') : '';
+  }
+  function trainerRoster(league, uid){
+    const t = league.draft.trainers.find(x => x.uid === uid);
+    return t ? (t.roster || []) : [];
+  }
+
+  function renderPreviewColumn(prefix, name, coachName, avatar, roster){
+    document.getElementById(prefix + 'Name').textContent = name || 'BYE';
+    const coachEl = document.getElementById(prefix + 'Coach');
+    if(coachEl) coachEl.textContent = coachName || '';
+    const avatarEl = document.getElementById(prefix + 'Avatar');
+    const placeholderEl = document.getElementById(prefix + 'AvatarPlaceholder');
+    document.getElementById(prefix + 'Roster')._fullRoster = roster; // kept for rebuilding the classic view once settled
+    if(avatar){
+      avatarEl.src = avatar; avatarEl.style.display = ''; placeholderEl.style.display = 'none';
+    } else {
+      avatarEl.style.display = 'none'; placeholderEl.style.display = '';
+    }
+    const listEl = document.getElementById(prefix + 'Roster');
+    listEl.innerHTML = '';
+    const firstPick = roster[0];
+    const restSortedByTier = roster.slice(1).sort((a, b) => a.tier - b.tier); // lowest to highest points
+    const visualSequence = firstPick ? restSortedByTier.concat([firstPick]) : restSortedByTier; // lowest...highest, first overall pick last
+    if(visualSequence.length === 0){
+      const li = document.createElement('li');
+      li.textContent = 'No Pokémon drafted yet.';
+      li.style.color = 'var(--cream-dim)';
+      li.style.fontStyle = 'italic';
+      listEl.appendChild(li);
+      return;
+    }
+    // Reveal card — team identity closes out the crawl, after every Pokémon has scrolled through
+    const revealLi = document.createElement('li');
+    revealLi.className = 'intro-reveal-card';
+    revealLi.innerHTML =
+      (coachName ? '<div class="intro-reveal-coach" id="' + prefix + 'RevealCoach">' + escapeHtml(coachName) + '</div>' : '') +
+      (avatar ? '<img class="intro-reveal-avatar" src="' + escapeHtml(avatar) + '" alt="">' : '<span class="intro-reveal-avatar-placeholder"></span>') +
+      '<div class="intro-reveal-name">' + escapeHtml(name || 'BYE') + '</div>';
+    // For top-to-bottom motion, whatever is LAST in the DOM enters the viewport FIRST — so the
+    // DOM order must be the reverse of the visual entrance sequence, with the reveal card first.
+    listEl.appendChild(revealLi);
+    visualSequence.slice().reverse().forEach(mon => {
+      const li = document.createElement('li');
+      li.appendChild(makeSpriteImg(mon, 'mon-sprite', true));
+      const info = document.createElement('div');
+      info.className = 'mon-info';
+      info.innerHTML = '<div class="mon-title-line"><span class="mon-name">' + escapeHtml(mon.name) + '</span>' + (mon.variation ? '<span class="mon-var">' + escapeHtml(mon.variation) + '</span>' : '') + '</div>' +
+        '<div class="type-badges">' + typeBadgesHtml(mon.types) + '</div>';
+      li.appendChild(info);
+      const tier = document.createElement('span');
+      tier.className = 'tier-chip';
+      tier.textContent = mon.tier;
+      li.appendChild(tier);
+      listEl.appendChild(li);
+    });
+  }
+
+  function formatTxLine(league, uid, tx){
+    const date = new Date(tx.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if(tx.type === 'fa_swap'){
+      const claimNames = (tx.claims||[]).map(m=>m.name).join(', ');
+      const dropNames = (tx.drops||[]).map(m=>m.name).join(', ');
+      let line = '';
+      if(claimNames) line += 'Claimed ' + claimNames;
+      if(dropNames) line += (line ? ' · ' : '') + 'Dropped ' + dropNames;
+      return date + ' — ' + (line || 'Free agency move');
+    }
+    if(tx.type === 'trade'){
+      const isProposer = tx.proposerUid === uid;
+      const gave = isProposer ? tx.offered : tx.requested;
+      const got = isProposer ? tx.requested : tx.offered;
+      const other = isProposer ? tx.recipientName : tx.proposerName;
+      return date + ' — Traded ' + (gave||[]).map(m=>m.name).join(', ') + ' to ' + escapeHtml(other) + ' for ' + (got||[]).map(m=>m.name).join(', ');
+    }
+    return date + ' — Transaction';
+  }
+
+  function openTeamDetails(league, uid){
+    const trainer = league.draft.trainers.find(t => t.uid === uid);
+    if(!trainer) return;
+    document.getElementById('detailsName').textContent = trainer.name;
+    const coachEl = document.getElementById('detailsCoach');
+    if(coachEl) coachEl.textContent = trainer.coachName || '';
+    const budgetStart = league.draft.budgetStart || 100;
+    const usedPts = budgetStart - trainer.budget;
+    document.getElementById('detailsBudget').textContent = usedPts + ' / ' + budgetStart + ' pts used';
+    const avatarEl = document.getElementById('detailsAvatar');
+    const placeholderEl = document.getElementById('detailsAvatarPlaceholder');
+    if(trainer.avatar){ avatarEl.src = trainer.avatar; avatarEl.style.display = ''; placeholderEl.style.display = 'none'; }
+    else { avatarEl.style.display = 'none'; placeholderEl.style.display = ''; }
+
+    const rosterGrid = document.getElementById('detailsRosterGrid');
+    rosterGrid.innerHTML = '';
+    (trainer.roster || []).forEach(mon => {
+      const cell = document.createElement('div');
+      cell.className = 'team-details-roster-cell';
+      cell.appendChild(makeSpriteImg(mon, 'team-details-sprite'));
+      const name = document.createElement('span');
+      name.textContent = mon.name + (mon.variation ? ' (' + mon.variation + ')' : '');
+      cell.appendChild(name);
+      rosterGrid.appendChild(cell);
+    });
+    if((trainer.roster||[]).length === 0){
+      rosterGrid.innerHTML = '<p class="settings-note">No Pokémon drafted yet.</p>';
+    }
+
+    const txWrap = document.getElementById('detailsTxList');
+    const relevant = (league.transactionLog || []).filter(tx =>
+      (tx.type === 'fa_swap' && tx.trainerUid === uid) ||
+      (tx.type === 'trade' && (tx.proposerUid === uid || tx.recipientUid === uid))
+    ).slice().reverse().slice(0, 8);
+    if(relevant.length === 0){
+      txWrap.innerHTML = '<p class="settings-note">No transactions yet this season.</p>';
+    } else {
+      txWrap.innerHTML = '<ul class="team-details-tx-list">' + relevant.map(tx => '<li>' + escapeHtml(formatTxLine(league, uid, tx)) + '</li>').join('') + '</ul>';
+    }
+
+    const detailsCard = document.querySelector('#teamDetailsModal .matchup-modal-card');
+    if(detailsCard){ detailsCard.scrollTop = 0; }
+    document.getElementById('teamDetailsModal').classList.add('show');
+  }
+  function enableSmoothWheelScroll(el){
+    // Intentionally left as a no-op: intercepting wheel scroll to animate it
+    // introduces real input lag and fights native scrollbar dragging, which
+    // ended up feeling worse than plain native scrolling. Reverted.
+  }
+  document.querySelectorAll('.matchup-modal-card').forEach(enableSmoothWheelScroll);
+  document.getElementById('teamDetailsClose').addEventListener('click', () => {
+    document.getElementById('teamDetailsModal').classList.remove('show');
+  });
+  document.getElementById('teamDetailsModal').addEventListener('click', (e) => {
+    if(e.target.id === 'teamDetailsModal') document.getElementById('teamDetailsModal').classList.remove('show');
+  });
+
+  function waitForImages(container){
+    const imgs = Array.from(container.querySelectorAll('img'));
+    if(imgs.length === 0) return Promise.resolve();
+    const imagesReady = Promise.all(imgs.map(img => {
+      if(img.complete && img.naturalWidth > 0) return Promise.resolve();
+      return new Promise(resolve => {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true }); // don't hang forever on a broken image
+      });
+    }));
+    const safetyTimeout = new Promise(resolve => setTimeout(resolve, 5000)); // never hang the intro indefinitely
+    return Promise.race([imagesReady, safetyTimeout]);
+  }
+
+  function renderClassicRoster(list){
+    const roster = list._fullRoster || [];
+    list.innerHTML = '';
+    if(roster.length === 0){
+      const li = document.createElement('li');
+      li.textContent = 'No Pokémon drafted yet.';
+      li.style.color = 'var(--cream-dim)';
+      li.style.fontStyle = 'italic';
+      list.appendChild(li);
+      return;
+    }
+    roster.slice().sort((a, b) => b.tier - a.tier).forEach(mon => {
+      const li = document.createElement('li');
+      li.appendChild(makeSpriteImg(mon, 'mon-sprite', true));
+      const info = document.createElement('div');
+      info.className = 'mon-info';
+      info.innerHTML = '<div class="mon-title-line"><span class="mon-name">' + escapeHtml(mon.name) + '</span>' + (mon.variation ? '<span class="mon-var">' + escapeHtml(mon.variation) + '</span>' : '') + '</div>' +
+        '<div class="type-badges">' + typeBadgesHtml(mon.types) + '</div>';
+      li.appendChild(info);
+      const tier = document.createElement('span');
+      tier.className = 'tier-chip';
+      tier.textContent = mon.tier;
+      li.appendChild(tier);
+      list.appendChild(li);
+    });
+  }
+
+  function playIntroCrawl(viewportId, listId, headId, generation){
+    const viewport = document.getElementById(viewportId);
+    const list = document.getElementById(listId);
+    const head = headId ? document.getElementById(headId) : null;
+    if(!viewport || !list) return;
+    if(head) head.style.display = 'none';
+    viewport.classList.remove('settled');
+    const revealCard = list.querySelector('.intro-reveal-card');
+    const coachEl = list.querySelector('.intro-reveal-coach');
+    if(coachEl) coachEl.classList.remove('visible');
+
+    const viewportHeight = viewport.clientHeight;
+    const listHeight = list.scrollHeight;
+    // Stop with the reveal card centered in the viewport, rather than scrolling it fully past too
+    const revealCenter = revealCard ? (revealCard.offsetTop + revealCard.offsetHeight / 2) : listHeight;
+    const finalTransform = (viewportHeight / 2) - revealCenter;
+    const totalDistance = finalTransform + listHeight;
+    const duration = Math.max(8, Math.min(22, totalDistance / 55));
+
+    list.style.transition = 'none';
+    list.style.transform = 'translateY(-' + listHeight + 'px)';
+    void list.offsetHeight; // force reflow so the reset above takes effect before animating
+    list.style.transition = 'transform ' + duration.toFixed(1) + 's linear';
+    list.style.transform = 'translateY(' + finalTransform + 'px)';
+
+    setTimeout(() => {
+      if(generation !== previewGeneration) return; // a newer match was opened in the meantime — ignore
+      if(coachEl) coachEl.classList.add('visible');
+      introRevealCount++;
+      if(introRevealCount >= 2){
+        const vsDivider = document.getElementById('teamPreviewVsDivider');
+        if(vsDivider) vsDivider.classList.add('visible');
+      }
+      // Stays here now — the reveal is the resting state. "Preview Teams" is its own
+      // dedicated button for the classic view, so the intro no longer transitions into it.
+    }, duration * 1000 + 150);
+  }
+
+  function openTeamPreview(league, uidA, uidB, playIntro){
+    previewGeneration++;
+    const myGeneration = previewGeneration;
+    renderPreviewColumn('previewA', trainerName(league, uidA), trainerCoachName(league, uidA), trainerAvatar(league, uidA), trainerRoster(league, uidA));
+    renderPreviewColumn('previewB', trainerName(league, uidB), trainerCoachName(league, uidB), trainerAvatar(league, uidB), trainerRoster(league, uidB));
+    const previewCard = document.querySelector('#teamPreviewModal .matchup-modal-card');
+    if(previewCard){ previewCard.scrollTop = 0; }
+    ['previewARoster', 'previewBRoster'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el){ el.style.transition = 'none'; el.style.transform = 'translateY(0)'; el.style.opacity = '1'; }
+    });
+    ['previewACrawlViewport', 'previewBCrawlViewport'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.classList.remove('settled');
+    });
+    ['previewATeamHead', 'previewBTeamHead'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = playIntro ? 'none' : 'flex';
+    });
+    document.getElementById('teamPreviewModal').classList.add('show');
+    const columnsEl = document.getElementById('teamPreviewColumns');
+    const vsDivider = document.getElementById('teamPreviewVsDivider');
+    introRevealCount = 0;
+    if(!playIntro){
+      // Straight to the classic view, no crawl — for people who just want to look, not wait
+      if(columnsEl) columnsEl.classList.remove('intro-align');
+      if(vsDivider){ vsDivider.classList.remove('fade-vs', 'visible'); }
+      if(previewCard) previewCard.style.overflowY = '';
+      ['previewARoster', 'previewBRoster'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) renderClassicRoster(el);
+      });
+      ['previewACrawlViewport', 'previewBCrawlViewport'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.classList.add('settled');
+      });
+      return;
+    }
+    // Intro mode: VS fades in later (once both reveals land), aligns to the crawl viewport's
+    // center (where the reveal logo settles), and the modal doesn't need to scroll
+    if(columnsEl) columnsEl.classList.add('intro-align');
+    if(vsDivider){ vsDivider.classList.add('fade-vs'); vsDivider.classList.remove('visible'); }
+    if(previewCard) previewCard.style.overflowY = 'hidden';
+    // Wait a beat for layout to settle (modal was display:none, so heights weren't measurable yet),
+    // then wait for every sprite image to actually finish loading before measuring anything —
+    // otherwise heights get measured against un-loaded (zero-size) images, throwing off the
+    // whole animation and causing sprites to visibly pop in mid-crawl.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const rosterA = document.getElementById('previewARoster');
+      const rosterB = document.getElementById('previewBRoster');
+      Promise.all([waitForImages(rosterA), waitForImages(rosterB)]).then(() => {
+        if(myGeneration !== previewGeneration) return; // a newer match was opened while images were loading — ignore this stale call
+        playIntroCrawl('previewACrawlViewport', 'previewARoster', 'previewATeamHead', myGeneration);
+        playIntroCrawl('previewBCrawlViewport', 'previewBRoster', 'previewBTeamHead', myGeneration);
+      });
+    }));
+  }
+  document.getElementById('teamPreviewClose').addEventListener('click', () => {
+    previewGeneration++;
+    document.getElementById('teamPreviewModal').classList.remove('show');
+  });
+  document.getElementById('teamPreviewModal').addEventListener('click', (e) => {
+    if(e.target.id === 'teamPreviewModal'){
+      previewGeneration++;
+      document.getElementById('teamPreviewModal').classList.remove('show');
+    }
+  });
+
+  function matchDifferential(r){
+    if(!r || !r.games) return 0;
+    return r.games.reduce((sum, g) => (g.a != null && g.b != null) ? sum + (g.a - g.b) : sum, 0);
+  }
+
+  function shuffle(arr){
+    const a = arr.slice();
+    for(let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  async function generateSchedule(league, double, startTs){
+    const uids = shuffle(league.draft.trainers.map(t => t.uid));
+    const weeks = buildRoundRobin(uids, double);
+    const schedule = { startDate: startTs || upcomingOrTodayMonday(), weeks, results: {} };
+    const startLabel = new Date(schedule.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { schedule });
+      pushAnnouncement(league, 'match', 'Commissioner' + ' generated the season schedule (' + weeks.length + ' weeks, starting ' + startLabel + ')');
+    }catch(err){ alert('Could not generate schedule: ' + err.message); }
+  }
+
+  let editingKeys = {};
+  let pendingWinnerByMatch = {};
+  let matchFormOpen = {};
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.mvp-dropdown-menu.show').forEach(m => m.classList.remove('show'));
+  });
+  let pendingMvpByMatch = {};
+
+  function renderGamesEditor(container, existing, matchKey, canEdit, onSave){
+    const games = (existing && existing.games && existing.games.length) ? JSON.parse(JSON.stringify(existing.games)) : [{ a: null, b: null }];
+    let totalRowEl = null;
+
+    function updateTotal(){
+      if(!totalRowEl) return;
+      const total = games.reduce((s,g)=> (g.a!=null&&g.b!=null) ? s+(g.a-g.b) : s, 0);
+      totalRowEl.textContent = 'Total Differential: ' + (total>0?'+':'') + total;
+    }
+
+    function draw(){
+      container.innerHTML = '';
+      games.forEach((g, gIdx) => {
+        const row = document.createElement('div');
+        row.className = 'game-row';
+        const label = document.createElement('span'); label.className = 'game-label'; label.textContent = 'Game ' + (gIdx+1);
+        row.appendChild(label);
+        const aInput = document.createElement('input'); aInput.type = 'number'; aInput.min = '0'; aInput.max = '6'; aInput.className = 'game-alive-input'; aInput.value = g.a != null ? g.a : '';
+        const vs = document.createElement('span'); vs.className = 'game-vs'; vs.textContent = 'vs';
+        const bInput = document.createElement('input'); bInput.type = 'number'; bInput.min = '0'; bInput.max = '6'; bInput.className = 'game-alive-input'; bInput.value = g.b != null ? g.b : '';
+        const diff = document.createElement('span'); diff.className = 'game-diff';
+        function updateDiff(){ diff.textContent = (g.a != null && g.b != null) ? ((g.a-g.b)>0?'+':'')+(g.a-g.b) : '—'; }
+        updateDiff();
+        function commit(){
+          g.a = aInput.value === '' ? null : parseInt(aInput.value,10);
+          g.b = bInput.value === '' ? null : parseInt(bInput.value,10);
+          updateDiff();
+          updateTotal();
+        }
+        aInput.disabled = !canEdit; bInput.disabled = !canEdit;
+        aInput.addEventListener('change', commit); bInput.addEventListener('change', commit);
+        row.appendChild(aInput); row.appendChild(vs); row.appendChild(bInput); row.appendChild(diff);
+        if(canEdit){
+          const rm = document.createElement('button'); rm.type='button'; rm.className='game-remove-btn'; rm.textContent='✕';
+          rm.addEventListener('click', () => { if(games.length>1){ games.splice(gIdx,1); draw(); } });
+          row.appendChild(rm);
+        }
+        container.appendChild(row);
+      });
+      if(canEdit){
+        const addBtn = document.createElement('button'); addBtn.type='button'; addBtn.className='add-game-btn'; addBtn.textContent='+ Add game';
+        addBtn.addEventListener('click', () => { games.push({a:null,b:null}); draw(); });
+        container.appendChild(addBtn);
+      }
+      totalRowEl = document.createElement('div'); totalRowEl.className='total-diff-row';
+      container.appendChild(totalRowEl);
+      updateTotal();
+    }
+    draw();
+    return { getGames: () => games };
+  }
+
+  function renderMatchCard(league, matchKey, match, existing, saveResult, editable, isCommish, myUid){
+    const card = document.createElement('div');
+    card.className = 'panel match-panel';
+
+    if(match.b === 'BYE' || match.a === 'BYE'){
+      const who = match.a === 'BYE' ? match.b : match.a;
+      card.innerHTML = '<div class="state-msg">' + escapeHtml(trainerName(league, who)) + ' has a bye this week</div>';
+      return card;
+    }
+
+    const nameA = trainerName(league, match.a), nameB = trainerName(league, match.b);
+    const isParty = myUid === match.a || myUid === match.b;
+    const canEditPermission = editable && (isParty || isCommish);
+    const isEditingOverride = editingKeys[matchKey];
+    const showEditor = existing && existing.locked ? (isCommish && isEditingOverride) : canEditPermission;
+
+    const head = document.createElement('div');
+    head.className = 'match-vs-head';
+    const winnerA = existing && existing.winner === match.a;
+    const winnerB = existing && existing.winner === match.b;
+    const avatarA = trainerAvatar(league, match.a), avatarB = trainerAvatar(league, match.b);
+    head.innerHTML =
+      '<div class="match-team">' +
+        (avatarA ? '<img class="match-avatar" src="' + escapeHtml(avatarA) + '" alt="">' : '<span class="match-avatar-placeholder"></span>') +
+        '<span class="match-team-name clickable-team-name' + (winnerA ? ' winner' : '') + '" data-uid="' + escapeHtml(match.a) + '">' + escapeHtml(nameA) + '</span>' +
+      '</div>' +
+      '<div class="match-vs-label">vs</div>' +
+      '<div class="match-team">' +
+        (avatarB ? '<img class="match-avatar" src="' + escapeHtml(avatarB) + '" alt="">' : '<span class="match-avatar-placeholder"></span>') +
+        '<span class="match-team-name clickable-team-name' + (winnerB ? ' winner' : '') + '" data-uid="' + escapeHtml(match.b) + '">' + escapeHtml(nameB) + '</span>' +
+      '</div>';
+    card.appendChild(head);
+    head.querySelectorAll('.clickable-team-name').forEach(el => {
+      el.addEventListener('click', () => openTeamDetails(league, el.getAttribute('data-uid')));
+    });
+
+    const previewBtn = document.createElement('button');
+    previewBtn.type = 'button';
+    previewBtn.className = 'btn btn-sm preview-teams-btn';
+    previewBtn.textContent = 'Preview Teams';
+    previewBtn.addEventListener('click', () => openTeamPreview(league, match.a, match.b, false));
+    card.appendChild(previewBtn);
+
+    if(editable){
+      const introBtn = document.createElement('button');
+      introBtn.type = 'button';
+      introBtn.className = 'btn btn-sm intro-btn-corner';
+      introBtn.textContent = '🎬';
+      introBtn.title = 'Play Intro';
+      introBtn.addEventListener('click', () => openTeamPreview(league, match.a, match.b, true));
+      card.appendChild(introBtn);
+    }
+
+    const formOpen = matchFormOpen[matchKey];
+
+    if(!existing && canEditPermission && !formOpen){
+      const overBtn = document.createElement('button');
+      overBtn.type = 'button';
+      overBtn.className = 'btn btn-primary btn-sm match-is-over-btn';
+      overBtn.textContent = 'Match Is Over';
+      overBtn.addEventListener('click', () => {
+        matchFormOpen[matchKey] = true;
+        renderMatch(league);
+      });
+      card.appendChild(overBtn);
+    } else if(!existing && !canEditPermission){
+      const waitMsg = document.createElement('div');
+      waitMsg.className = 'state-msg';
+      waitMsg.textContent = 'Waiting on a result from this match\'s trainers.';
+      card.appendChild(waitMsg);
+    } else if(!existing || showEditor){
+      // winner picker
+      const pickRow = document.createElement('div');
+      pickRow.className = 'winner-pick-row';
+      if(canEditPermission || showEditor){
+        [match.a, match.b].forEach(uid => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.dataset.uid = uid;
+          btn.className = 'btn btn-sm' + ((existing && existing.winner === uid) ? ' btn-primary' : '');
+          btn.textContent = 'Winner: ' + trainerFirstName(league, uid);
+          btn.addEventListener('click', () => {
+            pendingWinner[matchKey] = uid;
+            renderWinnerHighlight();
+          });
+          pickRow.appendChild(btn);
+        });
+      }
+      card.appendChild(pickRow);
+      const pendingWinner = pendingWinnerByMatch;
+      if(pendingWinner[matchKey] === undefined) pendingWinner[matchKey] = existing ? existing.winner : null;
+
+      const captionEl = document.createElement('div');
+      captionEl.className = 'games-caption';
+      card.appendChild(captionEl);
+
+      function updateCaption(){
+        const w = pendingWinner[matchKey];
+        if(!w){
+          captionEl.textContent = 'Pick a winner above, then enter each game\'s Pokémon-left-alive count below.';
+          return;
+        }
+        const loserUid = w === match.a ? match.b : match.a;
+        captionEl.innerHTML = '<span style="color:var(--gold);font-weight:700;">' + escapeHtml(trainerName(league, w)) + ' (left)</span> vs ' + escapeHtml(trainerName(league, loserUid)) + ' (right) — Pokémon left alive per game';
+      }
+
+      const mvpContainer = document.createElement('div');
+      mvpContainer.className = 'mvp-picker';
+
+      function renderMvpPicker(){
+        const w = pendingWinner[matchKey];
+        mvpContainer.innerHTML = '';
+        if(!w){ return; }
+        const winnerTrainer = league.draft.trainers.find(t => t.uid === w);
+        const roster = winnerTrainer ? (winnerTrainer.roster || []) : [];
+        if(roster.length === 0) return;
+        if(!roster.some(m => m.id === pendingMvpByMatch[matchKey])) pendingMvpByMatch[matchKey] = null;
+
+        const label = document.createElement('label');
+        label.className = 'mvp-label';
+        label.textContent = 'MVP Pokémon (optional)';
+        mvpContainer.appendChild(label);
+
+        const dropdownWrap = document.createElement('div');
+        dropdownWrap.className = 'mvp-dropdown';
+        mvpContainer.appendChild(dropdownWrap);
+
+        const trigger = document.createElement('button');
+        trigger.type = 'button';
+        trigger.className = 'mvp-dropdown-trigger';
+        dropdownWrap.appendChild(trigger);
+
+        const menu = document.createElement('div');
+        menu.className = 'mvp-dropdown-menu';
+        dropdownWrap.appendChild(menu);
+
+        function renderTrigger(){
+          trigger.innerHTML = '';
+          const selected = roster.find(m => m.id === pendingMvpByMatch[matchKey]);
+          if(selected){
+            trigger.appendChild(makeSpriteImg(selected, 'mvp-dropdown-sprite'));
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = selected.name + (selected.variation ? ' (' + selected.variation + ')' : '');
+            trigger.appendChild(nameSpan);
+          } else {
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = 'No MVP selected';
+            nameSpan.style.color = 'var(--cream-dim)';
+            trigger.appendChild(nameSpan);
+          }
+          const caret = document.createElement('span');
+          caret.className = 'mvp-dropdown-caret';
+          caret.textContent = '▾';
+          trigger.appendChild(caret);
+        }
+
+        function renderMenu(){
+          menu.innerHTML = '';
+          const blankRow = document.createElement('div');
+          blankRow.className = 'mvp-dropdown-option';
+          blankRow.textContent = 'No MVP selected';
+          blankRow.addEventListener('click', () => {
+            pendingMvpByMatch[matchKey] = null;
+            renderTrigger();
+            menu.classList.remove('show');
+          });
+          menu.appendChild(blankRow);
+          roster.forEach(mon => {
+            const row = document.createElement('div');
+            row.className = 'mvp-dropdown-option' + (pendingMvpByMatch[matchKey] === mon.id ? ' active' : '');
+            row.appendChild(makeSpriteImg(mon, 'mvp-dropdown-sprite'));
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = mon.name + (mon.variation ? ' (' + mon.variation + ')' : '');
+            row.appendChild(nameSpan);
+            row.addEventListener('click', () => {
+              pendingMvpByMatch[matchKey] = mon.id;
+              renderTrigger();
+              menu.classList.remove('show');
+            });
+            menu.appendChild(row);
+          });
+        }
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          document.querySelectorAll('.mvp-dropdown-menu.show').forEach(m => { if(m !== menu) m.classList.remove('show'); });
+          menu.classList.toggle('show');
+        });
+
+        renderTrigger();
+        renderMenu();
+      }
+      if(pendingMvpByMatch[matchKey] === undefined) pendingMvpByMatch[matchKey] = existing ? (existing.mvp || null) : null;
+
+      function renderWinnerHighlight(){
+        Array.from(pickRow.children).forEach(btn => {
+          btn.classList.toggle('btn-primary', pendingWinner[matchKey] === btn.dataset.uid);
+        });
+        updateCaption();
+        renderMvpPicker();
+      }
+      renderWinnerHighlight();
+      card.appendChild(mvpContainer);
+
+      const gamesContainer = document.createElement('div');
+      gamesContainer.className = 'games-editor';
+      card.appendChild(gamesContainer);
+      const gamesCtrl = renderGamesEditor(gamesContainer, existing, matchKey, true, null);
+
+      if(canEditPermission || showEditor){
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-primary btn-sm';
+        saveBtn.textContent = existing ? 'Save Correction' : 'Lock In Result';
+        saveBtn.style.marginTop = '12px';
+        saveBtn.addEventListener('click', async () => {
+          const winner = pendingWinner[matchKey];
+          if(!winner){ alert('Pick a winner first.'); return; }
+          const loser = winner === match.a ? match.b : match.a;
+          const games = gamesCtrl.getGames().filter(g => g.a != null && g.b != null);
+          const wasOverride = !!(existing && existing.locked);
+          const result = { winner, loser, games, locked: true, lockedBy: currentUser.uid, mvp: pendingMvpByMatch[matchKey] || null };
+          try{
+            await saveResult(result, wasOverride);
+            delete editingKeys[matchKey];
+          }catch(err){ alert('Could not save result: ' + err.message); }
+        });
+        card.appendChild(saveBtn);
+
+        if(isCommish){
+          const forfeitBtn = document.createElement('button');
+          forfeitBtn.className = 'btn btn-sm btn-danger';
+          forfeitBtn.textContent = 'Force Result (Forfeit / No Game Data)';
+          forfeitBtn.style.marginTop = '12px';
+          forfeitBtn.style.marginLeft = '8px';
+          forfeitBtn.addEventListener('click', async () => {
+            const winner = pendingWinner[matchKey];
+            if(!winner){ alert('Pick a winner first.'); return; }
+            const loser = winner === match.a ? match.b : match.a;
+            const result = { winner, loser, games: [], locked: true, lockedBy: currentUser.uid, forfeit: true, mvp: pendingMvpByMatch[matchKey] || null };
+            try{
+              await saveResult(result, false, true);
+              delete editingKeys[matchKey];
+            }catch(err){ alert('Could not save result: ' + err.message); }
+          });
+          card.appendChild(forfeitBtn);
+        }
+        if(!existing){
+          const cancelBtn = document.createElement('button');
+          cancelBtn.type = 'button';
+          cancelBtn.className = 'btn btn-sm';
+          cancelBtn.textContent = 'Cancel';
+          cancelBtn.style.marginTop = '12px';
+          cancelBtn.style.marginLeft = '8px';
+          cancelBtn.addEventListener('click', () => {
+            matchFormOpen[matchKey] = false;
+            renderMatch(league);
+          });
+          card.appendChild(cancelBtn);
+        }
+      }
+    } else {
+      // read-only, locked
+      const capt = document.createElement('div');
+      capt.className = 'games-caption';
+      capt.innerHTML = '<span style="color:var(--gold);font-weight:700;">' + escapeHtml(trainerName(league, existing.winner)) + '</span> defeated ' + escapeHtml(trainerName(league, existing.loser)) + (existing.forfeit ? ' <span style="color:#FF8A8A;">(by forfeit)</span>' : '');
+      card.appendChild(capt);
+      if(existing.mvp){
+        const winnerTrainer = league.draft.trainers.find(t => t.uid === existing.winner);
+        const mvpMon = winnerTrainer ? (winnerTrainer.roster || []).find(m => m.id === existing.mvp) : null;
+        if(mvpMon){
+          const mvpRow = document.createElement('div');
+          mvpRow.className = 'mvp-display';
+          mvpRow.appendChild(makeSpriteImg(mvpMon, 'mvp-display-sprite'));
+          const mvpLabel = document.createElement('span');
+          mvpLabel.innerHTML = '<span class="mvp-display-tag">MVP</span> ' + escapeHtml(mvpMon.name) + (mvpMon.variation ? ' (' + escapeHtml(mvpMon.variation) + ')' : '');
+          mvpRow.appendChild(mvpLabel);
+          card.appendChild(mvpRow);
+        }
+      }
+      if(!existing.forfeit){
+        const gamesContainer = document.createElement('div');
+        gamesContainer.className = 'games-editor';
+        card.appendChild(gamesContainer);
+        renderGamesEditor(gamesContainer, existing, matchKey, false, null);
+      }
+      const lockTag = document.createElement('div');
+      lockTag.className = 'settings-note';
+      lockTag.textContent = '🔒 Result locked in';
+      card.appendChild(lockTag);
+      if(isCommish){
+        const editBtn = document.createElement('button');
+        editBtn.className = 'btn btn-sm';
+        editBtn.style.marginTop = '10px';
+        editBtn.textContent = 'Edit Result (Commissioner Override)';
+        editBtn.addEventListener('click', () => {
+          editingKeys[matchKey] = true;
+          renderMatch(league);
+        });
+        card.appendChild(editBtn);
+      }
+    }
+
+    return card;
+  }
+
+  async function maybeAnnounceKickoff(league, kind, idx, matches, label){
+    const trackField = kind === 'week' ? 'weeksAnnounced' : 'playoffRoundsAnnounced';
+    const already = league[trackField] && league[trackField][idx];
+    if(already) return;
+    if(matches.some(m => !m.a || !m.b)) return; // wait until matchups are fully decided
+    const headerTitle = kind === 'week' ? ('📅 Week ' + (idx + 1) + ' Matchups — ' + (league.name || 'League')) : ('🏆 ' + label + ' Matchups — ' + (league.name || 'League'));
+
+    // Group into chunks of at most 3 matchups (9 embeds) to stay safely under Discord's 10-embed cap
+    const groups = [];
+    let current = [];
+    matches.forEach(m => {
+      current.push(m);
+      if(current.length >= 2){ groups.push(current); current = []; }
+    });
+    if(current.length) groups.push(current);
+
+    for(let groupIdx = 0; groupIdx < groups.length; groupIdx++){
+      const group = groups[groupIdx];
+      const embeds = [];
+      if(groupIdx > 0){
+        embeds.push({ description: '▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬', color: 5132376 });
+      }
+      group.forEach((m, matchIdxInGroup) => {
+        if(m.a === 'BYE' || m.b === 'BYE'){
+          const who = m.a === 'BYE' ? m.b : m.a;
+          const t = league.draft.trainers.find(x => x.uid === who);
+          const embed = { title: t ? t.name : trainerName(league, who), description: 'Bye this week', color: 16759813 };
+          const logo = discordLogoFor(t);
+          if(logo) embed.thumbnail = { url: logo };
+          embeds.push(embed);
+        } else {
+          const tA = league.draft.trainers.find(x => x.uid === m.a);
+          const tB = league.draft.trainers.find(x => x.uid === m.b);
+          const logoA = discordLogoFor(tA), logoB = discordLogoFor(tB);
+          const embedA = { title: tA ? tA.name : trainerName(league, m.a), color: 16759813 };
+          if(logoA) embedA.thumbnail = { url: logoA };
+          embeds.push(embedA);
+          embeds.push({ description: '🆚', color: 16759813 });
+          const embedB = { title: tB ? tB.name : trainerName(league, m.b), color: 16759813 };
+          if(logoB) embedB.thumbnail = { url: logoB };
+          embeds.push(embedB);
+        }
+        if(matchIdxInGroup < group.length - 1){
+          embeds.push({ description: '▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬', color: 5132376 });
+        }
+      });
+      await sendDiscordGeneral(groupIdx === 0 ? headerTitle : '', embeds);
+    }
+    const updatedTrack = Object.assign({}, league[trackField] || {}, { [idx]: true });
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { [trackField]: updatedTrack });
+    }catch(err){ /* non-critical */ }
+  }
+
+  function findActivePlayoffRound(bracket){
+    if(!bracket) return null;
+    for(let r = 0; r < bracket.rounds.length; r++){
+      const round = bracket.rounds[r];
+      const hasPending = round.matches.some(m => m.a && m.b && !m.locked);
+      if(hasPending) return { roundIdx: r, round };
+    }
+    return null;
+  }
+
+  function makePlayoffSaveResult(league, roundIdx, matchIdx, nameA, nameB){
+    return async function(result, wasOverride){
+      const bracket = JSON.parse(JSON.stringify(league.playoffBracket));
+      const match = bracket.rounds[roundIdx].matches[matchIdx];
+      match.winner = result.winner; match.games = result.games; match.locked = true;
+      match.forfeit = !!result.forfeit; match.mvp = result.mvp || null;
+      if(bracket.rounds[roundIdx+1]){
+        const nextMatch = bracket.rounds[roundIdx+1].matches[Math.floor(matchIdx/2)];
+        if(nextMatch) nextMatch[matchIdx % 2 === 0 ? 'a' : 'b'] = result.winner;
+      }
+      const isChampion = roundIdx === bracket.rounds.length - 1;
+      const updates = { playoffBracket: bracket };
+      if(isChampion){
+        updates.seasonComplete = true;
+        updates.championUid = result.winner;
+        updates.seasonCompletedAt = Date.now();
+      }
+      await updateDoc(doc(db, 'leagues', leagueId), updates);
+      if(wasOverride){
+        pushAnnouncement(league, 'match', 'Commissioner' + ' corrected the playoff result of ' + nameA + ' vs ' + nameB);
+      } else {
+        const mvpMon = result.mvp ? league.draft.trainers.find(t=>t.uid===result.winner).roster.find(m=>m.id===result.mvp) : null;
+        const mvpNote = mvpMon ? (' — MVP: ' + mvpMon.name) : '';
+        const forfeitNote = result.forfeit ? ' by forfeit' : '';
+        pushAnnouncement(league, isChampion ? 'season_complete' : 'match', isChampion
+          ? '🏆 ' + trainerName(league, result.winner) + ' has won the championship! The season is complete.'
+          : trainerName(league, result.winner) + ' advances to the next round' + forfeitNote + mvpNote, mvpMon ? [mvpMon] : [], mvpMon ? mvpMon.id : null);
+        if(isChampion){
+          sendDiscordGeneral('🎊 **' + trainerName(league, result.winner) + '** has won the championship! 🏆', discordMatchEmbed(league.draft.trainers.find(t=>t.uid===result.winner), null));
+        } else {
+          sendDiscordGeneral('🏆 **' + trainerName(league, result.winner) + '** defeated **' + trainerName(league, result.loser) + '**' + forfeitNote + mvpNote + ' (Playoffs)', discordMatchEmbed(league.draft.trainers.find(t=>t.uid===result.winner), mvpMon));
+        }
+      }
+    };
+  }
+
+  let matchSeenMarked = false;
+  function markMatchSeen(league){
+    if(matchSeenMarked || !currentUser || !league.draft) return;
+    let token = null;
+    if(league.playoffBracket){
+      for(let r = 0; r < league.playoffBracket.rounds.length; r++){
+        if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ token = 'p' + r; break; }
+      }
+    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
+      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
+      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
+      token = 'w' + idx;
+    }
+    if(token === null) return;
+    const idx2 = league.draft.trainers.findIndex(t => t.uid === currentUser.uid);
+    if(idx2 < 0) return;
+    if(league.draft.trainers[idx2].matchSeenToken === token) return;
+    matchSeenMarked = true;
+    const updatedTrainers = league.draft.trainers.map((t, i) => i === idx2 ? Object.assign({}, t, { matchSeenToken: token }) : t);
+    updateDoc(doc(db, 'leagues', leagueId), { ['draft.trainers']: updatedTrainers }).catch(() => { matchSeenMarked = false; });
+  }
+
+  function renderMatch(league){
+    currentLeague = league;
+    const isCommish = currentUser && league.commissionerUid === currentUser.uid;
+    const subnavCommish = document.getElementById('subnavCommish');
+    if(subnavCommish) subnavCommish.style.display = isCommish ? '' : 'none';
+    const subnavDraft = document.getElementById('subnavDraft');
+    if(subnavDraft) subnavDraft.style.display = '';
+    updateNavGlow(league);
+    markMatchSeen(league);
+
+    if(!league.draft){
+      content.innerHTML =
+        '<div class="page-head"><span class="eyebrow">Match</span><h1>' + escapeHtml(league.name || 'League') + '</h1></div>' +
+        '<div class="panel state-msg">Matches open up once your league\'s draft is complete.</div>';
+      return;
+    }
+
+    const myUid = currentUser ? currentUser.uid : null;
+
+    // Playoffs take over once a bracket exists and has an active round
+    if(league.playoffBracket){
+      const active = findActivePlayoffRound(league.playoffBracket);
+      if(active){
+        maybeAnnounceKickoff(league, 'playoff', active.roundIdx, active.round.matches, active.round.label);
+        content.innerHTML =
+          '<div class="page-head">' +
+            (league.logo ? '<img class="league-logo-header" src="' + escapeHtml(league.logo) + '" alt="">' : '') +
+            '<span class="eyebrow">Match — Playoffs</span>' +
+            '<h1>' + escapeHtml(league.name || 'League') + '</h1>' +
+            '<p style="color:var(--cream-dim);font-size:13.5px;margin-top:8px;">' + escapeHtml(active.round.label) + ' · the regular season is complete</p>' +
+          '</div>' +
+          '<div id="matchesWrap"></div>';
+        const wrap = document.getElementById('matchesWrap');
+        active.round.matches.forEach((match, matchIdx) => {
+          if(!match.a || !match.b) return; // not yet determined, waiting on a previous round
+          const matchKey = 'p_' + active.roundIdx + '_' + matchIdx;
+          const existing = match.locked ? match : null;
+          const nameA = trainerName(league, match.a), nameB = trainerName(league, match.b);
+          const saveResult = makePlayoffSaveResult(league, active.roundIdx, matchIdx, nameA, nameB);
+          wrap.appendChild(renderMatchCard(league, matchKey, match, existing, saveResult, true, isCommish, myUid));
+        });
+        return;
+      }
+      if(league.seasonComplete){
+        const championTrainer = league.draft.trainers.find(t => t.uid === league.championUid);
+        content.innerHTML =
+          '<div class="page-head">' +
+            (league.logo ? '<img class="league-logo-header" src="' + escapeHtml(league.logo) + '" alt="">' : '') +
+            '<span class="eyebrow">Match</span>' +
+            '<h1>' + escapeHtml(league.name || 'League') + '</h1>' +
+          '</div>' +
+          '<div class="panel" style="text-align:center;padding:36px 20px;">' +
+            '<div class="settings-note" style="margin-bottom:10px;">🏆 Season Complete</div>' +
+            (championTrainer ? '<div style="font-family:var(--display);font-size:28px;text-transform:uppercase;color:var(--gold);">' + escapeHtml(championTrainer.name) + ' — Champion</div>' : '') +
+            '<a href="standing.html?id=' + leagueId + '" style="display:inline-block;margin-top:14px;color:var(--cream-dim);text-decoration:underline;font-size:13px;">View final standings and bracket →</a>' +
+          '</div>';
+        return;
+      }
+    }
+
+    if(!league.schedule){
+      content.innerHTML =
+        '<div class="page-head"><span class="eyebrow">Match</span><h1>' + escapeHtml(league.name || 'League') + '</h1></div>' +
+        (isCommish
+          ? '<div class="panel"><h2 style="margin-bottom:12px;">Generate Season Schedule</h2><p class="settings-note" style="margin-bottom:14px;">Weeks run Monday–Sunday. Pick any date and it\'ll snap to the Monday of that week.</p>' +
+              '<div class="field-inline" style="margin-bottom:16px;"><label for="seasonStartInput">Season starts</label><input type="date" id="seasonStartInput"></div>' +
+              '<div style="display:flex;gap:10px;"><button class="btn btn-primary btn-sm" id="genSingleBtn">Single Round Robin</button><button class="btn btn-sm" id="genDoubleBtn">Double Round Robin</button></div></div>'
+          : '<div class="panel state-msg">The commissioner hasn\'t generated a schedule yet.</div>');
+      if(isCommish){
+        const startInput = document.getElementById('seasonStartInput');
+        const defaultDate = new Date(upcomingOrTodayMonday());
+        startInput.value = defaultDate.getFullYear() + '-' + String(defaultDate.getMonth()+1).padStart(2,'0') + '-' + String(defaultDate.getDate()).padStart(2,'0');
+        function chosenStartTs(){
+          const parts = startInput.value.split('-').map(Number);
+          const chosen = new Date(parts[0], parts[1]-1, parts[2]);
+          const day = chosen.getDay();
+          const daysBack = day === 0 ? 6 : (day - 1);
+          chosen.setDate(chosen.getDate() - daysBack);
+          chosen.setHours(0,0,0,0);
+          return chosen.getTime();
+        }
+        document.getElementById('genSingleBtn').addEventListener('click', () => generateSchedule(league, false, chosenStartTs()));
+        document.getElementById('genDoubleBtn').addEventListener('click', () => generateSchedule(league, true, chosenStartTs()));
+      }
+      return;
+    }
+
+    const numWeeks = league.schedule.weeks.length;
+    const trueWeekIdx = currentWeekIndex(league.schedule.startDate, numWeeks);
+    if(viewingWeekIdx === null || viewingWeekIdx >= numWeeks) viewingWeekIdx = trueWeekIdx;
+    const weekIdx = viewingWeekIdx;
+    const round = league.schedule.weeks[weekIdx];
+    const isTrueCurrentWeek = weekIdx === trueWeekIdx;
+    if(Date.now() >= league.schedule.startDate){
+      maybeAnnounceKickoff(league, 'week', trueWeekIdx, league.schedule.weeks[trueWeekIdx].matches);
+    }
+
+    content.innerHTML =
+      '<div class="page-head">' +
+        (league.logo ? '<img class="league-logo-header" src="' + escapeHtml(league.logo) + '" alt="">' : '') +
+        '<span class="eyebrow">Match</span>' +
+        '<h1>' + escapeHtml(league.name || 'League') + '</h1>' +
+        '<div class="week-nav">' +
+          '<button class="week-nav-btn" id="prevWeekBtn"' + (weekIdx === 0 ? ' disabled' : '') + '>&larr; Prev</button>' +
+          '<span class="week-nav-label">Week ' + (weekIdx+1) + ' of ' + numWeeks + (isTrueCurrentWeek ? ' <span class="week-nav-current">(Current)</span>' : '') + '<br>' + weekDateRange(league.schedule.startDate, weekIdx) + '</span>' +
+          '<button class="week-nav-btn" id="nextWeekBtn"' + (weekIdx === numWeeks - 1 ? ' disabled' : '') + '>Next &rarr;</button>' +
+        '</div>' +
+      '</div>' +
+      (!isTrueCurrentWeek ? '<p class="settings-note" style="margin:-10px 0 16px;">You\'re viewing a different week — only the current week\'s matches can have results entered.</p>' : '') +
+      '<div id="matchesWrap"></div>';
+
+    document.getElementById('prevWeekBtn').addEventListener('click', () => {
+      if(viewingWeekIdx > 0){ viewingWeekIdx--; renderMatch(currentLeague); }
+    });
+    document.getElementById('nextWeekBtn').addEventListener('click', () => {
+      if(viewingWeekIdx < numWeeks - 1){ viewingWeekIdx++; renderMatch(currentLeague); }
+    });
+
+    const wrap = document.getElementById('matchesWrap');
+    round.matches.forEach((match, matchIdx) => {
+      const matchKey = weekIdx + '_' + matchIdx;
+      const existing = (league.schedule.results || {})[matchKey];
+      const nameA = trainerName(league, match.a), nameB = trainerName(league, match.b);
+      const saveResult = async (result, wasOverride) => {
+        await updateDoc(doc(db, 'leagues', leagueId), { ['schedule.results.' + matchKey]: result });
+        if(wasOverride){
+          pushAnnouncement(league, 'match', 'Commissioner' + ' corrected the result of ' + nameA + ' vs ' + nameB);
+        } else {
+          const mvpMon = result.mvp ? league.draft.trainers.find(t=>t.uid===result.winner).roster.find(m=>m.id===result.mvp) : null;
+          const mvpNote = mvpMon ? (' — MVP: ' + mvpMon.name) : '';
+          const diffNote = result.games.length ? (' (differential: ' + (matchDifferential(result)>0?'+':'') + matchDifferential(result) + ')') : '';
+          pushAnnouncement(league, 'match', trainerName(league, result.winner) + ' defeated ' + trainerName(league, result.loser) + diffNote + mvpNote, mvpMon ? [mvpMon] : [], mvpMon ? mvpMon.id : null);
+          sendDiscordGeneral('🏆 **' + trainerName(league, result.winner) + '** defeated **' + trainerName(league, result.loser) + '**' + diffNote + (mvpMon ? (' — MVP: **' + mvpMon.name + '**') : ''), discordMatchEmbed(league.draft.trainers.find(t=>t.uid===result.winner), mvpMon));
+        }
+      };
+      wrap.appendChild(renderMatchCard(league, matchKey, match, existing, saveResult, isTrueCurrentWeek, isCommish, myUid));
+    });
+  }
+
+
+  function loadLeague(){
+    if(!leagueId){
+      content.innerHTML = '<div class="state-msg error">No league specified — use a link from the sign-in page.</div>';
+      return;
+    }
+    onSnapshot(doc(db, 'leagues', leagueId), (snap) => {
+      if(!snap.exists()){
+        content.innerHTML = '<div class="state-msg error">This league doesn\'t exist or was deleted.</div>';
+        return;
+      }
+      renderMatch(snap.data());
+    }, (err) => {
+      content.innerHTML = '<div class="state-msg error">Could not load league: ' + escapeHtml(err.message) + '</div>';
+    });
+  }
+
+  const navSignedOut = document.getElementById('navSignedOut');
+  const navSignedIn = document.getElementById('navSignedIn');
+  const navUserEmail = document.getElementById('navUserEmail');
+  const navSignOutBtn = document.getElementById('navSignOutBtn');
+  navSignOutBtn.addEventListener('click', () => signOut(auth));
+
+  const navLeaguesBtn = document.getElementById('navLeaguesBtn');
+  const navLeaguesMenu = document.getElementById('navLeaguesMenu');
+  const navLeaguesList = document.getElementById('navLeaguesList');
+  const navLeaguesEmpty = document.getElementById('navLeaguesEmpty');
+  navLeaguesBtn.addEventListener('click', (e) => { e.stopPropagation(); navLeaguesMenu.classList.toggle('open'); });
+  document.addEventListener('click', () => navLeaguesMenu.classList.remove('open'));
+  navLeaguesMenu.addEventListener('click', (e) => e.stopPropagation());
+
+  function generateJoinCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
+    return code;
+  }
+
+  const navLeaguesDefaultView = document.getElementById('navLeaguesDefaultView');
+  const navJoinView = document.getElementById('navJoinView');
+  const navShowJoinBtn = document.getElementById('navShowJoinBtn');
+  const navJoinCodeInput = document.getElementById('navJoinCodeInput');
+  const navJoinSubmitBtn = document.getElementById('navJoinSubmitBtn');
+  const navJoinCancelBtn = document.getElementById('navJoinCancelBtn');
+  const navJoinStatus = document.getElementById('navJoinStatus');
+  let navCurrentUser = null;
+
+  function showNavDefault(){
+    navLeaguesDefaultView.style.display = 'block';
+    navJoinView.style.display = 'none';
+    navJoinStatus.textContent = '';
+  }
+  navShowJoinBtn.addEventListener('click', () => {
+    navLeaguesDefaultView.style.display = 'none';
+    navJoinView.style.display = 'block';
+  });
+  navJoinCancelBtn.addEventListener('click', showNavDefault);
+
+  navJoinSubmitBtn.addEventListener('click', async () => {
+    if(!navCurrentUser) return;
+    const code = navJoinCodeInput.value.trim().toUpperCase();
+    if(!code){ navJoinStatus.textContent = 'Enter a code.'; return; }
+    navJoinSubmitBtn.disabled = true;
+    try{
+      const q = query(collection(db, 'leagues'), where('joinCode', '==', code));
+      const snap = await getDocs(q);
+      if(snap.empty){
+        navJoinStatus.textContent = 'No league found with that code.';
+        navJoinSubmitBtn.disabled = false;
+        return;
+      }
+      const leagueDoc = snap.docs[0];
+      const leagueData = leagueDoc.data();
+      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
+      const currentMemberCount = Object.keys(leagueData.members || {}).length;
+      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
+        if(currentMemberCount >= maxTeams){
+          navJoinStatus.textContent = 'This league is full (' + maxTeams + ' team limit).';
+          navJoinSubmitBtn.disabled = false;
+          return;
+        }
+      }
+      await updateDoc(doc(db, 'leagues', leagueDoc.id), {
+        ['members.' + navCurrentUser.uid]: {
+          displayName: navCurrentUser.displayName || 'Trainer',
+          photoURL: navCurrentUser.photoURL || '',
+          joinedAt: Date.now()
+        }
+      });
+      navJoinCodeInput.value = '';
+      await loadNavLeagues(navCurrentUser);
+      showNavDefault();
+    }catch(err){
+      navJoinStatus.textContent = 'Error: ' + err.message;
+    }
+    navJoinSubmitBtn.disabled = false;
+  });
+
+
+  async function loadNavLeagues(user){
+    try{
+      const q = query(collection(db, 'leagues'), where('members.' + user.uid, '!=', null));
+      const snap = await getDocs(q);
+      navLeaguesList.innerHTML = '';
+      if(snap.empty){ navLeaguesEmpty.style.display = 'block'; return; }
+      navLeaguesEmpty.style.display = 'none';
+      snap.forEach(docSnap => {
+        const l = docSnap.data();
+        const isCommish = l.commissionerUid === user.uid;
+        const li = document.createElement('li');
+        li.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(l.name || 'Untitled League') + '</span>' + (isCommish ? '<span class="nlm-commish">Commish</span>' : '') + '</a>';
+        navLeaguesList.appendChild(li);
+      });
+    }catch(err){
+      navLeaguesEmpty.style.display = 'block';
+      navLeaguesEmpty.textContent = 'Could not load leagues.';
+    }
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+    if(user){
+      navSignedOut.style.display = 'none';
+      navSignedIn.style.display = 'flex';
+      navUserEmail.textContent = user.displayName || 'Trainer';
+      navCurrentUser = user;
+      loadNavLeagues(user);
+    } else {
+      navSignedOut.style.display = '';
+      navSignedIn.style.display = 'none';
+    }
+    if(!user){
+      content.innerHTML = '<div class="state-msg">Please <a href="signin.html" style="color:var(--gold);text-decoration:underline;">sign in</a> first.</div>';
+      return;
+    }
+    loadLeague();
+  });
+</script>
+
+</body>
+</html>

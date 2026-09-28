@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Draft Room — Pokemon VGC Draft League</title>
+<meta name="description" content="Live draft room — pulls trainers straight from your league.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0D0D0D; --ink-soft:#161616; --panel:#1C1C1C; --panel-2:#242424;
+    --cream:#FAFAF7; --cream-dim:#B8B7B2; --gold:#FFCB05; --gold-soft:#C79A00;
+    --teal:#B00000; --teal-bright:#FF5A5A; --scarlet:#EE1515; --slate:#3A3A3A;
+    --line: rgba(250,250,247,0.14);
+    --display: 'Big Shoulders Display', sans-serif;
+    --body: 'Inter', sans-serif;
+    --mono: 'Space Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--ink);color:var(--cream);font-family:var(--body);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  ::selection{background:var(--gold);color:var(--ink);}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+  h1,h2{font-family:var(--display);text-transform:uppercase;letter-spacing:0.01em;line-height:0.96;margin:0;}
+
+  header.site-nav{position:sticky;top:0;z-index:60;background:rgba(13,13,13,0.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 22px;max-width:1400px;margin:0 auto;}
+  .nav-left-group{display:flex;align-items:center;}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:18px;letter-spacing:0.02em;text-transform:uppercase;}
+  .brand-mark{width:22px;height:22px;flex-shrink:0;}
+
+  .league-subnav{background:var(--ink-soft);border-bottom:1px solid var(--line);}
+  .league-subnav-inner{max-width:1400px;margin:0 auto;display:flex;gap:4px;padding:0 22px;overflow-x:auto;}
+  .subnav-tab{
+    padding:14px 18px;font-family:var(--mono);font-size:12.5px;text-transform:uppercase;letter-spacing:0.06em;
+    color:var(--cream-dim);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0;
+  }
+  .subnav-tab:hover{color:var(--cream);}
+  .subnav-tab.active{color:var(--gold);border-bottom-color:var(--gold);}
+  .subnav-tab.subnav-tab-glow{color:var(--gold);animation:tradeTabGlow 1.5s ease-in-out infinite;}
+  @keyframes tradeTabGlow{0%,100%{text-shadow:0 0 2px rgba(255,203,5,0.15);}50%{text-shadow:0 0 12px rgba(255,203,5,0.95);}}
+  .nav-links{display:flex;align-items:center;gap:16px;font-size:13px;font-weight:600;}
+  .nav-former-champions{font-size:13px;font-weight:600;color:var(--cream-dim);margin-left:6px;padding-left:6px;}
+  .nav-former-champions:hover{color:var(--gold);}
+  .nav-links a{color:var(--cream-dim);}
+  .nav-links a:hover{color:var(--gold);}
+  .nav-account{display:flex;align-items:center;gap:12px;}
+  .nav-account #navUserEmail{color:var(--cream-dim);font-size:12.5px;}
+  .nav-leagues-wrap{position:relative;}
+  .nav-leagues-menu{
+    display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:240px;
+    background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.4);z-index:100;
+  }
+  .nav-leagues-menu.open{display:block;}
+  .nlm-label{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:8px;}
+  .nlm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;}
+  .nlm-list li a{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream);
+  }
+  .nlm-list li a:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-commish{font-family:var(--mono);font-size:9px;color:var(--gold);background:rgba(255,203,5,0.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;}
+  .nlm-empty{font-size:12.5px;color:var(--cream-dim);padding:8px 10px;}
+  .nlm-divider{height:1px;background:var(--line);margin:10px 0;}
+  .nlm-action{display:block;padding:8px 10px;border-radius:4px;font-size:13px;font-weight:600;color:var(--cream-dim);}
+  .nlm-action:hover{background:var(--ink-soft);color:var(--gold);}
+  .nlm-input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:8px 10px;border-radius:4px;font-size:13px;margin-bottom:8px;font-family:var(--body);
+  }
+  .nlm-input:focus{border-color:var(--gold);}
+  .nlm-form-actions{display:flex;gap:8px;}
+  .nlm-status{font-size:11.5px;color:var(--cream-dim);margin-top:8px;margin-bottom:0;}
+
+  main{max-width:1400px;margin:0 auto;padding:28px 22px 80px;}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:24px;margin-bottom:20px;}
+  .state-msg{text-align:center;padding:60px 20px;color:var(--cream-dim);font-size:14px;}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:13px;letter-spacing:0.02em;text-transform:uppercase;
+    padding:11px 20px;border-radius:3px;cursor:pointer;border:1px solid var(--line);background:transparent;color:var(--cream);
+    font-family:var(--body);transition:transform .12s ease, border-color .15s ease;}
+  .btn:hover{transform:translateY(-1px);border-color:var(--gold);color:var(--gold);}
+  .btn-primary{background:var(--gold);color:var(--ink);border-color:var(--gold);}
+  .btn-primary:hover{background:#ffd633;color:var(--ink);}
+  .btn-danger{border-color:rgba(238,21,21,0.4);color:#FF8A8A;}
+  .btn-danger:hover{border-color:var(--scarlet);}
+  .btn-sm{padding:7px 14px;font-size:11px;}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+  .field-inline label{display:block;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:6px;}
+  .field-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;}
+
+  .join-code-box{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    background:var(--ink-soft);border:1px dashed var(--gold);border-radius:6px;padding:16px 20px;
+  }
+  .join-code-value{font-family:var(--mono);font-size:26px;letter-spacing:0.14em;color:var(--gold);font-weight:700;}
+  .join-code-hint{font-size:12.5px;color:var(--cream-dim);margin-top:6px;max-width:340px;}
+
+  .draft-order-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .draft-order-item{
+    display:flex;align-items:center;gap:12px;background:var(--ink-soft);border:1px solid var(--line);
+    border-radius:5px;padding:10px 14px;
+  }
+  .draft-order-num{font-family:var(--mono);font-weight:700;color:var(--gold);min-width:20px;}
+  .draft-order-name{flex:1;font-weight:600;}
+  .draft-order-coach{font-weight:400;color:var(--cream-dim);font-size:13px;}
+  .draft-order-arrows{display:flex;gap:4px;}
+  .draft-order-arrows .btn{padding:4px 10px;font-size:11px;}
+
+  .readiness-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+  .readiness-item{
+    display:flex;align-items:center;gap:12px;background:var(--ink-soft);border:1px solid var(--line);
+    border-radius:5px;padding:9px 14px;
+  }
+  .readiness-avatar, .readiness-avatar-placeholder{width:28px;height:28px;border-radius:50%;object-fit:cover;background:var(--slate,#333);flex-shrink:0;}
+  .readiness-name{flex:1;font-weight:600;font-size:13.5px;}
+  .readiness-badge{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.05em;padding:3px 10px;border-radius:10px;}
+  .readiness-badge.ready{background:rgba(61,220,122,0.15);color:#3DDC7A;}
+  .readiness-badge.not-ready{background:rgba(238,21,21,0.15);color:#FF8A8A;}
+  select, input{background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);padding:10px 12px;border-radius:3px;font-family:var(--body);font-size:14px;}
+  select:focus, input:focus{border-color:var(--gold);}
+
+  /* status bar */
+  .status-bar{display:flex;flex-wrap:wrap;gap:24px;align-items:center;justify-content:space-between;padding:20px 24px;}
+  .clock-info{display:flex;gap:28px;flex-wrap:wrap;align-items:center;}
+  .clock-info .eyebrow{font-family:var(--mono);font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:0.1em;display:block;margin-bottom:4px;}
+  .clock-info .big{font-family:var(--display);font-size:28px;text-transform:uppercase;}
+  #pickTimer.urgent{color:var(--scarlet) !important;animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+  .status-actions{display:flex;gap:10px;}
+
+  /* board strip */
+  .board-frame{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-bottom:20px;}
+  .board-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--cream-dim);}
+  .board-head .live{display:flex;align-items:center;gap:8px;color:var(--scarlet);}
+  .board-head .live .dot{width:7px;height:7px;border-radius:50%;background:var(--scarlet);animation:pulse 1.6s infinite;}
+  .board-scroll{display:flex;overflow-x:auto;padding:4px;}
+  .board-slot{min-width:150px;flex-shrink:0;padding:14px 16px;border-right:1px solid var(--line);}
+
+  .recap-board-wrap{overflow-x:auto;padding-bottom:8px;}
+
+  .grade-cards-row{display:flex;flex-wrap:wrap;gap:14px;}
+  .grade-card{
+    flex:1;min-width:150px;background:var(--ink-soft);border:1px solid var(--line);border-radius:6px;
+    padding:16px;text-align:center;
+  }
+  .grade-letter{font-family:var(--display);font-size:38px;line-height:1;margin-bottom:6px;}
+  .grade-A, .grade-Aminus{color:#4ADE80;}
+  .grade-Bplus, .grade-B, .grade-Bminus{color:#A3E635;}
+  .grade-Cplus, .grade-C, .grade-Cminus{color:var(--gold);}
+  .grade-trainer-name{font-weight:700;font-size:14px;margin-bottom:8px;}
+  .recap-board{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden;}
+  .recap-corner{background:var(--panel);}
+  .recap-col-head{
+    background:var(--panel);padding:12px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;
+    position:sticky;top:0;z-index:2;
+  }
+  .recap-col-head img, .recap-col-head .avatar-placeholder{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--ink-soft);}
+  .recap-col-name{font-size:12px;font-weight:700;text-align:center;line-height:1.25;}
+  .recap-round-label{
+    background:var(--panel);padding:12px 10px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:11px;color:var(--cream-dim);text-transform:uppercase;letter-spacing:0.06em;
+    position:sticky;left:0;z-index:1;
+  }
+  .recap-cell{
+    background:var(--ink);padding:10px;display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;
+  }
+  .recap-cell-empty{color:var(--cream-dim);display:flex;align-items:center;justify-content:center;font-size:13px;}
+  .recap-pick-no{font-family:var(--mono);font-size:10px;color:var(--gold);letter-spacing:0.04em;}
+  .recap-sprite{width:48px;height:48px;object-fit:contain;margin:2px 0;}
+  .recap-mon-name{font-size:12px;font-weight:700;line-height:1.2;}
+  .recap-mon-tier{font-size:11px;color:var(--cream-dim);}
+  .board-slot .pick-no{font-family:var(--mono);font-size:11px;color:var(--cream-dim);}
+  .board-slot .pick-team{font-family:var(--display);font-weight:700;font-size:15px;text-transform:uppercase;margin-top:4px;}
+  .board-slot .pick-mon{margin-top:8px;font-size:12.5px;color:var(--cream-dim);}
+  .board-slot.on-clock{background:rgba(255,203,5,0.09);position:relative;}
+  .board-slot.on-clock::before{content:"ON THE CLOCK";position:absolute;top:12px;right:14px;font-family:var(--mono);font-size:9px;color:var(--gold);animation:pulse 1.6s infinite;}
+  .board-slot.upcoming{opacity:0.45;}
+
+  /* layout */
+  .draft-layout{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start;}
+  @media (max-width:980px){.draft-layout{grid-template-columns:1fr;}}
+  .rosters{display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 220px);overflow-y:auto;position:sticky;top:80px;}
+  @media (max-width:980px){.rosters{position:static;max-height:none;}}
+  .trainer-card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px 16px;}
+  .trainer-card.active{border-color:var(--gold);background:rgba(255,203,5,0.07);}
+  .trainer-card.full{opacity:0.55;}
+  .trainer-head{display:flex;align-items:center;gap:10px;}
+  .trainer-head img, .trainer-head .avatar-placeholder{width:32px;height:32px;border-radius:50%;object-fit:cover;background:var(--slate);flex-shrink:0;}
+  .trainer-head .t-name{font-family:var(--display);font-size:16px;text-transform:uppercase;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .trainer-head .t-budget{font-family:var(--mono);font-size:12px;color:var(--gold);white-space:nowrap;}
+  .trainer-slots{font-family:var(--mono);font-size:10px;color:var(--cream-dim);text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;}
+  .picks-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:5px;}
+  .picks-list li{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--cream-dim);border-top:1px solid var(--line);padding-top:5px;}
+  .picks-list li img{width:30px;height:30px;object-fit:contain;flex-shrink:0;}
+  .picks-list .p-text{flex:1;display:flex;justify-content:space-between;gap:8px;}
+  .picks-list .p-tier{font-family:var(--mono);color:var(--gold);}
+  .picks-list .empty-slot{opacity:0.35;font-style:italic;}
+
+  .pool-panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px;}
+
+  .queue-panel{margin:0 0 18px;padding:16px 18px;}
+  .queue-panel-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+  .queue-panel-head h3{font-family:var(--display);text-transform:uppercase;font-size:16px;margin:0;letter-spacing:0.01em;}
+  .queue-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;}
+  .queue-empty{font-size:12.5px;color:var(--cream-dim);font-style:italic;padding:8px 0;}
+  .queue-item{display:flex;align-items:center;gap:10px;background:var(--ink-soft);border:1px solid var(--line);border-radius:5px;padding:6px 10px;}
+  .queue-item.taken{opacity:0.45;}
+  .queue-item-num{font-family:var(--mono);font-weight:700;color:var(--gold);min-width:16px;font-size:12px;}
+  .queue-item-sprite{width:28px;height:28px;object-fit:contain;flex-shrink:0;}
+  .queue-item-name{flex:1;font-size:13px;font-weight:600;}
+  .queue-item-arrows{display:flex;gap:4px;}
+  .queue-item-arrows .btn{padding:3px 8px;font-size:10px;}
+  .queue-star-btn{background:none;border:none;color:var(--gold);font-size:18px;cursor:pointer;line-height:1;padding:0 4px;}
+  .queue-star-btn:hover{transform:scale(1.15);}
+  .queue-star-btn.active{color:var(--gold);}
+  .pool-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--line);}
+  .type-dropdown{position:relative;min-width:140px;}
+  .type-dropdown-trigger{
+    display:flex;align-items:center;width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:8px 10px;border-radius:3px;font-family:var(--body);font-size:13px;cursor:pointer;text-align:left;min-height:34px;
+  }
+  .type-dropdown-trigger:hover{border-color:var(--gold);}
+  .type-dropdown-menu{
+    display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:60;max-height:280px;overflow-y:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,0.4);
+  }
+  .type-dropdown-menu.show{display:block;}
+  .type-dropdown-option{padding:6px 10px;cursor:pointer;font-size:13px;color:var(--cream);}
+  .type-dropdown-option:hover{background:var(--ink-soft);}
+  .pool-count{font-family:var(--mono);font-size:12px;color:var(--cream-dim);margin-left:auto;align-self:center;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  thead th{text-align:left;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--cream-dim);padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);}
+  tbody td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tbody tr:hover{background:rgba(255,203,5,0.05);}
+  tbody tr.drafted{opacity:0.3;}
+  .tier-chip{font-family:var(--mono);font-weight:700;font-size:12px;display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;border-radius:4px;background:rgba(255,203,5,0.15);color:var(--gold);}
+  .mon-name{font-weight:600;}
+  .mon-var{font-family:var(--mono);font-size:11px;color:var(--teal-bright);margin-left:6px;}
+  .sprite-cell{width:60px;}
+  .sprite-img{display:block;width:52px;height:52px;object-fit:contain;}
+  .type-badges{display:flex;gap:4px;flex-wrap:wrap;}
+  .type-badge{font-family:var(--mono);font-size:9.5px;font-weight:700;text-transform:uppercase;padding:2px 6px;border-radius:3px;}
+  .ability-pill{
+    display:inline-block;font-size:11.5px;color:var(--cream-dim);background:var(--ink-soft);border:1px solid var(--line);
+    border-radius:10px;padding:2px 8px;margin:2px 3px 2px 0;white-space:nowrap;
+  }
+  .ability-hidden{color:var(--gold);border-color:rgba(255,203,5,0.3);}
+  .pool-scroll{max-height:640px;overflow-y:auto;}
+
+  /* pick reveal */
+  .pick-reveal{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;background:rgba(13,13,13,0.85);backdrop-filter:blur(8px);opacity:0;pointer-events:none;transition:opacity .25s ease;}
+  .pick-reveal.show{opacity:1;pointer-events:auto;}
+  .pick-reveal-inner{text-align:center;transform:scale(0.55);opacity:0;transition:transform .4s cubic-bezier(.2,1.6,.4,1), opacity .3s ease;}
+  .pick-reveal.show .pick-reveal-inner{transform:scale(1);opacity:1;}
+  .pr-trainer{font-family:var(--mono);font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:var(--gold);}
+  .pr-sprite{width:200px;height:200px;object-fit:contain;filter:drop-shadow(0 0 36px rgba(255,203,5,0.5));}
+  .pr-name{font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:clamp(30px,6vw,52px);margin-top:6px;}
+  .pr-types{display:flex;gap:8px;justify-content:center;margin-top:12px;}
+  .pr-tier{font-family:var(--mono);font-size:14px;color:var(--gold);margin-top:12px;}
+
+  .draft-complete{text-align:center;padding:48px 20px;}
+  .draft-complete h2{font-size:36px;color:var(--gold);}
+</style>
+</head>
+<body>
+
+<header class="site-nav">
+  <div class="nav-inner">
+    <div class="nav-left-group">
+    <a href="index.html" class="brand">
+      <svg class="brand-mark" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="50" r="45" fill="#fff" stroke="#111" stroke-width="6"/>
+        <path d="M6,50 A44,44 0 0,1 94,50 Z" fill="#EE1515" stroke="#111" stroke-width="6"/>
+        <line x1="6" y1="50" x2="94" y2="50" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="15" fill="#fff" stroke="#111" stroke-width="7"/>
+        <circle cx="50" cy="50" r="6" fill="#111"/>
+      </svg>
+      Pokemon VGC Draft League
+    </a>
+    <a href="champions.html" class="nav-former-champions">Past Champions</a>
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="pool.html">Pool</a>
+      <a href="format.html">Format</a>
+      <span id="navSignedIn" class="nav-account">
+        <div class="nav-leagues-wrap">
+          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
+          <div id="navLeaguesMenu" class="nav-leagues-menu">
+            <div id="navLeaguesDefaultView">
+              <div class="nlm-label">My Leagues</div>
+              <ul id="navLeaguesList" class="nlm-list"></ul>
+              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
+              <div class="nlm-divider"></div>
+              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
+            </div>
+            <div id="navJoinView" style="display:none;">
+              <div class="nlm-label">Join a League</div>
+              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
+              <div class="nlm-form-actions">
+                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
+                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
+              </div>
+              <p class="nlm-status" id="navJoinStatus"></p>
+            </div>
+          </div>
+        </div>
+        <span id="navUserEmail"></span>
+        <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
+      </span>
+    </nav>
+  </div>
+</header>
+
+<div class="league-subnav">
+  <div class="league-subnav-inner">
+    <a href="match.html" id="subnavMatch" class="subnav-tab">Match</a>
+    <a href="team.html" id="subnavTeam" class="subnav-tab">Team</a>
+    <a href="freeagency.html" id="subnavFA" class="subnav-tab">Free Agency</a>
+    <a href="trades.html" id="subnavTrades" class="subnav-tab">Trades</a>
+    <a href="standing.html" id="subnavStanding" class="subnav-tab">Standing</a>
+    <a href="announcements.html" id="subnavAnnouncements" class="subnav-tab">Announcements</a>
+    <a href="draft.html" id="subnavDraft" class="subnav-tab active">Draft Room</a>
+    <a href="commissioner.html" id="subnavCommish" class="subnav-tab" style="display:none;">Commissioner</a>
+  </div>
+</div>
+
+<main>
+  <div id="root">
+    <div class="state-msg" id="stateMsg">Loading…</div>
+  </div>
+</main>
+
+<div class="pick-reveal" id="pickReveal">
+  <div class="pick-reveal-inner">
+    <div class="pr-trainer" id="prTrainer"></div>
+    <img class="pr-sprite" id="prSprite" alt="">
+    <div class="pr-name" id="prName"></div>
+    <div class="pr-types" id="prTypes"></div>
+    <div class="pr-tier" id="prTier"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, onSnapshot, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
+    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
+    projectId: "pokemon-vr-draft-league",
+    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
+    messagingSenderId: "400355118785",
+    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
+  };
+
+  const app = initializeApp(FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const POOL = [{"id": 3, "name": "Venusaur", "variation": "", "gen": 1, "tier": 13, "types": ["grass", "poison"], "bst": 525}, {"id": 4, "name": "Venusaur", "variation": "Mega", "gen": 6, "tier": 14, "types": ["grass", "poison"], "bst": 625}, {"id": 7, "name": "Charizard", "variation": "", "gen": 1, "tier": 5, "types": ["fire", "flying"], "bst": 534}, {"id": 8, "name": "Charizard", "variation": "Mega-X", "gen": 6, "tier": 15, "types": ["fire", "dragon"], "bst": 634}, {"id": 9, "name": "Charizard", "variation": "Mega-Y", "gen": 6, "tier": 22, "types": ["fire", "flying"], "bst": 634}, {"id": 12, "name": "Blastoise", "variation": "", "gen": 1, "tier": 9, "types": ["water"], "bst": 530}, {"id": 13, "name": "Blastoise", "variation": "Mega", "gen": 6, "tier": 17, "types": ["water"], "bst": 630}, {"id": 19, "name": "Beedrill", "variation": "", "gen": 1, "tier": 1, "types": ["bug", "poison"], "bst": 395}, {"id": 20, "name": "Beedrill", "variation": "Mega", "gen": 6, "tier": 5, "types": ["bug", "poison"], "bst": 495}, {"id": 23, "name": "Pidgeot", "variation": "", "gen": 1, "tier": 1, "types": ["normal", "flying"], "bst": 479}, {"id": 24, "name": "Pidgeot", "variation": "Mega", "gen": 6, "tier": 7, "types": ["normal", "flying"], "bst": 579}, {"id": 32, "name": "Arbok", "variation": "", "gen": 1, "tier": 2, "types": ["poison"], "bst": 448}, {"id": 33, "name": "Pikachu", "variation": "", "gen": 1, "tier": 1, "types": ["electric"], "bst": 320}, {"id": 35, "name": "Raichu", "variation": "", "gen": 1, "tier": 10, "types": ["electric"], "bst": 485}, {"id": 36, "name": "Raichu", "variation": "Alola", "gen": 7, "tier": 5, "types": ["electric", "psychic"], "bst": 485}, {"id": 1217, "name": "Raichu", "variation": "Mega-X", "gen": 9, "tier": 12, "types": ["electric"], "bst": 585}, {"id": 1218, "name": "Raichu", "variation": "Mega-Y", "gen": 9, "tier": 15, "types": ["electric"], "bst": 585}, {"id": 48, "name": "Clefable", "variation": "", "gen": 1, "tier": 15, "types": ["fairy"], "bst": 483}, {"id": 1219, "name": "Clefable", "variation": "Mega", "gen": 9, "tier": 14, "types": ["fairy", "flying"], "bst": 583}, {"id": 51, "name": "Ninetales", "variation": "", "gen": 1, "tier": 11, "types": ["fire"], "bst": 505}, {"id": 52, "name": "Ninetales", "variation": "Alola", "gen": 7, "tier": 14, "types": ["ice", "fairy"], "bst": 505}, {"id": 59, "name": "Vileplume", "variation": "", "gen": 1, "tier": 5, "types": ["grass", "poison"], "bst": 490}, {"id": 79, "name": "Arcanine", "variation": "", "gen": 1, "tier": 14, "types": ["fire"], "bst": 555}, {"id": 80, "name": "Arcanine", "variation": "Hisui", "gen": 1, "tier": 15, "types": ["fire", "rock"], "bst": 555}, {"id": 86, "name": "Alakazam", "variation": "", "gen": 1, "tier": 5, "types": ["psychic"], "bst": 500}, {"id": 87, "name": "Alakazam", "variation": "Mega", "gen": 6, "tier": 12, "types": ["psychic"], "bst": 600}, {"id": 90, "name": "Machamp", "variation": "", "gen": 1, "tier": 4, "types": ["fighting"], "bst": 505}, {"id": 93, "name": "Victreebel", "variation": "", "gen": 1, "tier": 3, "types": ["grass", "poison"], "bst": 490}, {"id": 1220, "name": "Victreebel", "variation": "Mega", "gen": 9, "tier": 7, "types": ["grass", "poison"], "bst": 590}, {"id": 108, "name": "Slowbro", "variation": "", "gen": 1, "tier": 7, "types": ["water", "psychic"], "bst": 490}, {"id": 109, "name": "Slowbro", "variation": "Mega", "gen": 6, "tier": 8, "types": ["water", "psychic"], "bst": 590}, {"id": 110, "name": "Slowbro", "variation": "Galar", "gen": 8, "tier": 7, "types": ["poison", "psychic"], "bst": 490}, {"id": 127, "name": "Gengar", "variation": "", "gen": 1, "tier": 8, "types": ["ghost", "poison"], "bst": 500}, {"id": 128, "name": "Gengar", "variation": "Mega", "gen": 6, "tier": 19, "types": ["ghost", "poison"], "bst": 600}, {"id": 154, "name": "Kangaskhan", "variation": "", "gen": 1, "tier": 11, "types": ["normal"], "bst": 490}, {"id": 155, "name": "Kangaskhan", "variation": "Mega", "gen": 6, "tier": 16, "types": ["normal"], "bst": 590}, {"id": 161, "name": "Starmie", "variation": "", "gen": 1, "tier": 4, "types": ["water", "psychic"], "bst": 520}, {"id": 1221, "name": "Starmie", "variation": "Mega", "gen": 9, "tier": 15, "types": ["water", "psychic"], "bst": 620}, {"id": 168, "name": "Pinsir", "variation": "", "gen": 1, "tier": 1, "types": ["bug"], "bst": 500}, {"id": 169, "name": "Pinsir", "variation": "Mega", "gen": 6, "tier": 7, "types": ["bug", "flying"], "bst": 600}, {"id": 170, "name": "Tauros", "variation": "", "gen": 1, "tier": 2, "types": ["normal"], "bst": 490}, {"id": 171, "name": "Tauros", "variation": "Paldea-Combat", "gen": 1, "tier": 3, "types": ["fighting"], "bst": 490}, {"id": 172, "name": "Tauros", "variation": "Paldea-Blaze", "gen": 1, "tier": 9, "types": ["fighting", "fire"], "bst": 490}, {"id": 173, "name": "Tauros", "variation": "Paldea-Aqua", "gen": 1, "tier": 11, "types": ["fighting", "water"], "bst": 490}, {"id": 175, "name": "Gyarados", "variation": "", "gen": 1, "tier": 13, "types": ["water", "flying"], "bst": 540}, {"id": 176, "name": "Gyarados", "variation": "Mega", "gen": 6, "tier": 14, "types": ["water", "dark"], "bst": 640}, {"id": 178, "name": "Ditto", "variation": "", "gen": 1, "tier": 4, "types": ["normal"], "bst": 288}, {"id": 181, "name": "Vaporeon", "variation": "", "gen": 1, "tier": 5, "types": ["water"], "bst": 525}, {"id": 182, "name": "Jolteon", "variation": "", "gen": 1, "tier": 4, "types": ["electric"], "bst": 525}, {"id": 183, "name": "Flareon", "variation": "", "gen": 1, "tier": 3, "types": ["fire"], "bst": 525}, {"id": 189, "name": "Aerodactyl", "variation": "", "gen": 1, "tier": 17, "types": ["rock", "flying"], "bst": 515}, {"id": 190, "name": "Aerodactyl", "variation": "Mega", "gen": 6, "tier": 17, "types": ["rock", "flying"], "bst": 615}, {"id": 191, "name": "Snorlax", "variation": "", "gen": 1, "tier": 8, "types": ["normal"], "bst": 540}, {"id": 200, "name": "Dragonite", "variation": "", "gen": 1, "tier": 16, "types": ["dragon", "flying"], "bst": 600}, {"id": 1222, "name": "Dragonite", "variation": "Mega", "gen": 9, "tier": 15, "types": ["dragon", "flying"], "bst": 700}, {"id": 207, "name": "Meganium", "variation": "", "gen": 2, "tier": 1, "types": ["grass"], "bst": 525}, {"id": 1223, "name": "Meganium", "variation": "Mega", "gen": 9, "tier": 14, "types": ["grass", "fairy"], "bst": 625}, {"id": 210, "name": "Typhlosion", "variation": "", "gen": 2, "tier": 5, "types": ["fire"], "bst": 534}, {"id": 211, "name": "Typhlosion", "variation": "Hisui", "gen": 2, "tier": 8, "types": ["fire", "ghost"], "bst": 534}, {"id": 214, "name": "Feraligatr", "variation": "", "gen": 2, "tier": 3, "types": ["water"], "bst": 530}, {"id": 1224, "name": "Feraligatr", "variation": "Mega", "gen": 9, "tier": 9, "types": ["water", "dragon"], "bst": 630}, {"id": 222, "name": "Ariados", "variation": "", "gen": 2, "tier": 2, "types": ["bug", "poison"], "bst": 400}, {"id": 235, "name": "Ampharos", "variation": "", "gen": 2, "tier": 1, "types": ["electric"], "bst": 510}, {"id": 236, "name": "Ampharos", "variation": "Mega", "gen": 6, "tier": 4, "types": ["electric", "dragon"], "bst": 610}, {"id": 239, "name": "Azumarill", "variation": "", "gen": 2, "tier": 10, "types": ["water", "fairy"], "bst": 420}, {"id": 241, "name": "Politoed", "variation": "", "gen": 2, "tier": 13, "types": ["water"], "bst": 500}, {"id": 252, "name": "Espeon", "variation": "", "gen": 2, "tier": 7, "types": ["psychic"], "bst": 525}, {"id": 253, "name": "Umbreon", "variation": "", "gen": 2, "tier": 5, "types": ["dark"], "bst": 525}, {"id": 255, "name": "Slowking", "variation": "", "gen": 2, "tier": 7, "types": ["water", "psychic"], "bst": 490}, {"id": 256, "name": "Slowking", "variation": "Galar", "gen": 8, "tier": 6, "types": ["poison", "psychic"], "bst": 490}, {"id": 262, "name": "Forretress", "variation": "", "gen": 2, "tier": 1, "types": ["bug", "steel"], "bst": 465}, {"id": 265, "name": "Steelix", "variation": "", "gen": 2, "tier": 2, "types": ["steel", "ground"], "bst": 510}, {"id": 266, "name": "Steelix", "variation": "Mega", "gen": 6, "tier": 6, "types": ["steel", "ground"], "bst": 610}, {"id": 269, "name": "Qwilfish", "variation": "", "gen": 2, "tier": 5, "types": ["water", "poison"], "bst": 440}, {"id": 271, "name": "Scizor", "variation": "", "gen": 2, "tier": 11, "types": ["bug", "steel"], "bst": 500}, {"id": 272, "name": "Scizor", "variation": "Mega", "gen": 6, "tier": 15, "types": ["bug", "steel"], "bst": 600}, {"id": 274, "name": "Heracross", "variation": "", "gen": 2, "tier": 3, "types": ["bug", "fighting"], "bst": 500}, {"id": 275, "name": "Heracross", "variation": "Mega", "gen": 6, "tier": 7, "types": ["bug", "fighting"], "bst": 600}, {"id": 290, "name": "Skarmory", "variation": "", "gen": 2, "tier": 3, "types": ["steel", "flying"], "bst": 465}, {"id": 1225, "name": "Skarmory", "variation": "Mega", "gen": 9, "tier": 11, "types": ["steel", "flying"], "bst": 565}, {"id": 292, "name": "Houndoom", "variation": "", "gen": 2, "tier": 1, "types": ["dark", "fire"], "bst": 500}, {"id": 293, "name": "Houndoom", "variation": "Mega", "gen": 6, "tier": 6, "types": ["dark", "fire"], "bst": 600}, {"id": 312, "name": "Tyranitar", "variation": "", "gen": 2, "tier": 16, "types": ["rock", "dark"], "bst": 600}, {"id": 313, "name": "Tyranitar", "variation": "Mega", "gen": 6, "tier": 17, "types": ["rock", "dark"], "bst": 700}, {"id": 319, "name": "Sceptile", "variation": "", "gen": 3, "tier": 4, "types": ["grass"], "bst": 530}, {"id": 320, "name": "Sceptile", "variation": "Mega", "gen": 6, "tier": 15, "types": ["grass", "dragon"], "bst": 630}, {"id": 323, "name": "Blaziken", "variation": "", "gen": 3, "tier": 9, "types": ["fire", "fighting"], "bst": 530}, {"id": 324, "name": "Blaziken", "variation": "Mega", "gen": 6, "tier": 15, "types": ["fire", "fighting"], "bst": 630}, {"id": 327, "name": "Swampert", "variation": "", "gen": 3, "tier": 9, "types": ["water", "ground"], "bst": 535}, {"id": 328, "name": "Swampert", "variation": "Mega", "gen": 6, "tier": 19, "types": ["water", "ground"], "bst": 635}, {"id": 349, "name": "Pelipper", "variation": "", "gen": 3, "tier": 16, "types": ["water", "flying"], "bst": 440}, {"id": 352, "name": "Gardevoir", "variation": "", "gen": 3, "tier": 10, "types": ["psychic", "fairy"], "bst": 518}, {"id": 353, "name": "Gardevoir", "variation": "Mega", "gen": 6, "tier": 18, "types": ["psychic", "fairy"], "bst": 618}, {"id": 373, "name": "Sableye", "variation": "", "gen": 3, "tier": 14, "types": ["dark", "ghost"], "bst": 380}, {"id": 374, "name": "Sableye", "variation": "Mega", "gen": 6, "tier": 9, "types": ["dark", "ghost"], "bst": 480}, {"id": 375, "name": "Mawile", "variation": "", "gen": 3, "tier": 5, "types": ["steel", "fairy"], "bst": 380}, {"id": 376, "name": "Mawile", "variation": "Mega", "gen": 6, "tier": 19, "types": ["steel", "fairy"], "bst": 480}, {"id": 379, "name": "Aggron", "variation": "", "gen": 3, "tier": 2, "types": ["steel", "rock"], "bst": 530}, {"id": 380, "name": "Aggron", "variation": "Mega", "gen": 6, "tier": 8, "types": ["steel"], "bst": 630}, {"id": 382, "name": "Medicham", "variation": "", "gen": 3, "tier": 7, "types": ["fighting", "psychic"], "bst": 410}, {"id": 383, "name": "Medicham", "variation": "Mega", "gen": 6, "tier": 12, "types": ["fighting", "psychic"], "bst": 510}, {"id": 385, "name": "Manectric", "variation": "", "gen": 3, "tier": 1, "types": ["electric"], "bst": 475}, {"id": 386, "name": "Manectric", "variation": "Mega", "gen": 6, "tier": 10, "types": ["electric"], "bst": 575}, {"id": 395, "name": "Sharpedo", "variation": "", "gen": 3, "tier": 2, "types": ["water", "dark"], "bst": 460}, {"id": 396, "name": "Sharpedo", "variation": "Mega", "gen": 6, "tier": 7, "types": ["water", "dark"], "bst": 560}, {"id": 400, "name": "Camerupt", "variation": "", "gen": 3, "tier": 1, "types": ["fire", "ground"], "bst": 460}, {"id": 401, "name": "Camerupt", "variation": "Mega", "gen": 6, "tier": 10, "types": ["fire", "ground"], "bst": 560}, {"id": 402, "name": "Torkoal", "variation": "", "gen": 3, "tier": 15, "types": ["fire"], "bst": 470}, {"id": 412, "name": "Altaria", "variation": "", "gen": 3, "tier": 1, "types": ["dragon", "flying"], "bst": 490}, {"id": 413, "name": "Altaria", "variation": "Mega", "gen": 6, "tier": 9, "types": ["dragon", "fairy"], "bst": 590}, {"id": 429, "name": "Milotic", "variation": "", "gen": 3, "tier": 14, "types": ["water"], "bst": 540}, {"id": 430, "name": "Castform", "variation": "", "gen": 3, "tier": 1, "types": ["normal"], "bst": 420}, {"id": 436, "name": "Banette", "variation": "", "gen": 3, "tier": 1, "types": ["ghost"], "bst": 455}, {"id": 437, "name": "Banette", "variation": "Mega", "gen": 6, "tier": 5, "types": ["ghost"], "bst": 555}, {"id": 441, "name": "Chimecho", "variation": "", "gen": 3, "tier": 1, "types": ["psychic"], "bst": 455}, {"id": 1226, "name": "Chimecho", "variation": "Mega", "gen": 9, "tier": 9, "types": ["psychic", "steel"], "bst": 555}, {"id": 442, "name": "Absol", "variation": "", "gen": 3, "tier": 1, "types": ["dark"], "bst": 465}, {"id": 443, "name": "Absol", "variation": "Mega", "gen": 6, "tier": 4, "types": ["dark"], "bst": 565}, {"id": 446, "name": "Glalie", "variation": "", "gen": 3, "tier": 1, "types": ["ice"], "bst": 480}, {"id": 447, "name": "Glalie", "variation": "Mega", "gen": 6, "tier": 4, "types": ["ice"], "bst": 580}, {"id": 462, "name": "Metagross", "variation": "", "gen": 3, "tier": 14, "types": ["steel", "psychic"], "bst": 600}, {"id": 463, "name": "Metagross", "variation": "Mega", "gen": 6, "tier": 19, "types": ["steel", "psychic"], "bst": 700}, {"id": 484, "name": "Torterra", "variation": "", "gen": 4, "tier": 4, "types": ["grass", "ground"], "bst": 525}, {"id": 487, "name": "Infernape", "variation": "", "gen": 4, "tier": 7, "types": ["fire", "fighting"], "bst": 534}, {"id": 490, "name": "Empoleon", "variation": "", "gen": 4, "tier": 7, "types": ["water", "steel"], "bst": 530}, {"id": 493, "name": "Staraptor", "variation": "", "gen": 4, "tier": 11, "types": ["normal", "flying"], "bst": 485}, {"id": 1227, "name": "Staraptor", "variation": "Mega", "gen": 9, "tier": 19, "types": ["fighting", "flying"], "bst": 585}, {"id": 500, "name": "Luxray", "variation": "", "gen": 4, "tier": 4, "types": ["electric"], "bst": 523}, {"id": 502, "name": "Roserade", "variation": "", "gen": 4, "tier": 4, "types": ["grass", "poison"], "bst": 515}, {"id": 504, "name": "Rampardos", "variation": "", "gen": 4, "tier": 4, "types": ["rock"], "bst": 495}, {"id": 506, "name": "Bastiodon", "variation": "", "gen": 4, "tier": 2, "types": ["rock", "steel"], "bst": 495}, {"id": 527, "name": "Lopunny", "variation": "", "gen": 4, "tier": 1, "types": ["normal"], "bst": 480}, {"id": 528, "name": "Lopunny", "variation": "Mega", "gen": 6, "tier": 16, "types": ["normal", "fighting"], "bst": 580}, {"id": 542, "name": "Spiritomb", "variation": "", "gen": 4, "tier": 6, "types": ["ghost", "dark"], "bst": 485}, {"id": 545, "name": "Garchomp", "variation": "", "gen": 4, "tier": 20, "types": ["dragon", "ground"], "bst": 600}, {"id": 546, "name": "Garchomp", "variation": "Mega", "gen": 6, "tier": 14, "types": ["dragon", "ground"], "bst": 700}, {"id": 549, "name": "Lucario", "variation": "", "gen": 4, "tier": 6, "types": ["fighting", "steel"], "bst": 525}, {"id": 550, "name": "Lucario", "variation": "Mega", "gen": 6, "tier": 15, "types": ["fighting", "steel"], "bst": 625}, {"id": 552, "name": "Hippowdon", "variation": "", "gen": 4, "tier": 5, "types": ["ground"], "bst": 525}, {"id": 556, "name": "Toxicroak", "variation": "", "gen": 4, "tier": 4, "types": ["poison", "fighting"], "bst": 490}, {"id": 562, "name": "Abomasnow", "variation": "", "gen": 4, "tier": 6, "types": ["grass", "ice"], "bst": 494}, {"id": 563, "name": "Abomasnow", "variation": "Mega", "gen": 6, "tier": 6, "types": ["grass", "ice"], "bst": 594}, {"id": 564, "name": "Weavile", "variation": "", "gen": 4, "tier": 9, "types": ["dark", "ice"], "bst": 510}, {"id": 567, "name": "Rhyperior", "variation": "", "gen": 4, "tier": 9, "types": ["ground", "rock"], "bst": 535}, {"id": 573, "name": "Leafeon", "variation": "", "gen": 4, "tier": 5, "types": ["grass"], "bst": 525}, {"id": 574, "name": "Glaceon", "variation": "", "gen": 4, "tier": 5, "types": ["ice"], "bst": 525}, {"id": 575, "name": "Gliscor", "variation": "", "gen": 4, "tier": 3, "types": ["ground", "flying"], "bst": 510}, {"id": 576, "name": "Mamoswine", "variation": "", "gen": 4, "tier": 12, "types": ["ice", "ground"], "bst": 530}, {"id": 578, "name": "Gallade", "variation": "", "gen": 4, "tier": 8, "types": ["psychic", "fighting"], "bst": 518}, {"id": 579, "name": "Gallade", "variation": "Mega", "gen": 6, "tier": 13, "types": ["psychic", "fighting"], "bst": 618}, {"id": 582, "name": "Froslass", "variation": "", "gen": 4, "tier": 4, "types": ["ice", "ghost"], "bst": 480}, {"id": 1228, "name": "Froslass", "variation": "Mega", "gen": 9, "tier": 20, "types": ["ice", "ghost"], "bst": 580}, {"id": 583, "name": "Rotom", "variation": "", "gen": 4, "tier": 2, "types": ["electric", "ghost"], "bst": 440}, {"id": 584, "name": "Rotom", "variation": "Heat", "gen": 4, "tier": 12, "types": ["electric", "fire"], "bst": 520}, {"id": 585, "name": "Rotom", "variation": "Wash", "gen": 4, "tier": 14, "types": ["electric", "water"], "bst": 520}, {"id": 586, "name": "Rotom", "variation": "Frost", "gen": 4, "tier": 4, "types": ["electric", "ice"], "bst": 520}, {"id": 587, "name": "Rotom", "variation": "Fan", "gen": 4, "tier": 2, "types": ["electric", "flying"], "bst": 520}, {"id": 588, "name": "Rotom", "variation": "Mow", "gen": 4, "tier": 11, "types": ["electric", "grass"], "bst": 520}, {"id": 610, "name": "Serperior", "variation": "", "gen": 5, "tier": 5, "types": ["grass"], "bst": 528}, {"id": 613, "name": "Emboar", "variation": "", "gen": 5, "tier": 3, "types": ["fire", "fighting"], "bst": 528}, {"id": 1231, "name": "Emboar", "variation": "Mega", "gen": 9, "tier": 8, "types": ["fire", "fighting"], "bst": 628}, {"id": 616, "name": "Samurott", "variation": "", "gen": 5, "tier": 1, "types": ["water"], "bst": 528}, {"id": 617, "name": "Samurott", "variation": "Hisui", "gen": 5, "tier": 4, "types": ["water", "dark"], "bst": 528}, {"id": 619, "name": "Watchog", "variation": "", "gen": 5, "tier": 1, "types": ["normal"], "bst": 420}, {"id": 624, "name": "Liepard", "variation": "", "gen": 5, "tier": 10, "types": ["dark"], "bst": 446}, {"id": 626, "name": "Simisage", "variation": "", "gen": 5, "tier": 1, "types": ["grass"], "bst": 498}, {"id": 628, "name": "Simisear", "variation": "", "gen": 5, "tier": 1, "types": ["fire"], "bst": 498}, {"id": 630, "name": "Simipour", "variation": "", "gen": 5, "tier": 1, "types": ["water"], "bst": 498}, {"id": 632, "name": "Musharna", "variation": "", "gen": 5, "tier": 4, "types": ["psychic"], "bst": 487}, {"id": 644, "name": "Excadrill", "variation": "", "gen": 5, "tier": 13, "types": ["ground", "steel"], "bst": 508}, {"id": 1232, "name": "Excadrill", "variation": "Mega", "gen": 9, "tier": 13, "types": ["ground", "steel"], "bst": 608}, {"id": 645, "name": "Audino", "variation": "", "gen": 5, "tier": 3, "types": ["normal"], "bst": 445}, {"id": 646, "name": "Audino", "variation": "Mega", "gen": 6, "tier": 3, "types": ["normal", "fairy"], "bst": 545}, {"id": 649, "name": "Conkeldurr", "variation": "", "gen": 5, "tier": 7, "types": ["fighting"], "bst": 505}, {"id": 660, "name": "Scolipede", "variation": "", "gen": 5, "tier": 9, "types": ["bug", "poison"], "bst": 485}, {"id": 1233, "name": "Scolipede", "variation": "Mega", "gen": 9, "tier": 11, "types": ["bug", "poison"], "bst": 585}, {"id": 662, "name": "Whimsicott", "variation": "", "gen": 5, "tier": 19, "types": ["grass", "fairy"], "bst": 480}, {"id": 671, "name": "Krookodile", "variation": "", "gen": 5, "tier": 9, "types": ["ground", "dark"], "bst": 519}, {"id": 682, "name": "Scrafty", "variation": "", "gen": 5, "tier": 13, "types": ["dark", "fighting"], "bst": 488}, {"id": 1234, "name": "Scrafty", "variation": "Mega", "gen": 9, "tier": 14, "types": ["dark", "fighting"], "bst": 588}, {"id": 686, "name": "Cofagrigus", "variation": "", "gen": 5, "tier": 5, "types": ["ghost"], "bst": 483}, {"id": 692, "name": "Garbodor", "variation": "", "gen": 5, "tier": 1, "types": ["poison"], "bst": 474}, {"id": 695, "name": "Zoroark", "variation": "", "gen": 5, "tier": 6, "types": ["dark"], "bst": 510}, {"id": 696, "name": "Zoroark", "variation": "Hisui", "gen": 5, "tier": 9, "types": ["normal", "ghost"], "bst": 510}, {"id": 704, "name": "Reuniclus", "variation": "", "gen": 5, "tier": 8, "types": ["psychic"], "bst": 490}, {"id": 709, "name": "Vanilluxe", "variation": "", "gen": 5, "tier": 8, "types": ["ice"], "bst": 535}, {"id": 712, "name": "Emolga", "variation": "", "gen": 5, "tier": 1, "types": ["electric", "flying"], "bst": 428}, {"id": 729, "name": "Eelektross", "variation": "", "gen": 5, "tier": 7, "types": ["electric"], "bst": 515}, {"id": 1235, "name": "Eelektross", "variation": "Mega", "gen": 9, "tier": 15, "types": ["electric"], "bst": 615}, {"id": 734, "name": "Chandelure", "variation": "", "gen": 5, "tier": 6, "types": ["ghost", "fire"], "bst": 520}, {"id": 1236, "name": "Chandelure", "variation": "Mega", "gen": 9, "tier": 9, "types": ["ghost", "fire"], "bst": 620}, {"id": 739, "name": "Beartic", "variation": "", "gen": 5, "tier": 3, "types": ["ice"], "bst": 505}, {"id": 743, "name": "Stunfisk", "variation": "", "gen": 5, "tier": 1, "types": ["ground", "electric"], "bst": 471}, {"id": 744, "name": "Stunfisk", "variation": "Galar", "gen": 8, "tier": 1, "types": ["ground", "steel"], "bst": 471}, {"id": 749, "name": "Golurk", "variation": "", "gen": 5, "tier": 4, "types": ["ground", "ghost"], "bst": 483}, {"id": 1237, "name": "Golurk", "variation": "Mega", "gen": 9, "tier": 10, "types": ["ground", "ghost"], "bst": 583}, {"id": 762, "name": "Hydreigon", "variation": "", "gen": 5, "tier": 14, "types": ["dark", "dragon"], "bst": 600}, {"id": 764, "name": "Volcarona", "variation": "", "gen": 5, "tier": 16, "types": ["bug", "fire"], "bst": 550}, {"id": 786, "name": "Chesnaught", "variation": "", "gen": 6, "tier": 4, "types": ["grass", "fighting"], "bst": 530}, {"id": 1238, "name": "Chesnaught", "variation": "Mega", "gen": 9, "tier": 8, "types": ["grass", "fighting"], "bst": 630}, {"id": 789, "name": "Delphox", "variation": "", "gen": 6, "tier": 5, "types": ["fire", "psychic"], "bst": 534}, {"id": 1239, "name": "Delphox", "variation": "Mega", "gen": 9, "tier": 17, "types": ["fire", "psychic"], "bst": 634}, {"id": 792, "name": "Greninja", "variation": "", "gen": 6, "tier": 7, "types": ["water", "dark"], "bst": 530}, {"id": 1240, "name": "Greninja", "variation": "Mega", "gen": 9, "tier": 12, "types": ["water", "dark"], "bst": 630}, {"id": 795, "name": "Diggersby", "variation": "", "gen": 6, "tier": 6, "types": ["normal", "ground"], "bst": 423}, {"id": 798, "name": "Talonflame", "variation": "", "gen": 6, "tier": 15, "types": ["fire", "flying"], "bst": 499}, {"id": 801, "name": "Vivillon", "variation": "", "gen": 6, "tier": 10, "types": ["bug", "flying"], "bst": 411}, {"id": 803, "name": "Pyroar", "variation": "", "gen": 6, "tier": 4, "types": ["fire", "normal"], "bst": 507}, {"id": 1241, "name": "Pyroar", "variation": "Mega", "gen": 9, "tier": 17, "types": ["fire", "normal"], "bst": 607}, {"id": 805, "name": "Floette", "variation": "", "gen": 6, "tier": 11, "types": ["fairy"], "bst": 371}, {"id": 1242, "name": "Floette", "variation": "Mega", "gen": 9, "tier": 22, "types": ["fairy"], "bst": 651}, {"id": 806, "name": "Florges", "variation": "", "gen": 6, "tier": 7, "types": ["fairy"], "bst": 552}, {"id": 810, "name": "Pangoro", "variation": "", "gen": 6, "tier": 6, "types": ["fighting", "dark"], "bst": 495}, {"id": 811, "name": "Furfrou", "variation": "", "gen": 6, "tier": 1, "types": ["normal"], "bst": 472}, {"id": 813, "name": "Meowstic", "variation": "", "gen": 6, "tier": 11, "types": ["psychic"], "bst": 466}, {"id": 814, "name": "Meowstic", "variation": "F", "gen": 6, "tier": 2, "types": ["psychic"], "bst": 466}, {"id": 1243, "name": "Meowstic", "variation": "Mega", "gen": 9, "tier": 9, "types": ["psychic"], "bst": 566}, {"id": 817, "name": "Aegislash", "variation": "", "gen": 6, "tier": 16, "types": ["steel", "ghost"], "bst": 500}, {"id": 820, "name": "Aromatisse", "variation": "", "gen": 6, "tier": 6, "types": ["fairy"], "bst": 462}, {"id": 822, "name": "Slurpuff", "variation": "", "gen": 6, "tier": 2, "types": ["fairy"], "bst": 480}, {"id": 824, "name": "Malamar", "variation": "", "gen": 6, "tier": 4, "types": ["dark", "psychic"], "bst": 482}, {"id": 1244, "name": "Malamar", "variation": "Mega", "gen": 9, "tier": 12, "types": ["dark", "psychic"], "bst": 582}, {"id": 826, "name": "Barbaracle", "variation": "", "gen": 6, "tier": 2, "types": ["rock", "water"], "bst": 500}, {"id": 1245, "name": "Barbaracle", "variation": "Mega", "gen": 9, "tier": 15, "types": ["rock", "fighting"], "bst": 600}, {"id": 828, "name": "Dragalge", "variation": "", "gen": 6, "tier": 9, "types": ["poison", "dragon"], "bst": 494}, {"id": 1246, "name": "Dragalge", "variation": "Mega", "gen": 9, "tier": 11, "types": ["poison", "dragon"], "bst": 594}, {"id": 830, "name": "Clawitzer", "variation": "", "gen": 6, "tier": 4, "types": ["water"], "bst": 500}, {"id": 832, "name": "Heliolisk", "variation": "", "gen": 6, "tier": 4, "types": ["electric", "normal"], "bst": 481}, {"id": 834, "name": "Tyrantrum", "variation": "", "gen": 6, "tier": 4, "types": ["rock", "dragon"], "bst": 521}, {"id": 836, "name": "Aurorus", "variation": "", "gen": 6, "tier": 3, "types": ["rock", "ice"], "bst": 521}, {"id": 837, "name": "Sylveon", "variation": "", "gen": 6, "tier": 15, "types": ["fairy"], "bst": 525}, {"id": 838, "name": "Hawlucha", "variation": "", "gen": 6, "tier": 7, "types": ["fighting", "flying"], "bst": 500}, {"id": 1247, "name": "Hawlucha", "variation": "Mega", "gen": 9, "tier": 10, "types": ["fighting", "flying"], "bst": 600}, {"id": 839, "name": "Dedenne", "variation": "", "gen": 6, "tier": 1, "types": ["electric", "fairy"], "bst": 431}, {"id": 844, "name": "Goodra", "variation": "", "gen": 6, "tier": 4, "types": ["dragon"], "bst": 600}, {"id": 845, "name": "Goodra", "variation": "Hisui", "gen": 6, "tier": 6, "types": ["steel", "dragon"], "bst": 600}, {"id": 846, "name": "Klefki", "variation": "", "gen": 6, "tier": 11, "types": ["steel", "fairy"], "bst": 470}, {"id": 848, "name": "Trevenant", "variation": "", "gen": 6, "tier": 3, "types": ["ghost", "grass"], "bst": 474}, {"id": 853, "name": "Gourgeist", "variation": "", "gen": 6, "tier": 5, "types": ["ghost", "grass"], "bst": 494}, {"id": 858, "name": "Avalugg", "variation": "", "gen": 6, "tier": 1, "types": ["ice"], "bst": 514}, {"id": 859, "name": "Avalugg", "variation": "Hisui", "gen": 6, "tier": 1, "types": ["ice", "rock"], "bst": 514}, {"id": 861, "name": "Noivern", "variation": "", "gen": 6, "tier": 9, "types": ["flying", "dragon"], "bst": 535}, {"id": 874, "name": "Decidueye", "variation": "", "gen": 7, "tier": 3, "types": ["grass", "ghost"], "bst": 530}, {"id": 875, "name": "Decidueye", "variation": "Hisui", "gen": 7, "tier": 4, "types": ["grass", "fighting"], "bst": 530}, {"id": 878, "name": "Incineroar", "variation": "", "gen": 7, "tier": 18, "types": ["fire", "dark"], "bst": 530}, {"id": 881, "name": "Primarina", "variation": "", "gen": 7, "tier": 15, "types": ["water", "fairy"], "bst": 530}, {"id": 884, "name": "Toucannon", "variation": "", "gen": 7, "tier": 1, "types": ["normal", "flying"], "bst": 485}, {"id": 891, "name": "Crabominable", "variation": "", "gen": 7, "tier": 3, "types": ["fighting", "ice"], "bst": 478}, {"id": 1249, "name": "Crabominable", "variation": "Mega", "gen": 9, "tier": 8, "types": ["fighting", "ice"], "bst": 578}, {"id": 900, "name": "Lycanroc", "variation": "", "gen": 7, "tier": 3, "types": ["rock"], "bst": 487}, {"id": 901, "name": "Lycanroc", "variation": "Midnight", "gen": 7, "tier": 1, "types": ["rock"], "bst": 487}, {"id": 902, "name": "Lycanroc", "variation": "Dusk", "gen": 7, "tier": 5, "types": ["rock"], "bst": 487}, {"id": 906, "name": "Toxapex", "variation": "", "gen": 7, "tier": 8, "types": ["poison", "water"], "bst": 495}, {"id": 908, "name": "Mudsdale", "variation": "", "gen": 7, "tier": 5, "types": ["ground"], "bst": 500}, {"id": 910, "name": "Araquanid", "variation": "", "gen": 7, "tier": 11, "types": ["water", "bug"], "bst": 454}, {"id": 916, "name": "Salazzle", "variation": "", "gen": 7, "tier": 10, "types": ["poison", "fire"], "bst": 480}, {"id": 921, "name": "Tsareena", "variation": "", "gen": 7, "tier": 8, "types": ["grass"], "bst": 510}, {"id": 923, "name": "Oranguru", "variation": "", "gen": 7, "tier": 10, "types": ["normal", "psychic"], "bst": 490}, {"id": 924, "name": "Passimian", "variation": "", "gen": 7, "tier": 3, "types": ["fighting"], "bst": 490}, {"id": 937, "name": "Mimikyu", "variation": "", "gen": 7, "tier": 11, "types": ["ghost", "fairy"], "bst": 476}, {"id": 939, "name": "Drampa", "variation": "", "gen": 7, "tier": 3, "types": ["normal", "dragon"], "bst": 485}, {"id": 1251, "name": "Drampa", "variation": "Mega", "gen": 9, "tier": 8, "types": ["normal", "dragon"], "bst": 585}, {"id": 943, "name": "Kommo-o", "variation": "", "gen": 7, "tier": 14, "types": ["dragon", "fighting"], "bst": 600}, {"id": 985, "name": "Corviknight", "variation": "", "gen": 8, "tier": 13, "types": ["flying", "steel"], "bst": 495}, {"id": 1003, "name": "Flapple", "variation": "", "gen": 8, "tier": 3, "types": ["grass", "dragon"], "bst": 485}, {"id": 1004, "name": "Appletun", "variation": "", "gen": 8, "tier": 1, "types": ["grass", "dragon"], "bst": 485}, {"id": 1006, "name": "Sandaconda", "variation": "", "gen": 8, "tier": 2, "types": ["ground"], "bst": 510}, {"id": 1018, "name": "Polteageist", "variation": "", "gen": 8, "tier": 5, "types": ["ghost"], "bst": 508}, {"id": 1021, "name": "Hatterene", "variation": "", "gen": 8, "tier": 9, "types": ["psychic", "fairy"], "bst": 510}, {"id": 1024, "name": "Grimmsnarl", "variation": "", "gen": 8, "tier": 17, "types": ["dark", "fairy"], "bst": 510}, {"id": 1029, "name": "Mr. Rime", "variation": "", "gen": 8, "tier": 3, "types": ["ice", "psychic"], "bst": 520}, {"id": 1030, "name": "Runerigus", "variation": "", "gen": 8, "tier": 5, "types": ["ground", "ghost"], "bst": 483}, {"id": 1032, "name": "Alcremie", "variation": "", "gen": 8, "tier": 4, "types": ["fairy"], "bst": 495}, {"id": 1033, "name": "Falinks", "variation": "", "gen": 8, "tier": 2, "types": ["fighting"], "bst": 470}, {"id": 1254, "name": "Falinks", "variation": "Mega", "gen": 9, "tier": 10, "types": ["fighting"], "bst": 570}, {"id": 1042, "name": "Morpeko", "variation": "", "gen": 8, "tier": 2, "types": ["electric", "dark"], "bst": 436}, {"id": 1053, "name": "Dragapult", "variation": "", "gen": 8, "tier": 15, "types": ["dragon", "ghost"], "bst": 600}, {"id": 1071, "name": "Wyrdeer", "variation": "", "gen": 8, "tier": 7, "types": ["normal", "psychic"], "bst": 525}, {"id": 1072, "name": "Kleavor", "variation": "", "gen": 8, "tier": 6, "types": ["bug", "rock"], "bst": 500}, {"id": 1074, "name": "Basculegion", "variation": "", "gen": 8, "tier": 20, "types": ["water", "ghost"], "bst": 530}, {"id": 1075, "name": "Basculegion", "variation": "F", "gen": 8, "tier": 12, "types": ["water", "ghost"], "bst": 530}, {"id": 1076, "name": "Sneasler", "variation": "", "gen": 8, "tier": 19, "types": ["fighting", "poison"], "bst": 510}, {"id": 1077, "name": "Overqwil", "variation": "", "gen": 8, "tier": 12, "types": ["dark", "poison"], "bst": 510}, {"id": 1082, "name": "Meowscarada", "variation": "", "gen": 9, "tier": 12, "types": ["grass", "dark"], "bst": 530}, {"id": 1085, "name": "Skeledirge", "variation": "", "gen": 9, "tier": 5, "types": ["fire", "ghost"], "bst": 530}, {"id": 1088, "name": "Quaquaval", "variation": "", "gen": 9, "tier": 5, "types": ["water", "fighting"], "bst": 530}, {"id": 1100, "name": "Maushold", "variation": "", "gen": 9, "tier": 16, "types": ["normal"], "bst": 470}, {"id": 1113, "name": "Garganacl", "variation": "", "gen": 9, "tier": 5, "types": ["rock"], "bst": 500}, {"id": 1115, "name": "Armarouge", "variation": "", "gen": 9, "tier": 12, "types": ["fire", "psychic"], "bst": 525}, {"id": 1116, "name": "Ceruledge", "variation": "", "gen": 9, "tier": 8, "types": ["fire", "ghost"], "bst": 525}, {"id": 1118, "name": "Bellibolt", "variation": "", "gen": 9, "tier": 4, "types": ["electric"], "bst": 495}, {"id": 1131, "name": "Scovillain", "variation": "", "gen": 9, "tier": 3, "types": ["grass", "fire"], "bst": 486}, {"id": 1255, "name": "Scovillain", "variation": "Mega", "gen": 9, "tier": 15, "types": ["grass", "fire"], "bst": 586}, {"id": 1135, "name": "Espathra", "variation": "", "gen": 9, "tier": 5, "types": ["psychic"], "bst": 481}, {"id": 1138, "name": "Tinkaton", "variation": "", "gen": 9, "tier": 11, "types": ["fairy", "steel"], "bst": 506}, {"id": 1143, "name": "Palafin", "variation": "", "gen": 9, "tier": 12, "types": ["water"], "bst": 457}, {"id": 1148, "name": "Orthworm", "variation": "", "gen": 9, "tier": 7, "types": ["steel"], "bst": 480}, {"id": 1150, "name": "Glimmora", "variation": "", "gen": 9, "tier": 13, "types": ["rock", "poison"], "bst": 525}, {"id": 1256, "name": "Glimmora", "variation": "Mega", "gen": 9, "tier": 16, "types": ["rock", "poison"], "bst": 625}, {"id": 1152, "name": "Houndstone", "variation": "", "gen": 9, "tier": 7, "types": ["ghost"], "bst": 488}, {"id": 1159, "name": "Annihilape", "variation": "", "gen": 9, "tier": 17, "types": ["fighting", "ghost"], "bst": 535}, {"id": 1161, "name": "Farigiraf", "variation": "", "gen": 9, "tier": 16, "types": ["normal", "psychic"], "bst": 520}, {"id": 1164, "name": "Kingambit", "variation": "", "gen": 9, "tier": 20, "types": ["dark", "steel"], "bst": 550}, {"id": 1182, "name": "Gholdengo", "variation": "", "gen": 9, "tier": 18, "types": ["steel", "ghost"], "bst": 550}, {"id": 1198, "name": "Sinistcha", "variation": "", "gen": 9, "tier": 18, "types": ["grass", "ghost"], "bst": 508}, {"id": 1206, "name": "Archaludon", "variation": "", "gen": 9, "tier": 19, "types": ["steel", "dragon"], "bst": 600}, {"id": 1207, "name": "Hydrapple", "variation": "", "gen": 9, "tier": 6, "types": ["grass", "dragon"], "bst": 540}, {"id": 1300, "name": "Farfetch\u2019d", "variation": "", "gen": 1, "tier": 1, "types": ["normal", "flying"], "bst": 377}, {"id": 1302, "name": "Mr. Mime", "variation": "", "gen": 1, "tier": 2, "types": ["psychic", "fairy"], "bst": 460}, {"id": 1303, "name": "Swalot", "variation": "", "gen": 3, "tier": 2, "types": ["poison"], "bst": 467}, {"id": 1304, "name": "Sirfetch\u2019d", "variation": "", "gen": 8, "tier": 8, "types": ["fighting"], "bst": 507}, {"id": 1305, "name": "Wigglytuff", "variation": "", "gen": 1, "tier": 10, "types": ["normal", "fairy"], "bst": 435}, {"id": 1306, "name": "Persian", "variation": "", "gen": 1, "tier": 4, "types": ["normal"], "bst": 440}, {"id": 1307, "name": "Persian", "variation": "Alolan", "gen": 7, "tier": 4, "types": ["dark"], "bst": 440}, {"id": 1308, "name": "Absol", "variation": "Mega Z", "gen": 9, "tier": 16, "types": ["dark", "ghost"], "bst": 565}, {"id": 1309, "name": "Salamence", "variation": "Mega", "gen": 9, "tier": 21, "types": ["dragon", "flying"], "bst": 700}, {"id": 1310, "name": "Salamence", "variation": "", "gen": 3, "tier": 17, "types": ["dragon", "flying"], "bst": 600}, {"id": 1311, "name": "Garchomp", "variation": "Mega Z", "gen": 9, "tier": 15, "types": ["dragon"], "bst": 700}, {"id": 1312, "name": "Lucario", "variation": "Mega Z", "gen": 9, "tier": 16, "types": ["fighting", "steel"], "bst": 625}, {"id": 1313, "name": "Gogoat", "variation": "", "gen": 6, "tier": 1, "types": ["grass"], "bst": 531}, {"id": 1314, "name": "Golisopod", "variation": "", "gen": 7, "tier": 5, "types": ["bug", "water"], "bst": 530}, {"id": 1315, "name": "Golisopod", "variation": "Mega", "gen": 9, "tier": 17, "types": ["bug", "steel"], "bst": 630}, {"id": 1316, "name": "Rillaboom", "variation": "", "gen": 8, "tier": 18, "types": ["grass"], "bst": 530}, {"id": 1317, "name": "Cinderace", "variation": "", "gen": 8, "tier": 10, "types": ["fire"], "bst": 530}, {"id": 1318, "name": "Inteleon", "variation": "", "gen": 8, "tier": 6, "types": ["water"], "bst": 530}, {"id": 1319, "name": "Thievul", "variation": "", "gen": 8, "tier": 4, "types": ["dark"], "bst": 455}, {"id": 1320, "name": "Toxtricity", "variation": "", "gen": 8, "tier": 6, "types": ["electric", "poison"], "bst": 502}, {"id": 1321, "name": "Grapploct", "variation": "", "gen": 8, "tier": 1, "types": ["fighting"], "bst": 480}, {"id": 1322, "name": "Perrserker", "variation": "", "gen": 8, "tier": 1, "types": ["steel"], "bst": 440}, {"id": 1323, "name": "Pincurchin", "variation": "", "gen": 8, "tier": 4, "types": ["electric"], "bst": 435}, {"id": 1324, "name": "Indeedee", "variation": "Female", "gen": 8, "tier": 18, "types": ["psychic", "normal"], "bst": 475}, {"id": 1325, "name": "Indeedee", "variation": "Male", "gen": 8, "tier": 14, "types": ["psychic", "normal"], "bst": 475}, {"id": 1326, "name": "Pawmot", "variation": "", "gen": 9, "tier": 16, "types": ["electric", "fighting"], "bst": 490}, {"id": 1327, "name": "Arboliva", "variation": "", "gen": 9, "tier": 6, "types": ["grass", "normal"], "bst": 510}, {"id": 1328, "name": "Squawkabilly", "variation": "", "gen": 9, "tier": 3, "types": ["normal", "flying"], "bst": 417}, {"id": 1329, "name": "Mabosstiff", "variation": "", "gen": 9, "tier": 3, "types": ["dark"], "bst": 505}, {"id": 1330, "name": "Baxcalibur", "variation": "", "gen": 9, "tier": 14, "types": ["dragon", "ice"], "bst": 600}, {"id": 1331, "name": "Baxcalibur", "variation": "Mega", "gen": 9, "tier": 18, "types": ["dragon", "ice"], "bst": 700}];
+  const PICK_SECONDS = 90;
+
+  const params = new URLSearchParams(window.location.search);
+  const leagueId = params.get('id');
+  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el && leagueId) el.href = el.getAttribute('href') + '?id=' + leagueId;
+  });
+
+  const root = document.getElementById('root');
+  let currentUser = null;
+  function updateNavGlow(league){
+    const glowTab = (id, active) => {
+      const el = document.getElementById(id);
+      if(el) el.classList.toggle('subnav-tab-glow', !!active);
+    };
+    if(!currentUser || !league || !league.draft || !league.draft.trainers){
+      ['subnavMatch','subnavTrades','subnavStanding','subnavAnnouncements'].forEach(id => glowTab(id, false));
+      return;
+    }
+    const me = league.draft.trainers.find(t => t.uid === currentUser.uid);
+
+    const tradesSeenAt = (me && me.tradesSeenAt) || 0;
+    const tradesUnseen = (league.trades || []).some(t => t.recipientUid === currentUser.uid && t.status === 'pending' && (t.createdAt || 0) > tradesSeenAt);
+    glowTab('subnavTrades', tradesUnseen);
+
+    const announcementsSeenAt = (me && me.announcementsSeenAt) || 0;
+    const announcementsUnseen = (league.announcements || []).some(a => (a.timestamp || 0) > announcementsSeenAt);
+    glowTab('subnavAnnouncements', announcementsUnseen);
+
+    let matchToken = null;
+    if(league.playoffBracket){
+      for(let r = 0; r < league.playoffBracket.rounds.length; r++){
+        if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ matchToken = 'p' + r; break; }
+      }
+    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
+      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
+      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
+      matchToken = 'w' + idx;
+    }
+    const matchUnseen = matchToken !== null && matchToken !== (me && me.matchSeenToken);
+    glowTab('subnavMatch', matchUnseen);
+
+    let resultCount = Object.keys((league.schedule && league.schedule.results) || {}).length;
+    if(league.playoffBracket){
+      league.playoffBracket.rounds.forEach(r => (r.matches || []).forEach(m => { if(m.locked) resultCount++; }));
+    }
+    const standingToken = resultCount > 0 ? String(resultCount) : null;
+    const standingUnseen = standingToken !== null && standingToken !== (me && me.standingSeenToken);
+    glowTab('subnavStanding', standingUnseen);
+  }
+
+  let league = null;
+  let pickTimerInterval = null;
+  let scheduleCountdownInterval = null;
+  function startScheduleCountdown(){
+    if(scheduleCountdownInterval){ clearInterval(scheduleCountdownInterval); scheduleCountdownInterval = null; }
+    if(!league.draftScheduledAt) return;
+    const el = document.getElementById('scheduleCountdown');
+    if(!el) return;
+    const tick = () => {
+      const liveEl = document.getElementById('scheduleCountdown');
+      if(!liveEl){ clearInterval(scheduleCountdownInterval); scheduleCountdownInterval = null; return; }
+      liveEl.textContent = formatCountdown(league.draftScheduledAt);
+    };
+    tick();
+    scheduleCountdownInterval = setInterval(tick, 1000);
+  }
+
+  function formatCountdown(targetTs){
+    const diff = targetTs - Date.now();
+    if(diff <= 0) return 'Starting any moment now';
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    if(days > 0) return days + 'd ' + hours + 'h ' + mins + 'm';
+    if(hours > 0) return hours + 'h ' + mins + 'm ' + secs + 's';
+    return mins + 'm ' + secs + 's';
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- sprites ----------
+  const PLACEHOLDER_SPRITE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="#3A3A3A" stroke-width="2"/><line x1="3" y1="20" x2="37" y2="20" stroke="#3A3A3A" stroke-width="2"/><circle cx="20" cy="20" r="5" fill="#3A3A3A"/></svg>'
+  );
+  function kebab(s){ return String(s||'').toLowerCase().replace(/['".]/g,'').trim().replace(/\s+/g,'-'); }
+  const REGIONAL_SLUG_MAP = { alola:'alolan', galar:'galarian', hisui:'hisuian' };
+  const ID_TO_POKEAPI_ID = {"3": "3", "4": "10033", "7": "6", "8": "10034", "9": "10035", "12": "9", "13": "10036", "19": "15", "20": "10090", "23": "18", "24": "10073", "32": "24", "33": "25", "35": "26", "36": "10100", "1217": "10304", "1218": "10305", "48": "36", "1219": "10278", "51": "38", "52": "10104", "59": "45", "79": "59", "80": "10230", "86": "65", "87": "10037", "90": "68", "93": "71", "1220": "10279", "108": "80", "109": "10071", "110": "10165", "127": "94", "128": "10038", "154": "115", "155": "10039", "161": "121", "1221": "10280", "168": "127", "169": "10040", "170": "128", "171": "10250", "172": "10251", "173": "10252", "175": "130", "176": "10041", "178": "132", "181": "134", "182": "135", "183": "136", "189": "142", "190": "10042", "191": "143", "200": "149", "1222": "10281", "207": "154", "1223": "10282", "210": "157", "211": "10233", "214": "160", "1224": "10283", "222": "168", "235": "181", "236": "10045", "239": "184", "241": "186", "252": "196", "253": "197", "255": "199", "256": "10172", "262": "205", "265": "208", "266": "10072", "269": "211", "271": "212", "272": "10046", "274": "214", "275": "10047", "290": "227", "1225": "10284", "292": "229", "293": "10048", "312": "248", "313": "10049", "319": "254", "320": "10065", "323": "257", "324": "10050", "327": "260", "328": "10064", "349": "279", "352": "282", "353": "10051", "373": "302", "374": "10066", "375": "303", "376": "10052", "379": "306", "380": "10053", "382": "308", "383": "10054", "385": "310", "386": "10055", "395": "319", "396": "10070", "400": "323", "401": "10087", "402": "324", "412": "334", "413": "10067", "429": "350", "430": "351", "436": "354", "437": "10056", "441": "358", "1226": "10306", "442": "359", "443": "10057", "446": "362", "447": "10074", "462": "376", "463": "10076", "484": "389", "487": "392", "490": "395", "493": "398", "1227": "10308", "500": "405", "502": "407", "504": "409", "506": "411", "527": "428", "528": "10088", "542": "442", "545": "445", "546": "10058", "549": "448", "550": "10059", "552": "450", "556": "454", "562": "460", "563": "10060", "564": "461", "567": "464", "573": "470", "574": "471", "575": "472", "576": "473", "578": "475", "579": "10068", "582": "478", "1228": "10285", "583": "479", "584": "10008", "585": "10009", "586": "10010", "587": "10011", "588": "10012", "610": "497", "613": "500", "1231": "10286", "616": "503", "617": "10236", "619": "505", "624": "510", "626": "512", "628": "514", "630": "516", "632": "518", "644": "530", "1232": "10287", "645": "531", "646": "10069", "649": "534", "660": "545", "1233": "10288", "662": "547", "671": "553", "682": "560", "1234": "10289", "686": "563", "692": "569", "695": "571", "696": "10239", "704": "579", "709": "584", "712": "587", "729": "604", "1235": "10290", "734": "609", "1236": "10291", "739": "614", "743": "618", "744": "10180", "749": "623", "1237": "10313", "762": "635", "764": "637", "786": "652", "1238": "10292", "789": "655", "1239": "10293", "792": "658", "1240": "10294", "795": "660", "798": "663", "801": "666", "803": "668", "1241": "10295", "805": "670", "1242": "10296", "806": "671", "810": "675", "811": "676", "813": "678", "814": "10025", "1243": "10314", "817": "681", "820": "683", "822": "685", "824": "687", "1244": "10297", "826": "689", "1245": "10298", "828": "691", "1246": "10299", "830": "693", "832": "695", "834": "697", "836": "699", "837": "700", "838": "701", "1247": "10300", "839": "702", "844": "706", "845": "10242", "846": "707", "848": "709", "853": "711", "858": "713", "859": "10243", "861": "715", "874": "724", "875": "10244", "878": "727", "881": "730", "884": "733", "891": "740", "1249": "10315", "900": "745", "901": "10126", "902": "10152", "906": "748", "908": "750", "910": "752", "916": "758", "921": "763", "923": "765", "924": "766", "937": "778", "939": "780", "1251": "10302", "943": "784", "985": "823", "1003": "841", "1004": "842", "1006": "844", "1018": "855", "1021": "858", "1024": "861", "1029": "866", "1030": "867", "1032": "869", "1033": "870", "1254": "10303", "1042": "877", "1053": "887", "1071": "899", "1072": "900", "1074": "902", "1075": "10248", "1076": "903", "1077": "904", "1082": "908", "1085": "911", "1088": "914", "1100": "925", "1113": "934", "1115": "936", "1116": "937", "1118": "939", "1131": "952", "1255": "10320", "1135": "956", "1138": "959", "1143": "964", "1148": "968", "1150": "970", "1256": "10321", "1152": "972", "1159": "979", "1161": "981", "1164": "983", "1182": "1000", "1198": "1013", "1206": "1018", "1207": "1019", "1300": "83", "1302": "122", "1303": "317", "1304": "865", "1305": "40", "1306": "53", "1307": "10108", "1308": "10307", "1309": "10089", "1310": "373", "1311": "10309", "1312": "10310", "1313": "673", "1314": "768", "1315": "10316", "1316": "812", "1317": "815", "1318": "818", "1319": "828", "1320": "849", "1321": "853", "1322": "863", "1323": "871", "1324": "10186", "1325": "876", "1326": "923", "1327": "930", "1328": "931", "1329": "943", "1330": "998", "1331": "10325"};
+  function spriteCandidates(mon){
+    const pokeapiId = ID_TO_POKEAPI_ID[mon.id];
+    if(!pokeapiId) return [];
+    return ['https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/' + pokeapiId + '.png'];
+  }
+  function makeSpriteImg(mon, cssClass){
+    const candidates = spriteCandidates(mon);
+    const img = document.createElement('img');
+    img.className = cssClass; img.alt=''; img.loading='lazy'; img.src = candidates[0];
+    let idx=0;
+    img.addEventListener('error', () => {
+      idx++;
+      if(idx < candidates.length){ img.src = candidates[idx]; }
+      else { img.onerror=null; img.src = PLACEHOLDER_SPRITE; img.style.opacity='0.4'; }
+    });
+    return img;
+  }
+
+  const TYPE_COLORS = {
+    normal:'#A8A878', fire:'#F08030', water:'#6890F0', electric:'#F8D030',
+    grass:'#78C850', ice:'#98D8D8', fighting:'#C03028', poison:'#A040A0',
+    ground:'#E0C068', flying:'#A890F0', psychic:'#F85888', bug:'#A8B820',
+    rock:'#B8A038', ghost:'#705898', dragon:'#7038F8', dark:'#705848',
+    steel:'#B8B8D0', fairy:'#EE99AC'
+  };
+  function textColorFor(hex){
+    const r=parseInt(hex.slice(1,3),16), g=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+    return (0.299*r+0.587*g+0.114*b)/255 > 0.6 ? '#111' : '#fff';
+  }
+  const ID_TO_ABILITIES = {"3": [{"name": "Overgrow", "hidden": false}, {"name": "Chlorophyll", "hidden": true}], "4": [{"name": "Thick Fat", "hidden": false}], "7": [{"name": "Blaze", "hidden": false}, {"name": "Solar Power", "hidden": true}], "8": [{"name": "Tough Claws", "hidden": false}], "9": [{"name": "Drought", "hidden": false}], "12": [{"name": "Torrent", "hidden": false}, {"name": "Rain Dish", "hidden": true}], "13": [{"name": "Mega Launcher", "hidden": false}], "19": [{"name": "Swarm", "hidden": false}, {"name": "Sniper", "hidden": true}], "20": [{"name": "Adaptability", "hidden": false}], "23": [{"name": "Keen Eye", "hidden": false}, {"name": "Tangled Feet", "hidden": false}, {"name": "Big Pecks", "hidden": true}], "24": [{"name": "No Guard", "hidden": false}], "32": [{"name": "Intimidate", "hidden": false}, {"name": "Shed Skin", "hidden": false}, {"name": "Unnerve", "hidden": true}], "33": [{"name": "Static", "hidden": false}, {"name": "Lightning Rod", "hidden": true}], "35": [{"name": "Static", "hidden": false}, {"name": "Lightning Rod", "hidden": true}], "36": [{"name": "Surge Surfer", "hidden": false}], "1217": [{"name": "Electric Surge", "hidden": false}], "1218": [{"name": "No Guard", "hidden": false}], "48": [{"name": "Cute Charm", "hidden": false}, {"name": "Magic Guard", "hidden": false}, {"name": "Unaware", "hidden": true}], "1219": [{"name": "Magic Bounce", "hidden": false}], "51": [{"name": "Flash Fire", "hidden": false}, {"name": "Drought", "hidden": true}], "52": [{"name": "Snow Cloak", "hidden": false}, {"name": "Snow Warning", "hidden": true}], "59": [{"name": "Chlorophyll", "hidden": false}, {"name": "Effect Spore", "hidden": true}], "79": [{"name": "Intimidate", "hidden": false}, {"name": "Flash Fire", "hidden": false}, {"name": "Justified", "hidden": true}], "80": [{"name": "Intimidate", "hidden": false}, {"name": "Flash Fire", "hidden": false}, {"name": "Rock Head", "hidden": true}], "86": [{"name": "Synchronize", "hidden": false}, {"name": "Inner Focus", "hidden": false}, {"name": "Magic Guard", "hidden": true}], "87": [{"name": "Trace", "hidden": false}], "90": [{"name": "Guts", "hidden": false}, {"name": "No Guard", "hidden": false}, {"name": "Steadfast", "hidden": true}], "93": [{"name": "Chlorophyll", "hidden": false}, {"name": "Gluttony", "hidden": true}], "1220": [{"name": "Innards Out", "hidden": false}], "108": [{"name": "Oblivious", "hidden": false}, {"name": "Own Tempo", "hidden": false}, {"name": "Regenerator", "hidden": true}], "109": [{"name": "Shell Armor", "hidden": false}], "110": [{"name": "Quick Draw", "hidden": false}, {"name": "Own Tempo", "hidden": false}, {"name": "Regenerator", "hidden": true}], "127": [{"name": "Cursed Body", "hidden": false}], "128": [{"name": "Shadow Tag", "hidden": false}], "154": [{"name": "Early Bird", "hidden": false}, {"name": "Scrappy", "hidden": false}, {"name": "Inner Focus", "hidden": true}], "155": [{"name": "Parental Bond", "hidden": false}], "161": [{"name": "Illuminate", "hidden": false}, {"name": "Natural Cure", "hidden": false}, {"name": "Analytic", "hidden": true}], "1221": [{"name": "Huge Power", "hidden": false}], "168": [{"name": "Hyper Cutter", "hidden": false}, {"name": "Mold Breaker", "hidden": false}, {"name": "Moxie", "hidden": true}], "169": [{"name": "Aerilate", "hidden": false}], "170": [{"name": "Intimidate", "hidden": false}, {"name": "Anger Point", "hidden": false}, {"name": "Sheer Force", "hidden": true}], "171": [{"name": "Intimidate", "hidden": false}, {"name": "Anger Point", "hidden": false}, {"name": "Cud Chew", "hidden": true}], "172": [{"name": "Intimidate", "hidden": false}, {"name": "Anger Point", "hidden": false}, {"name": "Cud Chew", "hidden": true}], "173": [{"name": "Intimidate", "hidden": false}, {"name": "Anger Point", "hidden": false}, {"name": "Cud Chew", "hidden": true}], "175": [{"name": "Intimidate", "hidden": false}, {"name": "Moxie", "hidden": true}], "176": [{"name": "Mold Breaker", "hidden": false}], "178": [{"name": "Limber", "hidden": false}, {"name": "Imposter", "hidden": true}], "181": [{"name": "Water Absorb", "hidden": false}, {"name": "Hydration", "hidden": true}], "182": [{"name": "Volt Absorb", "hidden": false}, {"name": "Quick Feet", "hidden": true}], "183": [{"name": "Flash Fire", "hidden": false}, {"name": "Guts", "hidden": true}], "189": [{"name": "Rock Head", "hidden": false}, {"name": "Pressure", "hidden": false}, {"name": "Unnerve", "hidden": true}], "190": [{"name": "Tough Claws", "hidden": false}], "191": [{"name": "Immunity", "hidden": false}, {"name": "Thick Fat", "hidden": false}, {"name": "Gluttony", "hidden": true}], "200": [{"name": "Inner Focus", "hidden": false}, {"name": "Multiscale", "hidden": true}], "1222": [{"name": "Multiscale", "hidden": false}], "207": [{"name": "Overgrow", "hidden": false}, {"name": "Leaf Guard", "hidden": true}], "1223": [{"name": "Mega Sol", "hidden": false}], "210": [{"name": "Blaze", "hidden": false}, {"name": "Flash Fire", "hidden": true}], "211": [{"name": "Blaze", "hidden": false}, {"name": "Frisk", "hidden": true}], "214": [{"name": "Torrent", "hidden": false}, {"name": "Sheer Force", "hidden": true}], "1224": [{"name": "Dragonize", "hidden": false}], "222": [{"name": "Swarm", "hidden": false}, {"name": "Insomnia", "hidden": false}, {"name": "Sniper", "hidden": true}], "235": [{"name": "Static", "hidden": false}, {"name": "Plus", "hidden": true}], "236": [{"name": "Mold Breaker", "hidden": false}], "239": [{"name": "Thick Fat", "hidden": false}, {"name": "Huge Power", "hidden": false}, {"name": "Sap Sipper", "hidden": true}], "241": [{"name": "Water Absorb", "hidden": false}, {"name": "Damp", "hidden": false}, {"name": "Drizzle", "hidden": true}], "252": [{"name": "Synchronize", "hidden": false}, {"name": "Magic Bounce", "hidden": true}], "253": [{"name": "Synchronize", "hidden": false}, {"name": "Inner Focus", "hidden": true}], "255": [{"name": "Oblivious", "hidden": false}, {"name": "Own Tempo", "hidden": false}, {"name": "Regenerator", "hidden": true}], "256": [{"name": "Curious Medicine", "hidden": false}, {"name": "Own Tempo", "hidden": false}, {"name": "Regenerator", "hidden": true}], "262": [{"name": "Sturdy", "hidden": false}, {"name": "Overcoat", "hidden": true}], "265": [{"name": "Rock Head", "hidden": false}, {"name": "Sturdy", "hidden": false}, {"name": "Sheer Force", "hidden": true}], "266": [{"name": "Sand Force", "hidden": false}], "269": [{"name": "Poison Point", "hidden": false}, {"name": "Swift Swim", "hidden": false}, {"name": "Intimidate", "hidden": true}], "271": [{"name": "Swarm", "hidden": false}, {"name": "Technician", "hidden": false}, {"name": "Light Metal", "hidden": true}], "272": [{"name": "Technician", "hidden": false}], "274": [{"name": "Swarm", "hidden": false}, {"name": "Guts", "hidden": false}, {"name": "Moxie", "hidden": true}], "275": [{"name": "Skill Link", "hidden": false}], "290": [{"name": "Keen Eye", "hidden": false}, {"name": "Sturdy", "hidden": false}, {"name": "Weak Armor", "hidden": true}], "1225": [{"name": "Stalwart", "hidden": false}], "292": [{"name": "Early Bird", "hidden": false}, {"name": "Flash Fire", "hidden": false}, {"name": "Unnerve", "hidden": true}], "293": [{"name": "Solar Power", "hidden": false}], "312": [{"name": "Sand Stream", "hidden": false}, {"name": "Unnerve", "hidden": true}], "313": [{"name": "Sand Stream", "hidden": false}], "319": [{"name": "Overgrow", "hidden": false}, {"name": "Unburden", "hidden": true}], "320": [{"name": "Lightning Rod", "hidden": false}], "323": [{"name": "Blaze", "hidden": false}, {"name": "Speed Boost", "hidden": true}], "324": [{"name": "Speed Boost", "hidden": false}], "327": [{"name": "Torrent", "hidden": false}, {"name": "Damp", "hidden": true}], "328": [{"name": "Swift Swim", "hidden": false}], "349": [{"name": "Keen Eye", "hidden": false}, {"name": "Drizzle", "hidden": false}, {"name": "Rain Dish", "hidden": true}], "352": [{"name": "Synchronize", "hidden": false}, {"name": "Trace", "hidden": false}, {"name": "Telepathy", "hidden": true}], "353": [{"name": "Pixilate", "hidden": false}], "373": [{"name": "Keen Eye", "hidden": false}, {"name": "Stall", "hidden": false}, {"name": "Prankster", "hidden": true}], "374": [{"name": "Magic Bounce", "hidden": false}], "375": [{"name": "Hyper Cutter", "hidden": false}, {"name": "Intimidate", "hidden": false}, {"name": "Sheer Force", "hidden": true}], "376": [{"name": "Huge Power", "hidden": false}], "379": [{"name": "Sturdy", "hidden": false}, {"name": "Rock Head", "hidden": false}, {"name": "Heavy Metal", "hidden": true}], "380": [{"name": "Filter", "hidden": false}], "382": [{"name": "Pure Power", "hidden": false}, {"name": "Telepathy", "hidden": true}], "383": [{"name": "Pure Power", "hidden": false}], "385": [{"name": "Static", "hidden": false}, {"name": "Lightning Rod", "hidden": false}, {"name": "Minus", "hidden": true}], "386": [{"name": "Intimidate", "hidden": false}], "395": [{"name": "Rough Skin", "hidden": false}, {"name": "Speed Boost", "hidden": true}], "396": [{"name": "Strong Jaw", "hidden": false}], "400": [{"name": "Magma Armor", "hidden": false}, {"name": "Solid Rock", "hidden": false}, {"name": "Anger Point", "hidden": true}], "401": [{"name": "Sheer Force", "hidden": false}], "402": [{"name": "White Smoke", "hidden": false}, {"name": "Drought", "hidden": false}, {"name": "Shell Armor", "hidden": true}], "412": [{"name": "Natural Cure", "hidden": false}, {"name": "Cloud Nine", "hidden": true}], "413": [{"name": "Pixilate", "hidden": false}], "429": [{"name": "Marvel Scale", "hidden": false}, {"name": "Competitive", "hidden": false}, {"name": "Cute Charm", "hidden": true}], "430": [{"name": "Forecast", "hidden": false}], "436": [{"name": "Insomnia", "hidden": false}, {"name": "Frisk", "hidden": false}, {"name": "Cursed Body", "hidden": true}], "437": [{"name": "Prankster", "hidden": false}], "441": [{"name": "Levitate", "hidden": false}], "1226": [{"name": "Levitate", "hidden": false}], "442": [{"name": "Pressure", "hidden": false}, {"name": "Super Luck", "hidden": false}, {"name": "Justified", "hidden": true}], "443": [{"name": "Magic Bounce", "hidden": false}], "446": [{"name": "Inner Focus", "hidden": false}, {"name": "Ice Body", "hidden": false}, {"name": "Moody", "hidden": true}], "447": [{"name": "Refrigerate", "hidden": false}], "462": [{"name": "Clear Body", "hidden": false}, {"name": "Light Metal", "hidden": true}], "463": [{"name": "Tough Claws", "hidden": false}], "484": [{"name": "Overgrow", "hidden": false}, {"name": "Shell Armor", "hidden": true}], "487": [{"name": "Blaze", "hidden": false}, {"name": "Iron Fist", "hidden": true}], "490": [{"name": "Torrent", "hidden": false}, {"name": "Competitive", "hidden": true}], "493": [{"name": "Intimidate", "hidden": false}, {"name": "Reckless", "hidden": true}], "1227": [{"name": "Contrary", "hidden": false}], "500": [{"name": "Rivalry", "hidden": false}, {"name": "Intimidate", "hidden": false}, {"name": "Guts", "hidden": true}], "502": [{"name": "Natural Cure", "hidden": false}, {"name": "Poison Point", "hidden": false}, {"name": "Technician", "hidden": true}], "504": [{"name": "Mold Breaker", "hidden": false}, {"name": "Sheer Force", "hidden": true}], "506": [{"name": "Sturdy", "hidden": false}, {"name": "Soundproof", "hidden": true}], "527": [{"name": "Cute Charm", "hidden": false}, {"name": "Klutz", "hidden": false}, {"name": "Limber", "hidden": true}], "528": [{"name": "Scrappy", "hidden": false}], "542": [{"name": "Pressure", "hidden": false}, {"name": "Infiltrator", "hidden": true}], "545": [{"name": "Sand Veil", "hidden": false}, {"name": "Rough Skin", "hidden": true}], "546": [{"name": "Sand Force", "hidden": false}], "549": [{"name": "Steadfast", "hidden": false}, {"name": "Inner Focus", "hidden": false}, {"name": "Justified", "hidden": true}], "550": [{"name": "Adaptability", "hidden": false}], "552": [{"name": "Sand Stream", "hidden": false}, {"name": "Sand Force", "hidden": true}], "556": [{"name": "Anticipation", "hidden": false}, {"name": "Dry Skin", "hidden": false}, {"name": "Poison Touch", "hidden": true}], "562": [{"name": "Snow Warning", "hidden": false}, {"name": "Soundproof", "hidden": true}], "563": [{"name": "Snow Warning", "hidden": false}], "564": [{"name": "Pressure", "hidden": false}, {"name": "Pickpocket", "hidden": true}], "567": [{"name": "Lightning Rod", "hidden": false}, {"name": "Solid Rock", "hidden": false}, {"name": "Reckless", "hidden": true}], "573": [{"name": "Leaf Guard", "hidden": false}, {"name": "Chlorophyll", "hidden": true}], "574": [{"name": "Snow Cloak", "hidden": false}, {"name": "Ice Body", "hidden": true}], "575": [{"name": "Hyper Cutter", "hidden": false}, {"name": "Sand Veil", "hidden": false}, {"name": "Poison Heal", "hidden": true}], "576": [{"name": "Oblivious", "hidden": false}, {"name": "Snow Cloak", "hidden": false}, {"name": "Thick Fat", "hidden": true}], "578": [{"name": "Steadfast", "hidden": false}, {"name": "Sharpness", "hidden": false}, {"name": "Justified", "hidden": true}], "579": [{"name": "Inner Focus", "hidden": false}], "582": [{"name": "Snow Cloak", "hidden": false}, {"name": "Cursed Body", "hidden": true}], "1228": [{"name": "Snow Warning", "hidden": false}], "583": [{"name": "Levitate", "hidden": false}], "584": [{"name": "Levitate", "hidden": false}], "585": [{"name": "Levitate", "hidden": false}], "586": [{"name": "Levitate", "hidden": false}], "587": [{"name": "Levitate", "hidden": false}], "588": [{"name": "Levitate", "hidden": false}], "610": [{"name": "Overgrow", "hidden": false}, {"name": "Contrary", "hidden": true}], "613": [{"name": "Blaze", "hidden": false}, {"name": "Reckless", "hidden": true}], "1231": [{"name": "Mold Breaker", "hidden": false}], "616": [{"name": "Torrent", "hidden": false}, {"name": "Shell Armor", "hidden": true}], "617": [{"name": "Torrent", "hidden": false}, {"name": "Sharpness", "hidden": true}], "619": [{"name": "Illuminate", "hidden": false}, {"name": "Keen Eye", "hidden": false}, {"name": "Analytic", "hidden": true}], "624": [{"name": "Limber", "hidden": false}, {"name": "Unburden", "hidden": false}, {"name": "Prankster", "hidden": true}], "626": [{"name": "Gluttony", "hidden": false}, {"name": "Overgrow", "hidden": true}], "628": [{"name": "Gluttony", "hidden": false}, {"name": "Blaze", "hidden": true}], "630": [{"name": "Gluttony", "hidden": false}, {"name": "Torrent", "hidden": true}], "632": [{"name": "Forewarn", "hidden": false}, {"name": "Synchronize", "hidden": false}, {"name": "Telepathy", "hidden": true}], "644": [{"name": "Sand Rush", "hidden": false}, {"name": "Sand Force", "hidden": false}, {"name": "Mold Breaker", "hidden": true}], "1232": [{"name": "Piercing Drill", "hidden": false}], "645": [{"name": "Healer", "hidden": false}, {"name": "Regenerator", "hidden": false}, {"name": "Klutz", "hidden": true}], "646": [{"name": "Healer", "hidden": false}], "649": [{"name": "Guts", "hidden": false}, {"name": "Sheer Force", "hidden": false}, {"name": "Iron Fist", "hidden": true}], "660": [{"name": "Poison Point", "hidden": false}, {"name": "Swarm", "hidden": false}, {"name": "Speed Boost", "hidden": true}], "1233": [{"name": "Shell Armor", "hidden": false}], "662": [{"name": "Prankster", "hidden": false}, {"name": "Infiltrator", "hidden": false}, {"name": "Chlorophyll", "hidden": true}], "671": [{"name": "Intimidate", "hidden": false}, {"name": "Moxie", "hidden": false}, {"name": "Anger Point", "hidden": true}], "682": [{"name": "Shed Skin", "hidden": false}, {"name": "Moxie", "hidden": false}, {"name": "Intimidate", "hidden": true}], "1234": [{"name": "Intimidate", "hidden": false}], "686": [{"name": "Mummy", "hidden": false}], "692": [{"name": "Stench", "hidden": false}, {"name": "Weak Armor", "hidden": false}, {"name": "Aftermath", "hidden": true}], "695": [{"name": "Illusion", "hidden": false}], "696": [{"name": "Illusion", "hidden": false}], "704": [{"name": "Overcoat", "hidden": false}, {"name": "Magic Guard", "hidden": false}, {"name": "Regenerator", "hidden": true}], "709": [{"name": "Ice Body", "hidden": false}, {"name": "Snow Warning", "hidden": false}, {"name": "Weak Armor", "hidden": true}], "712": [{"name": "Static", "hidden": false}, {"name": "Motor Drive", "hidden": true}], "729": [{"name": "Levitate", "hidden": false}], "1235": [{"name": "Eelevate", "hidden": false}], "734": [{"name": "Flash Fire", "hidden": false}, {"name": "Flame Body", "hidden": false}, {"name": "Infiltrator", "hidden": true}], "1236": [{"name": "Infiltrator", "hidden": false}], "739": [{"name": "Snow Cloak", "hidden": false}, {"name": "Slush Rush", "hidden": false}, {"name": "Swift Swim", "hidden": true}], "743": [{"name": "Static", "hidden": false}, {"name": "Limber", "hidden": false}, {"name": "Sand Veil", "hidden": true}], "744": [{"name": "Mimicry", "hidden": false}], "749": [{"name": "Iron Fist", "hidden": false}, {"name": "Klutz", "hidden": false}, {"name": "No Guard", "hidden": true}], "1237": [{"name": "Unseen Fist", "hidden": false}], "762": [{"name": "Levitate", "hidden": false}], "764": [{"name": "Flame Body", "hidden": false}, {"name": "Swarm", "hidden": true}], "786": [{"name": "Overgrow", "hidden": false}, {"name": "Bulletproof", "hidden": true}], "1238": [{"name": "Bulletproof", "hidden": false}], "789": [{"name": "Blaze", "hidden": false}, {"name": "Magician", "hidden": true}], "1239": [{"name": "Levitate", "hidden": false}], "792": [{"name": "Torrent", "hidden": false}, {"name": "Protean", "hidden": true}], "1240": [{"name": "Protean", "hidden": false}], "795": [{"name": "Pickup", "hidden": false}, {"name": "Cheek Pouch", "hidden": false}, {"name": "Huge Power", "hidden": true}], "798": [{"name": "Flame Body", "hidden": false}, {"name": "Gale Wings", "hidden": true}], "801": [{"name": "Shield Dust", "hidden": false}, {"name": "Compound Eyes", "hidden": false}, {"name": "Friend Guard", "hidden": true}], "803": [{"name": "Rivalry", "hidden": false}, {"name": "Unnerve", "hidden": false}, {"name": "Moxie", "hidden": true}], "1241": [{"name": "Fire Mane", "hidden": false}], "805": [{"name": "Flower Veil", "hidden": false}, {"name": "Symbiosis", "hidden": true}], "1242": [{"name": "Fairy Aura", "hidden": false}], "806": [{"name": "Flower Veil", "hidden": false}, {"name": "Symbiosis", "hidden": true}], "810": [{"name": "Iron Fist", "hidden": false}, {"name": "Mold Breaker", "hidden": false}, {"name": "Scrappy", "hidden": true}], "811": [{"name": "Fur Coat", "hidden": false}], "813": [{"name": "Keen Eye", "hidden": false}, {"name": "Infiltrator", "hidden": false}, {"name": "Prankster", "hidden": true}], "814": [{"name": "Keen Eye", "hidden": false}, {"name": "Infiltrator", "hidden": false}, {"name": "Competitive", "hidden": true}], "1243": [{"name": "Trace", "hidden": false}], "817": [{"name": "Stance Change", "hidden": false}], "820": [{"name": "Healer", "hidden": false}, {"name": "Aroma Veil", "hidden": true}], "822": [{"name": "Sweet Veil", "hidden": false}, {"name": "Unburden", "hidden": true}], "824": [{"name": "Contrary", "hidden": false}, {"name": "Suction Cups", "hidden": false}, {"name": "Infiltrator", "hidden": true}], "1244": [{"name": "Contrary", "hidden": false}], "826": [{"name": "Tough Claws", "hidden": false}, {"name": "Sniper", "hidden": false}, {"name": "Pickpocket", "hidden": true}], "1245": [{"name": "Tough Claws", "hidden": false}], "828": [{"name": "Poison Point", "hidden": false}, {"name": "Poison Touch", "hidden": false}, {"name": "Adaptability", "hidden": true}], "1246": [{"name": "Regenerator", "hidden": false}], "830": [{"name": "Mega Launcher", "hidden": false}], "832": [{"name": "Dry Skin", "hidden": false}, {"name": "Sand Veil", "hidden": false}, {"name": "Solar Power", "hidden": true}], "834": [{"name": "Strong Jaw", "hidden": false}, {"name": "Rock Head", "hidden": true}], "836": [{"name": "Refrigerate", "hidden": false}, {"name": "Snow Warning", "hidden": true}], "837": [{"name": "Cute Charm", "hidden": false}, {"name": "Pixilate", "hidden": true}], "838": [{"name": "Limber", "hidden": false}, {"name": "Unburden", "hidden": false}, {"name": "Mold Breaker", "hidden": true}], "1247": [{"name": "No Guard", "hidden": false}], "839": [{"name": "Cheek Pouch", "hidden": false}, {"name": "Pickup", "hidden": false}, {"name": "Plus", "hidden": true}], "844": [{"name": "Sap Sipper", "hidden": false}, {"name": "Hydration", "hidden": false}, {"name": "Gooey", "hidden": true}], "845": [{"name": "Sap Sipper", "hidden": false}, {"name": "Shell Armor", "hidden": false}, {"name": "Gooey", "hidden": true}], "846": [{"name": "Prankster", "hidden": false}, {"name": "Magician", "hidden": true}], "848": [{"name": "Natural Cure", "hidden": false}, {"name": "Frisk", "hidden": false}, {"name": "Harvest", "hidden": true}], "853": [{"name": "Pickup", "hidden": false}, {"name": "Frisk", "hidden": false}, {"name": "Insomnia", "hidden": true}], "858": [{"name": "Own Tempo", "hidden": false}, {"name": "Ice Body", "hidden": false}, {"name": "Sturdy", "hidden": true}], "859": [{"name": "Strong Jaw", "hidden": false}, {"name": "Ice Body", "hidden": false}, {"name": "Sturdy", "hidden": true}], "861": [{"name": "Frisk", "hidden": false}, {"name": "Infiltrator", "hidden": false}, {"name": "Telepathy", "hidden": true}], "874": [{"name": "Overgrow", "hidden": false}, {"name": "Long Reach", "hidden": true}], "875": [{"name": "Overgrow", "hidden": false}, {"name": "Scrappy", "hidden": true}], "878": [{"name": "Blaze", "hidden": false}, {"name": "Intimidate", "hidden": true}], "881": [{"name": "Torrent", "hidden": false}, {"name": "Liquid Voice", "hidden": true}], "884": [{"name": "Keen Eye", "hidden": false}, {"name": "Skill Link", "hidden": false}, {"name": "Sheer Force", "hidden": true}], "891": [{"name": "Hyper Cutter", "hidden": false}, {"name": "Iron Fist", "hidden": false}, {"name": "Anger Point", "hidden": true}], "1249": [{"name": "Iron Fist", "hidden": false}], "900": [{"name": "Keen Eye", "hidden": false}, {"name": "Sand Rush", "hidden": false}, {"name": "Steadfast", "hidden": true}], "901": [{"name": "Keen Eye", "hidden": false}, {"name": "Vital Spirit", "hidden": false}, {"name": "No Guard", "hidden": true}], "902": [{"name": "Tough Claws", "hidden": false}], "906": [{"name": "Merciless", "hidden": false}, {"name": "Limber", "hidden": false}, {"name": "Regenerator", "hidden": true}], "908": [{"name": "Own Tempo", "hidden": false}, {"name": "Stamina", "hidden": false}, {"name": "Inner Focus", "hidden": true}], "910": [{"name": "Water Bubble", "hidden": false}, {"name": "Water Absorb", "hidden": true}], "916": [{"name": "Corrosion", "hidden": false}, {"name": "Oblivious", "hidden": true}], "921": [{"name": "Leaf Guard", "hidden": false}, {"name": "Queenly Majesty", "hidden": false}, {"name": "Sweet Veil", "hidden": true}], "923": [{"name": "Inner Focus", "hidden": false}, {"name": "Telepathy", "hidden": false}, {"name": "Symbiosis", "hidden": true}], "924": [{"name": "Receiver", "hidden": false}, {"name": "Defiant", "hidden": true}], "937": [{"name": "Disguise", "hidden": false}], "939": [{"name": "Berserk", "hidden": false}, {"name": "Sap Sipper", "hidden": false}, {"name": "Cloud Nine", "hidden": true}], "1251": [{"name": "Berserk", "hidden": false}], "943": [{"name": "Bulletproof", "hidden": false}, {"name": "Soundproof", "hidden": false}, {"name": "Overcoat", "hidden": true}], "985": [{"name": "Pressure", "hidden": false}, {"name": "Unnerve", "hidden": false}, {"name": "Mirror Armor", "hidden": true}], "1003": [{"name": "Ripen", "hidden": false}, {"name": "Gluttony", "hidden": false}, {"name": "Hustle", "hidden": true}], "1004": [{"name": "Ripen", "hidden": false}, {"name": "Gluttony", "hidden": false}, {"name": "Thick Fat", "hidden": true}], "1006": [{"name": "Sand Spit", "hidden": false}, {"name": "Shed Skin", "hidden": false}, {"name": "Sand Veil", "hidden": true}], "1018": [{"name": "Weak Armor", "hidden": false}, {"name": "Cursed Body", "hidden": true}], "1021": [{"name": "Healer", "hidden": false}, {"name": "Anticipation", "hidden": false}, {"name": "Magic Bounce", "hidden": true}], "1024": [{"name": "Prankster", "hidden": false}, {"name": "Frisk", "hidden": false}, {"name": "Pickpocket", "hidden": true}], "1029": [{"name": "Tangled Feet", "hidden": false}, {"name": "Screen Cleaner", "hidden": false}, {"name": "Ice Body", "hidden": true}], "1030": [{"name": "Wandering Spirit", "hidden": false}], "1032": [{"name": "Sweet Veil", "hidden": false}, {"name": "Aroma Veil", "hidden": true}], "1033": [{"name": "Battle Armor", "hidden": false}, {"name": "Defiant", "hidden": true}], "1254": [{"name": "Defiant", "hidden": false}], "1042": [{"name": "Hunger Switch", "hidden": false}], "1053": [{"name": "Clear Body", "hidden": false}, {"name": "Infiltrator", "hidden": false}, {"name": "Cursed Body", "hidden": true}], "1071": [{"name": "Intimidate", "hidden": false}, {"name": "Frisk", "hidden": false}, {"name": "Sap Sipper", "hidden": true}], "1072": [{"name": "Swarm", "hidden": false}, {"name": "Sheer Force", "hidden": false}, {"name": "Sharpness", "hidden": true}], "1074": [{"name": "Swift Swim", "hidden": false}, {"name": "Adaptability", "hidden": false}, {"name": "Mold Breaker", "hidden": true}], "1075": [{"name": "Swift Swim", "hidden": false}, {"name": "Adaptability", "hidden": false}, {"name": "Mold Breaker", "hidden": true}], "1076": [{"name": "Pressure", "hidden": false}, {"name": "Unburden", "hidden": false}, {"name": "Poison Touch", "hidden": true}], "1077": [{"name": "Poison Point", "hidden": false}, {"name": "Swift Swim", "hidden": false}, {"name": "Intimidate", "hidden": true}], "1082": [{"name": "Overgrow", "hidden": false}, {"name": "Protean", "hidden": true}], "1085": [{"name": "Blaze", "hidden": false}, {"name": "Unaware", "hidden": true}], "1088": [{"name": "Torrent", "hidden": false}, {"name": "Moxie", "hidden": true}], "1100": [{"name": "Friend Guard", "hidden": false}, {"name": "Cheek Pouch", "hidden": false}, {"name": "Technician", "hidden": true}], "1113": [{"name": "Purifying Salt", "hidden": false}, {"name": "Sturdy", "hidden": false}, {"name": "Clear Body", "hidden": true}], "1115": [{"name": "Flash Fire", "hidden": false}, {"name": "Weak Armor", "hidden": true}], "1116": [{"name": "Flash Fire", "hidden": false}, {"name": "Weak Armor", "hidden": true}], "1118": [{"name": "Electromorphosis", "hidden": false}, {"name": "Static", "hidden": false}, {"name": "Damp", "hidden": true}], "1131": [{"name": "Chlorophyll", "hidden": false}, {"name": "Insomnia", "hidden": false}, {"name": "Moody", "hidden": true}], "1255": [{"name": "Spicy Spray", "hidden": false}], "1135": [{"name": "Opportunist", "hidden": false}, {"name": "Frisk", "hidden": false}, {"name": "Speed Boost", "hidden": true}], "1138": [{"name": "Mold Breaker", "hidden": false}, {"name": "Own Tempo", "hidden": false}, {"name": "Pickpocket", "hidden": true}], "1143": [{"name": "Zero To Hero", "hidden": false}], "1148": [{"name": "Earth Eater", "hidden": false}, {"name": "Sand Veil", "hidden": true}], "1150": [{"name": "Toxic Debris", "hidden": false}, {"name": "Corrosion", "hidden": true}], "1256": [{"name": "Adaptability", "hidden": false}], "1152": [{"name": "Sand Rush", "hidden": false}, {"name": "Fluffy", "hidden": true}], "1159": [{"name": "Vital Spirit", "hidden": false}, {"name": "Inner Focus", "hidden": false}, {"name": "Defiant", "hidden": true}], "1161": [{"name": "Cud Chew", "hidden": false}, {"name": "Armor Tail", "hidden": false}, {"name": "Sap Sipper", "hidden": true}], "1164": [{"name": "Defiant", "hidden": false}, {"name": "Supreme Overlord", "hidden": false}, {"name": "Pressure", "hidden": true}], "1182": [{"name": "Good As Gold", "hidden": false}], "1198": [{"name": "Hospitality", "hidden": false}, {"name": "Heatproof", "hidden": true}], "1206": [{"name": "Stamina", "hidden": false}, {"name": "Sturdy", "hidden": false}, {"name": "Stalwart", "hidden": true}], "1207": [{"name": "Supersweet Syrup", "hidden": false}, {"name": "Regenerator", "hidden": false}, {"name": "Sticky Hold", "hidden": true}], "1300": [{"name": "Keen Eye", "hidden": false}, {"name": "Inner Focus", "hidden": false}, {"name": "Defiant", "hidden": true}], "1302": [{"name": "Soundproof", "hidden": false}, {"name": "Filter", "hidden": false}, {"name": "Technician", "hidden": true}], "1303": [{"name": "Liquid Ooze", "hidden": false}, {"name": "Sticky Hold", "hidden": false}, {"name": "Gluttony", "hidden": true}], "1304": [{"name": "Steadfast", "hidden": false}, {"name": "Scrappy", "hidden": true}], "1305": [{"name": "Cute Charm", "hidden": false}, {"name": "Competitive", "hidden": false}, {"name": "Frisk", "hidden": true}], "1306": [{"name": "Limber", "hidden": false}, {"name": "Technician", "hidden": false}, {"name": "Unnerve", "hidden": true}], "1307": [{"name": "Fur Coat", "hidden": false}, {"name": "Technician", "hidden": false}, {"name": "Rattled", "hidden": true}], "1308": [{"name": "Sharpness", "hidden": false}], "1309": [{"name": "Aerilate", "hidden": false}], "1310": [{"name": "Intimidate", "hidden": false}, {"name": "Moxie", "hidden": true}], "1311": [{"name": "Levitate", "hidden": false}], "1312": [{"name": "Aura Guard", "hidden": false}], "1313": [{"name": "Sap Sipper", "hidden": false}, {"name": "Grass Pelt", "hidden": true}], "1314": [{"name": "Emergency Exit", "hidden": false}], "1316": [{"name": "Overgrow", "hidden": false}, {"name": "Grassy Surge", "hidden": true}], "1317": [{"name": "Blaze", "hidden": false}, {"name": "Libero", "hidden": true}], "1318": [{"name": "Torrent", "hidden": false}, {"name": "Sniper", "hidden": true}], "1319": [{"name": "Run Away", "hidden": false}, {"name": "Unburden", "hidden": false}, {"name": "Stakeout", "hidden": true}], "1320": [{"name": "Punk Rock", "hidden": false}, {"name": "Plus", "hidden": false}, {"name": "Technician", "hidden": true}], "1321": [{"name": "Limber", "hidden": false}, {"name": "Technician", "hidden": true}], "1322": [{"name": "Battle Armor", "hidden": false}, {"name": "Tough Claws", "hidden": false}, {"name": "Steely Spirit", "hidden": true}], "1323": [{"name": "Lightning Rod", "hidden": false}, {"name": "Electric Surge", "hidden": true}], "1324": [{"name": "Own Tempo", "hidden": false}, {"name": "Synchronize", "hidden": false}, {"name": "Psychic Surge", "hidden": true}], "1325": [{"name": "Inner Focus", "hidden": false}, {"name": "Synchronize", "hidden": false}, {"name": "Psychic Surge", "hidden": true}], "1326": [{"name": "Volt Absorb", "hidden": false}, {"name": "Natural Cure", "hidden": false}, {"name": "Iron Fist", "hidden": true}], "1327": [{"name": "Seed Sower", "hidden": false}, {"name": "Harvest", "hidden": true}], "1328": [{"name": "Intimidate", "hidden": false}, {"name": "Hustle", "hidden": false}, {"name": "Guts", "hidden": true}], "1329": [{"name": "Intimidate", "hidden": false}, {"name": "Guard Dog", "hidden": false}, {"name": "Stakeout", "hidden": true}], "1330": [{"name": "Thermal Exchange", "hidden": false}, {"name": "Ice Body", "hidden": true}], "1315": [{"name": "Tough Claws", "hidden": false}], "1331": [{"name": "Thermal Exchange", "hidden": false}]};
+  function abilitiesHtml(monId){
+    const list = ID_TO_ABILITIES[monId];
+    if(!list || !list.length) return '<span style="color:var(--cream-dim);">—</span>';
+    return list.map(a => '<span class="ability-pill' + (a.hidden ? ' ability-hidden' : '') + '">' + a.name + (a.hidden ? ' (H)' : '') + '</span>').join(' ');
+  }
+
+  function typeBadgesHtml(types){
+    return (types||[]).map(t=>{
+      const bg = TYPE_COLORS[t]||'#888'; const fg = textColorFor(bg);
+      return '<span class="type-badge" style="background:'+bg+';color:'+fg+';">'+escapeHtml(t)+'</span>';
+    }).join('');
+  }
+
+  function buildSnakeOrder(numTrainers, numSlots){
+    const order = [];
+    for(let round=0; round<numSlots; round++){
+      const seq = [];
+      for(let t=0;t<numTrainers;t++) seq.push(t);
+      if(round % 2 === 1) seq.reverse();
+      order.push(...seq);
+    }
+    return order;
+  }
+  function buildLinearOrder(numTrainers, numSlots){
+    const order = [];
+    for(let round=0; round<numSlots; round++){
+      for(let t=0;t<numTrainers;t++) order.push(t);
+    }
+    return order;
+  }
+
+  function pickAutoMon(draftedIds, budget, remainingSlotsAfter){
+    const reserve = Math.max(0, remainingSlotsAfter);
+    let candidates = POOL.filter(p => !draftedIds[p.id] && p.tier <= Math.max(1, budget-reserve));
+    if(candidates.length === 0) candidates = POOL.filter(p => !draftedIds[p.id] && p.tier <= budget);
+    if(candidates.length === 0){
+      candidates = POOL.filter(p => !draftedIds[p.id]).sort((a,b)=>a.tier-b.tier);
+      return candidates[0] || null;
+    }
+    candidates.sort((a,b)=> b.tier-a.tier || a.name.localeCompare(b.name));
+    return candidates[0];
+  }
+
+  // ============================================================
+  // SETUP VIEW (commissioner starts the draft)
+  // ============================================================
+  let arrangedOrder = null;
+
+  function renderSetup(memberEntries, isCommish){
+    const commissName = league.commissionerName || 'the commissioner';
+    function isProfileComplete(m){
+      return !!(m.teamName && m.teamName.trim() && m.coachName && m.coachName.trim() && m.logo);
+    }
+    const scheduledHtml = league.draftScheduledAt
+      ? '<div class="panel state-msg" style="border-color:rgba(255,203,5,0.4);color:var(--gold);margin-bottom:14px;">🗓️ Draft scheduled for <b>' + new Date(league.draftScheduledAt).toLocaleString(undefined, { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</b><div style="margin-top:6px;font-family:var(--mono);font-size:13px;" id="scheduleCountdown"></div></div>'
+      : '';
+    if(!isCommish){
+      root.innerHTML =
+        scheduledHtml +
+        '<div class="panel state-msg" style="margin-bottom:14px;">Waiting for <b style="color:var(--gold);">' + escapeHtml(commissName) + '</b> to start the draft. This page will update automatically once it begins.</div>' +
+        '<div class="panel">' +
+          '<h2 style="margin-bottom:8px;">Who\'s In (' + memberEntries.length + ')</h2>' +
+          '<p style="color:var(--cream-dim);font-size:13.5px;margin:0 0 14px;">Everyone who\'s joined so far, and whether they\'ve finished setting up their team.</p>' +
+          '<ul class="readiness-list">' +
+            memberEntries.map(([uid, m]) => {
+              const ready = isProfileComplete(m);
+              return '<li class="readiness-item">' +
+                (m.logo ? '<img class="readiness-avatar" src="' + escapeHtml(m.logo) + '" alt="">' : '<span class="readiness-avatar-placeholder"></span>') +
+                '<span class="readiness-name">' + escapeHtml(m.teamName || m.displayName || 'Trainer') + (m.coachName ? ' <span class="draft-order-coach">(' + escapeHtml(m.coachName) + ')</span>' : '') + '</span>' +
+                (ready ? '<span class="readiness-badge ready">Ready</span>' : '<span class="readiness-badge not-ready">Incomplete</span>') +
+              '</li>';
+            }).join('') +
+          '</ul>' +
+        '</div>';
+      startScheduleCountdown();
+      return;
+    }
+    if(!arrangedOrder){
+      arrangedOrder = memberEntries.map(([uid]) => uid);
+    }
+    const memberMap = Object.fromEntries(memberEntries);
+
+    const incompleteMembers = memberEntries.filter(([uid, m]) => !isProfileComplete(m));
+    const allReady = incompleteMembers.length === 0;
+
+    root.innerHTML =
+      '<div class="panel">' +
+        '<h2 style="margin-bottom:8px;">Draft Schedule</h2>' +
+        '<p style="color:var(--cream-dim);font-size:13.5px;margin:0 0 14px;">Let everyone know when the draft will happen. This shows to every trainer until you start it.</p>' +
+        (league.draftScheduledAt ? '<p style="color:var(--gold);font-size:14px;margin-bottom:4px;">🗓️ Currently scheduled for <b>' + new Date(league.draftScheduledAt).toLocaleString(undefined, { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + '</b></p><p style="font-family:var(--mono);font-size:13px;color:var(--cream-dim);margin-bottom:12px;" id="scheduleCountdown"></p>' : '') +
+        '<div class="field-row">' +
+          '<div class="field-inline"><label for="draftScheduleInput">Date &amp; time</label><input type="datetime-local" id="draftScheduleInput" style="width:220px;"></div>' +
+          '<button class="btn btn-sm" id="saveDraftScheduleBtn">Save</button>' +
+          (league.draftScheduledAt ? '<button class="btn btn-sm btn-danger" id="clearDraftScheduleBtn">Clear</button>' : '') +
+        '</div>' +
+        '<p class="settings-status" id="draftScheduleStatus"></p>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<h2 style="margin-bottom:12px;">Invite Trainers</h2>' +
+        '<div class="join-code-box">' +
+          '<div><div class="join-code-value">' + escapeHtml(league.joinCode) + '</div><div class="join-code-hint">Share this code — trainers enter it on the sign-in page to join before you start the draft.</div></div>' +
+          '<button class="btn btn-sm" id="copyCodeBtn">Copy Code</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<h2 style="margin-bottom:8px;">Trainer Readiness</h2>' +
+        '<p style="color:var(--cream-dim);font-size:13.5px;margin:0 0 14px;">Every trainer needs a logo, team name, and first name set before the draft can start — they set these from the Team page.</p>' +
+        '<ul class="readiness-list">' +
+          memberEntries.map(([uid, m]) => {
+            const ready = isProfileComplete(m);
+            return '<li class="readiness-item">' +
+              (m.logo ? '<img class="readiness-avatar" src="' + escapeHtml(m.logo) + '" alt="">' : '<span class="readiness-avatar-placeholder"></span>') +
+              '<span class="readiness-name">' + escapeHtml(m.displayName || 'Trainer') + '</span>' +
+              (ready ? '<span class="readiness-badge ready">Ready</span>' : '<span class="readiness-badge not-ready">Incomplete</span>') +
+            '</li>';
+          }).join('') +
+        '</ul>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<h2 style="margin-bottom:8px;">Draft Order</h2>' +
+        '<p style="color:var(--cream-dim);font-size:13.5px;margin:0 0 14px;">Use the arrows to set who picks first. This becomes pick order 1, 2, 3… (snake/linear reversal still applies each round.)</p>' +
+        '<ul class="draft-order-list" id="draftOrderList"></ul>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<h2 style="margin-bottom:16px;">Start the Draft</h2>' +
+        '<p style="color:var(--cream-dim);font-size:13.5px;margin:0 0 18px;max-width:520px;">This will use all ' + memberEntries.length + ' trainers currently in your league. Format: <b style="color:var(--gold);">' + escapeHtml(league.draftType || 'snake') + '</b> (set when the league was created). Defaults below come from your Commissioner settings — feel free to override for this draft.</p>' +
+        '<div class="field-row">' +
+          '<div class="field-inline"><label for="budgetInput">Points per trainer</label><input type="number" id="budgetInput" value="' + ((league.settings && league.settings.draftBudget) || 100) + '" min="1" style="width:140px;"></div>' +
+          '<div class="field-inline"><label for="slotsInput">Roster slots per trainer</label><input type="number" id="slotsInput" value="' + ((league.settings && league.settings.rosterSize) || 10) + '" min="1" style="width:140px;"></div>' +
+          '<button class="btn btn-primary" id="startDraftBtn"' + (allReady ? '' : ' disabled') + '>Start the Draft</button>' +
+        '</div>' +
+        (allReady ? '' : '<p class="state-msg" style="padding:10px 0;color:#FF8A8A;">Waiting on ' + incompleteMembers.length + ' trainer(s) to finish their profile before you can start.</p>') +
+        '<p class="state-msg" id="startStatus" style="display:none;padding:10px 0;"></p>' +
+      '</div>';
+
+    function renderDraftOrderList(){
+      const listEl = document.getElementById('draftOrderList');
+      listEl.innerHTML = '';
+      arrangedOrder.forEach((uid, idx) => {
+        const m = memberMap[uid];
+        if(!m) return;
+        const li = document.createElement('li');
+        li.className = 'draft-order-item';
+        li.innerHTML =
+          '<span class="draft-order-num">' + (idx + 1) + '</span>' +
+          '<span class="draft-order-name">' + escapeHtml(m.teamName || m.displayName || 'Trainer') + (m.coachName ? ' <span class="draft-order-coach">(' + escapeHtml(m.coachName) + ')</span>' : '') + '</span>';
+        const btnWrap = document.createElement('span');
+        btnWrap.className = 'draft-order-arrows';
+        const upBtn = document.createElement('button');
+        upBtn.type = 'button'; upBtn.className = 'btn btn-sm'; upBtn.textContent = '▲';
+        upBtn.disabled = idx === 0;
+        upBtn.addEventListener('click', () => {
+          [arrangedOrder[idx-1], arrangedOrder[idx]] = [arrangedOrder[idx], arrangedOrder[idx-1]];
+          renderDraftOrderList();
+        });
+        const downBtn = document.createElement('button');
+        downBtn.type = 'button'; downBtn.className = 'btn btn-sm'; downBtn.textContent = '▼';
+        downBtn.disabled = idx === arrangedOrder.length - 1;
+        downBtn.addEventListener('click', () => {
+          [arrangedOrder[idx+1], arrangedOrder[idx]] = [arrangedOrder[idx], arrangedOrder[idx+1]];
+          renderDraftOrderList();
+        });
+        btnWrap.appendChild(upBtn);
+        btnWrap.appendChild(downBtn);
+        li.appendChild(btnWrap);
+        listEl.appendChild(li);
+      });
+    }
+    renderDraftOrderList();
+    startScheduleCountdown();
+
+    const copyBtn = document.getElementById('copyCodeBtn');
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(league.joinCode).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy Code'; }, 1500);
+      });
+    });
+
+    const scheduleInput = document.getElementById('draftScheduleInput');
+    const scheduleStatus = document.getElementById('draftScheduleStatus');
+    if(league.draftScheduledAt){
+      const d = new Date(league.draftScheduledAt);
+      const pad = n => String(n).padStart(2, '0');
+      scheduleInput.value = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    document.getElementById('saveDraftScheduleBtn').addEventListener('click', async () => {
+      if(!scheduleInput.value){ scheduleStatus.textContent = 'Pick a date and time first.'; scheduleStatus.style.color = '#FF8A8A'; return; }
+      const ts = new Date(scheduleInput.value).getTime();
+      try{
+        await updateDoc(doc(db, 'leagues', leagueId), { draftScheduledAt: ts });
+        scheduleStatus.textContent = 'Saved!';
+        scheduleStatus.style.color = 'var(--gold)';
+      }catch(err){
+        scheduleStatus.textContent = 'Could not save: ' + err.message;
+        scheduleStatus.style.color = '#FF8A8A';
+      }
+    });
+    const clearBtn = document.getElementById('clearDraftScheduleBtn');
+    if(clearBtn){
+      clearBtn.addEventListener('click', async () => {
+        try{
+          await updateDoc(doc(db, 'leagues', leagueId), { draftScheduledAt: null });
+        }catch(err){
+          scheduleStatus.textContent = 'Could not clear: ' + err.message;
+          scheduleStatus.style.color = '#FF8A8A';
+        }
+      });
+    }
+
+    document.getElementById('startDraftBtn').addEventListener('click', async () => {
+      if(!allReady) return;
+      const budget = parseInt(document.getElementById('budgetInput').value, 10) || 100;
+      const numSlots = parseInt(document.getElementById('slotsInput').value, 10) || 10;
+      const uids = arrangedOrder.slice();
+      const trainers = uids.map(uid => {
+        const m = memberMap[uid];
+        return {
+          uid, name: m.teamName || m.displayName || 'Trainer', coachName: m.coachName || '',
+          avatar: m.logo || m.photoURL || '', budget, roster: []
+        };
+      });
+      const pickOrder = (league.draftType === 'linear' ? buildLinearOrder : buildSnakeOrder)(uids.length, numSlots);
+
+      const btn = document.getElementById('startDraftBtn');
+      btn.disabled = true; btn.textContent = 'Starting…';
+      try{
+        await updateDoc(doc(db, 'leagues', leagueId), {
+          draft: {
+            status: 'active', trainers, pickOrder, currentPick: 0,
+            draftedIds: {}, history: [], budgetStart: budget, numSlots,
+            pickStartedAt: Date.now()
+          }
+        });
+      }catch(err){
+        document.getElementById('startStatus').style.display='block';
+        document.getElementById('startStatus').textContent = 'Could not start: ' + err.message;
+        btn.disabled = false; btn.textContent = 'Start the Draft';
+      }
+    });
+  }
+
+  // ============================================================
+  // ACTIVE DRAFT VIEW
+  // ============================================================
+  let pendingAutoPick = false;
+
+  function isDraftDone(d){ return d.currentPick >= d.pickOrder.length; }
+  function currentTrainerIdx(d){ return d.pickOrder[d.currentPick]; }
+
+  function renderActive(d){
+    if(isDraftDone(d)){ renderComplete(d); return; }
+
+    const alreadyBuilt = document.getElementById('boardScroll') && document.getElementById('searchBox');
+
+    if(!alreadyBuilt){
+      root.innerHTML =
+        '<div class="board-frame">' +
+          '<div class="board-head"><span>Draft Board</span><span class="live"><span class="dot"></span>Live</span></div>' +
+          '<div class="board-scroll" id="boardScroll"></div>' +
+        '</div>' +
+        '<div class="panel status-bar">' +
+          '<div class="clock-info">' +
+            '<div><span class="eyebrow">Round ' + (Math.floor(d.currentPick / d.trainers.length) + 1) + ' of ' + d.numSlots + '</span><span class="big" id="onClockName"></span></div>' +
+            '<div><span class="eyebrow">Time Left</span><span class="big" id="pickTimer" style="color:var(--gold);">90s</span></div>' +
+            '<div><span class="eyebrow">Overall Pick</span><span class="big" style="font-size:20px;">' + (d.currentPick+1) + ' / ' + d.pickOrder.length + '</span></div>' +
+          '</div>' +
+          '<div class="status-actions" id="statusActions"></div>' +
+        '</div>' +
+        '<div class="draft-layout">' +
+          '<div class="rosters" id="rosters"></div>' +
+          '<div class="pool-panel">' +
+            '<div class="panel queue-panel" id="queuePanelWrap">' +
+              '<div class="queue-panel-head"><h3>My Queue</h3><span class="settings-note" style="margin:0;">Auto-pick uses this list first, top to bottom, when your clock runs out.</span></div>' +
+              '<ul class="queue-list" id="queueList"></ul>' +
+            '</div>' +
+            '<div class="pool-controls">' +
+              '<div class="field-inline"><label>Search</label><input type="text" id="searchBox" placeholder="Pokémon name…"></div>' +
+              '<div class="field-inline"><label>Ability</label><input type="text" id="abilitySearchBox" placeholder="e.g. intimidate…"></div>' +
+              '<div class="field-inline"><label>Tier</label><select id="tierFilter"><option value="all">All tiers</option></select></div>' +
+              '<div class="field-inline">' +
+                '<label>Type</label>' +
+                '<div class="type-dropdown" id="typeFilterDropdown">' +
+                  '<button type="button" class="type-dropdown-trigger" id="typeFilterTrigger">All types</button>' +
+                  '<div class="type-dropdown-menu" id="typeFilterMenu"></div>' +
+                '</div>' +
+                '<input type="hidden" id="typeFilter" value="all">' +
+              '</div>' +
+              '<div class="field-inline"><label>Sort</label><select id="sortMode"><option value="tierDesc">Tier: high to low</option><option value="tierAsc">Tier: low to high</option><option value="nameAsc">Name: A–Z</option></select></div>' +
+              '<span class="pool-count" id="poolCount"></span>' +
+            '</div>' +
+            '<div class="pool-scroll"><table><thead><tr><th></th><th>Pokémon</th><th>Type</th><th>Abilities</th><th>Tier</th><th></th></tr></thead><tbody id="poolBody"></tbody></table></div>' +
+          '</div>' +
+        '</div>';
+      populateFilters();
+      wirePoolControls(d);
+    } else {
+      // Structure already exists — just refresh the round/pick counters, not the whole page
+      const roundEl = document.querySelector('.clock-info .eyebrow');
+      if(roundEl) roundEl.textContent = 'Round ' + (Math.floor(d.currentPick / d.trainers.length) + 1) + ' of ' + d.numSlots;
+      const overallEl = document.querySelectorAll('.clock-info .big')[1];
+      if(overallEl) overallEl.textContent = (d.currentPick+1) + ' / ' + d.pickOrder.length;
+    }
+
+    renderBoard(d);
+    renderRosters(d);
+    renderPool(d);
+    wireStatusActions(d);
+    startTicker(d);
+  }
+
+  function initColorTypeDropdown(triggerId, menuId, hiddenId){
+    const trigger = document.getElementById(triggerId);
+    const menu = document.getElementById(menuId);
+    const hidden = document.getElementById(hiddenId);
+    menu.innerHTML = '';
+    const allOpt = document.createElement('div');
+    allOpt.className = 'type-dropdown-option';
+    allOpt.textContent = 'All types';
+    allOpt.addEventListener('click', () => selectType('all', 'All types', null));
+    menu.appendChild(allOpt);
+    Array.from(new Set(POOL.flatMap(p => p.types||[]))).sort().forEach(t => {
+      const bg = TYPE_COLORS[t] || '#888'; const fg = textColorFor(bg);
+      const opt = document.createElement('div');
+      opt.className = 'type-dropdown-option';
+      const label = t.charAt(0).toUpperCase() + t.slice(1);
+      opt.innerHTML = '<span class="type-badge" style="background:' + bg + ';color:' + fg + ';">' + escapeHtml(label) + '</span>';
+      opt.addEventListener('click', () => selectType(t, label, bg));
+      menu.appendChild(opt);
+    });
+    function selectType(value, label, bg){
+      hidden.value = value;
+      trigger.innerHTML = bg ? '<span class="type-badge" style="background:' + bg + ';color:' + textColorFor(bg) + ';">' + escapeHtml(label) + '</span>' : label;
+      menu.classList.remove('show');
+      hidden.dispatchEvent(new Event('change'));
+    }
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.type-dropdown-menu.show').forEach(m => { if(m !== menu) m.classList.remove('show'); });
+      menu.classList.toggle('show');
+    });
+  }
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.type-dropdown-menu.show').forEach(m => m.classList.remove('show'));
+  });
+
+  function populateFilters(){
+    const tierSel = document.getElementById('tierFilter');
+    Array.from(new Set(POOL.map(p=>p.tier))).sort((a,b)=>b-a).forEach(t=>{
+      const o=document.createElement('option'); o.value=t; o.textContent='Tier '+t; tierSel.appendChild(o);
+    });
+    initColorTypeDropdown('typeFilterTrigger', 'typeFilterMenu', 'typeFilter');
+  }
+
+  function renderBoard(d){
+    const boardScroll = document.getElementById('boardScroll');
+    boardScroll.innerHTML = '';
+    d.pickOrder.forEach((tIdx, i) => {
+      const round = Math.floor(i / d.trainers.length) + 1;
+      const pickInRound = (i % d.trainers.length) + 1;
+      const trainer = d.trainers[tIdx];
+      const slot = document.createElement('div');
+      slot.className = 'board-slot';
+      const pickNo = document.createElement('div'); pickNo.className='pick-no';
+      pickNo.textContent = 'PICK ' + round + '.' + String(pickInRound).padStart(2,'0');
+      slot.appendChild(pickNo);
+      const teamEl = document.createElement('div'); teamEl.className='pick-team'; teamEl.textContent = trainer.coachName || trainer.name;
+      slot.appendChild(teamEl);
+      const monEl = document.createElement('div'); monEl.className='pick-mon';
+      if(i < d.history.length){
+        const hist = d.history[i];
+        const mon = POOL.find(p=>p.id===hist.monId);
+        monEl.textContent = mon ? mon.name + (mon.variation ? ' '+mon.variation : '') : 'Selected';
+      } else if(i === d.currentPick){
+        slot.classList.add('on-clock'); monEl.textContent = 'Choosing…';
+      } else {
+        slot.classList.add('upcoming'); monEl.textContent = i === d.currentPick+1 ? 'On the clock next' : 'Upcoming';
+      }
+      slot.appendChild(monEl);
+      boardScroll.appendChild(slot);
+    });
+    const activeSlot = boardScroll.children[Math.min(d.currentPick, d.pickOrder.length-1)];
+    if(activeSlot) activeSlot.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+  }
+
+  function renderRosters(d){
+    const rostersEl = document.getElementById('rosters');
+    rostersEl.innerHTML = '';
+    d.trainers.forEach((trainer, idx) => {
+      const card = document.createElement('div');
+      card.className = 'trainer-card' + (!isDraftDone(d) && idx===currentTrainerIdx(d) ? ' active':'') + (trainer.roster.length>=d.numSlots ? ' full':'');
+      const head = document.createElement('div'); head.className='trainer-head';
+      const avatarHtml = trainer.avatar ? '<img src="'+escapeHtml(trainer.avatar)+'" alt="">' : '<span class="avatar-placeholder"></span>';
+      head.innerHTML = avatarHtml + '<span class="t-name">'+escapeHtml(trainer.name)+'</span><span class="t-budget">'+trainer.budget+' pts</span>';
+      card.appendChild(head);
+      const slotsLine = document.createElement('div'); slotsLine.className='trainer-slots';
+      slotsLine.textContent = trainer.roster.length+' / '+d.numSlots+' slots filled';
+      card.appendChild(slotsLine);
+      const ul = document.createElement('ul'); ul.className='picks-list';
+      for(let i=0;i<d.numSlots;i++){
+        const li = document.createElement('li');
+        if(trainer.roster[i]){
+          const mon = trainer.roster[i];
+          li.appendChild(makeSpriteImg(mon, ''));
+          const textSpan = document.createElement('span'); textSpan.className='p-text';
+          textSpan.innerHTML = '<span>'+escapeHtml(mon.name)+(mon.variation?' <span style="color:var(--teal-bright);font-size:11px;">'+escapeHtml(mon.variation)+'</span>':'')+'</span><span class="p-tier">'+mon.tier+'</span>';
+          li.appendChild(textSpan);
+        } else {
+          li.className='empty-slot'; li.textContent='Open slot';
+        }
+        ul.appendChild(li);
+      }
+      card.appendChild(ul);
+      rostersEl.appendChild(card);
+    });
+  }
+
+  function renderPool(d){
+    const search = document.getElementById('searchBox').value.trim().toLowerCase();
+    const abilitySearch = document.getElementById('abilitySearchBox').value.trim().toLowerCase();
+    const tierVal = document.getElementById('tierFilter').value;
+    const typeVal = document.getElementById('typeFilter').value;
+    const sortMode = document.getElementById('sortMode').value;
+    let list = POOL.filter(p=>{
+      if(d.draftedIds[p.id]) return false;
+      if(tierVal!=='all' && p.tier!==parseInt(tierVal,10)) return false;
+      if(typeVal!=='all' && !(p.types||[]).includes(typeVal)) return false;
+      if(search && !(p.name+' '+p.variation).toLowerCase().includes(search)) return false;
+      if(abilitySearch){
+        const abilities = ID_TO_ABILITIES[p.id] || [];
+        if(!abilities.some(a => a.name.toLowerCase().includes(abilitySearch))) return false;
+      }
+      return true;
+    });
+    list.sort((a,b)=>{
+      if(sortMode==='tierDesc') return b.tier-a.tier || a.name.localeCompare(b.name);
+      if(sortMode==='tierAsc') return a.tier-b.tier || a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name);
+    });
+    document.getElementById('poolCount').textContent = list.length + ' shown';
+    const body = document.getElementById('poolBody'); body.innerHTML = '';
+
+    const done = isDraftDone(d);
+    const myTurn = !done && currentUser && d.trainers[currentTrainerIdx(d)].uid === currentUser.uid;
+    const trainer = done ? null : d.trainers[currentTrainerIdx(d)];
+
+    list.forEach(p=>{
+      const tr = document.createElement('tr');
+      const spriteCell = document.createElement('td'); spriteCell.className='sprite-cell';
+      spriteCell.appendChild(makeSpriteImg(p,'sprite-img')); tr.appendChild(spriteCell);
+      const nameCell = document.createElement('td');
+      nameCell.innerHTML = '<span class="mon-name">'+escapeHtml(p.name)+'</span>'+(p.variation?'<span class="mon-var">'+escapeHtml(p.variation)+'</span>':'');
+      tr.appendChild(nameCell);
+      const typeCell = document.createElement('td'); typeCell.innerHTML='<div class="type-badges">'+typeBadgesHtml(p.types)+'</div>'; tr.appendChild(typeCell);
+      const abilitiesCell = document.createElement('td'); abilitiesCell.innerHTML = abilitiesHtml(p.id); tr.appendChild(abilitiesCell);
+      const tierCell = document.createElement('td'); tierCell.innerHTML='<span class="tier-chip">'+p.tier+'</span>'; tr.appendChild(tierCell);
+      const actionCell = document.createElement('td');
+      actionCell.style.display = 'flex'; actionCell.style.gap = '6px'; actionCell.style.alignItems = 'center';
+      if(currentUser){
+        const myQueue = (d.queues && d.queues[currentUser.uid]) || [];
+        const inQueue = myQueue.includes(p.id);
+        const qBtn = document.createElement('button');
+        qBtn.type = 'button'; qBtn.className = 'queue-star-btn' + (inQueue ? ' active' : ''); qBtn.title = inQueue ? 'Remove from queue' : 'Add to queue';
+        qBtn.textContent = inQueue ? '★' : '☆';
+        qBtn.addEventListener('click', () => toggleQueue(p.id));
+        actionCell.appendChild(qBtn);
+      }
+      if(!done){
+        const btn = document.createElement('button'); btn.className='btn btn-primary btn-sm';
+        const remainingSlotsAfter = d.numSlots - (trainer.roster.length + 1);
+        const canAfford = trainer.budget >= p.tier;
+        const leavesEnoughForRest = (trainer.budget - p.tier) >= remainingSlotsAfter;
+        const hasSlot = trainer.roster.length < d.numSlots;
+        if(myTurn && canAfford && hasSlot && !leavesEnoughForRest){
+          btn.textContent = 'Would leave slots unfillable';
+        } else {
+          btn.textContent = myTurn ? 'Draft' : 'Not your turn';
+        }
+        btn.disabled = !(canAfford && hasSlot && myTurn && leavesEnoughForRest);
+        btn.addEventListener('click', () => draftPick(d, p));
+        actionCell.appendChild(btn);
+      }
+      tr.appendChild(actionCell);
+      body.appendChild(tr);
+    });
+    renderQueue(d);
+  }
+
+  async function toggleQueue(monId){
+    if(!currentUser) return;
+    const queues = Object.assign({}, league.draft.queues || {});
+    const mine = (queues[currentUser.uid] || []).slice();
+    const idx = mine.indexOf(monId);
+    if(idx > -1) mine.splice(idx, 1);
+    else mine.push(monId);
+    queues[currentUser.uid] = mine;
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { 'draft.queues': queues });
+    }catch(err){ /* non-critical */ }
+  }
+
+  async function reorderQueue(monId, direction){
+    if(!currentUser) return;
+    const queues = Object.assign({}, league.draft.queues || {});
+    const mine = (queues[currentUser.uid] || []).slice();
+    const idx = mine.indexOf(monId);
+    if(idx === -1) return;
+    const swapWith = idx + direction;
+    if(swapWith < 0 || swapWith >= mine.length) return;
+    [mine[idx], mine[swapWith]] = [mine[swapWith], mine[idx]];
+    queues[currentUser.uid] = mine;
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { 'draft.queues': queues });
+    }catch(err){ /* non-critical */ }
+  }
+
+  function renderQueue(d){
+    const listEl = document.getElementById('queueList');
+    if(!listEl || !currentUser) return;
+    const mine = (d.queues && d.queues[currentUser.uid]) || [];
+    listEl.innerHTML = '';
+    if(mine.length === 0){
+      const li = document.createElement('li');
+      li.className = 'queue-empty';
+      li.textContent = 'Empty — click the ☆ next to any Pokémon in the pool to add it here.';
+      listEl.appendChild(li);
+      return;
+    }
+    mine.forEach((monId, idx) => {
+      const mon = POOL.find(p => p.id === monId);
+      if(!mon) return;
+      const taken = !!d.draftedIds[monId];
+      const li = document.createElement('li');
+      li.className = 'queue-item' + (taken ? ' taken' : '');
+      const num = document.createElement('span'); num.className = 'queue-item-num'; num.textContent = (idx+1);
+      li.appendChild(num);
+      li.appendChild(makeSpriteImg(mon, 'queue-item-sprite'));
+      const info = document.createElement('span'); info.className = 'queue-item-name';
+      info.textContent = mon.name + (taken ? ' (taken)' : '');
+      li.appendChild(info);
+      const tier = document.createElement('span'); tier.className = 'tier-chip'; tier.textContent = mon.tier;
+      li.appendChild(tier);
+      const arrows = document.createElement('span'); arrows.className = 'queue-item-arrows';
+      const upBtn = document.createElement('button'); upBtn.type='button'; upBtn.className='btn btn-sm'; upBtn.textContent='▲'; upBtn.disabled = idx===0;
+      upBtn.addEventListener('click', () => reorderQueue(monId, -1));
+      const downBtn = document.createElement('button'); downBtn.type='button'; downBtn.className='btn btn-sm'; downBtn.textContent='▼'; downBtn.disabled = idx===mine.length-1;
+      downBtn.addEventListener('click', () => reorderQueue(monId, 1));
+      const rmBtn = document.createElement('button'); rmBtn.type='button'; rmBtn.className='btn btn-sm btn-danger'; rmBtn.textContent='✕';
+      rmBtn.addEventListener('click', () => toggleQueue(monId));
+      arrows.appendChild(upBtn); arrows.appendChild(downBtn); arrows.appendChild(rmBtn);
+      li.appendChild(arrows);
+      listEl.appendChild(li);
+    });
+  }
+
+  function wirePoolControls(d){
+    ['searchBox','abilitySearchBox','tierFilter','typeFilter','sortMode'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => renderPool(league.draft));
+      document.getElementById(id).addEventListener('change', () => renderPool(league.draft));
+    });
+  }
+
+  function wireStatusActions(d){
+    const isCommish = currentUser && league.commissionerUid === currentUser.uid;
+    const actions = document.getElementById('statusActions');
+    actions.innerHTML = '';
+    if(isCommish && d.history.length > 0){
+      const undoBtn = document.createElement('button');
+      undoBtn.className = 'btn btn-sm'; undoBtn.textContent = 'Undo last pick';
+      undoBtn.addEventListener('click', () => undoPick(d));
+      actions.appendChild(undoBtn);
+    }
+  }
+
+  async function draftPick(d, p){
+    if(!currentUser) return;
+    const tIdx = currentTrainerIdx(d);
+    const trainer = d.trainers[tIdx];
+    if(trainer.uid !== currentUser.uid) return;
+    if(d.draftedIds[p.id]) return;
+    if(trainer.budget < p.tier) return;
+    if(trainer.roster.length >= d.numSlots) return;
+    const remainingSlotsAfter = d.numSlots - (trainer.roster.length + 1);
+    if((trainer.budget - p.tier) < remainingSlotsAfter){
+      alert('You need to leave at least 1 point per remaining roster slot — this pick would leave you unable to fill your whole roster.');
+      return;
+    }
+
+    const updated = JSON.parse(JSON.stringify(d));
+    const t = updated.trainers[tIdx];
+    t.roster.push(p); t.budget -= p.tier;
+    updated.draftedIds[p.id] = { trainerIdx: tIdx, tier: p.tier };
+    updated.history.push({ trainerIdx: tIdx, monId: p.id });
+    updated.currentPick += 1;
+    updated.pickStartedAt = Date.now();
+
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { draft: updated });
+    }catch(err){ alert('Could not save pick: ' + err.message); }
+  }
+
+  function pickFromQueue(d, uid, budget, remainingSlotsAfter){
+    const queue = (d.queues && d.queues[uid]) || [];
+    for(const monId of queue){
+      if(d.draftedIds[monId]) continue;
+      const mon = POOL.find(p => p.id === monId);
+      if(mon && mon.tier <= budget && (budget - mon.tier) >= remainingSlotsAfter) return mon;
+    }
+    return null;
+  }
+
+  async function autoAdvance(d){
+    const tIdx = currentTrainerIdx(d);
+    const trainer = d.trainers[tIdx];
+    const remainingAfter = d.numSlots - (trainer.roster.length + 1);
+    const mon = pickFromQueue(d, trainer.uid, trainer.budget, remainingAfter) || pickAutoMon(d.draftedIds, trainer.budget, remainingAfter);
+
+    const updated = JSON.parse(JSON.stringify(d));
+    const t = updated.trainers[tIdx];
+    if(mon){
+      t.roster.push(mon); t.budget -= mon.tier;
+      updated.draftedIds[mon.id] = { trainerIdx: tIdx, tier: mon.tier };
+      updated.history.push({ trainerIdx: tIdx, monId: mon.id, auto: true });
+      updated.currentPick += 1;
+    }
+    updated.pickStartedAt = Date.now();
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { draft: updated });
+    }catch(err){ /* another client may already be handling this */ }
+  }
+
+  async function undoPick(d){
+    if(d.history.length === 0) return;
+    const updated = JSON.parse(JSON.stringify(d));
+    const last = updated.history.pop();
+    const trainer = updated.trainers[last.trainerIdx];
+    const idx = trainer.roster.findIndex(m => m.id === last.monId);
+    if(idx > -1){ const mon = trainer.roster.splice(idx,1)[0]; trainer.budget += mon.tier; }
+    delete updated.draftedIds[last.monId];
+    updated.currentPick -= 1;
+    updated.pickStartedAt = Date.now();
+    try{
+      await updateDoc(doc(db, 'leagues', leagueId), { draft: updated });
+    }catch(err){ alert('Could not undo: ' + err.message); }
+  }
+
+  function startTicker(d){
+    if(pickTimerInterval) clearInterval(pickTimerInterval);
+    pickTimerInterval = setInterval(() => tick(), 1000);
+    tick();
+    function tick(){
+      const timerEl = document.getElementById('pickTimer');
+      const nameEl = document.getElementById('onClockName');
+      if(!timerEl || !nameEl) return;
+      const trainer = d.trainers[currentTrainerIdx(d)];
+      nameEl.textContent = trainer.name;
+      const elapsed = Math.floor((Date.now() - d.pickStartedAt) / 1000);
+      const remaining = Math.max(0, PICK_SECONDS - elapsed);
+      timerEl.textContent = remaining + 's';
+      timerEl.classList.toggle('urgent', remaining <= 10);
+      if(remaining <= 0 && !pendingAutoPick){
+        pendingAutoPick = true;
+        autoAdvance(d).finally(() => { pendingAutoPick = false; });
+      }
+    }
+  }
+
+  const pickSound = new Audio('draft-pick.mp3');
+  function showPickReveal(trainerName, mon, isAuto){
+    if(!mon) return;
+    document.getElementById('prTrainer').textContent = (isAuto ? 'Clock expired — auto-drafted for ' : '') + trainerName + (isAuto ? '' : ' selects');
+    const sprite = document.getElementById('prSprite');
+    const candidates = spriteCandidates(mon); let idx=0;
+    sprite.src = candidates[0];
+    sprite.onerror = () => { idx++; if(idx<candidates.length) sprite.src=candidates[idx]; else sprite.style.display='none'; };
+    document.getElementById('prName').innerHTML = escapeHtml(mon.name) + (mon.variation ? ' <span style="color:var(--teal-bright);font-size:0.5em;">'+escapeHtml(mon.variation)+'</span>' : '');
+    document.getElementById('prTypes').innerHTML = typeBadgesHtml(mon.types);
+    document.getElementById('prTier').textContent = mon.tier + ' PTS';
+    const overlay = document.getElementById('pickReveal');
+    overlay.classList.add('show');
+    try{ pickSound.currentTime = 0; pickSound.play().catch(() => {}); }catch(e){}
+    setTimeout(() => overlay.classList.remove('show'), 2600);
+  }
+  document.getElementById('pickReveal').addEventListener('click', function(){ this.classList.remove('show'); });
+
+  const COMPETITIVE_SCORES = {"7": 58.3, "80": 68.2, "349": 51.8, "402": 43.9, "429": 52.1, "545": 46.2, "549": 50.3, "662": 46.9, "1242": 63.3, "837": 51.4, "878": 55.6, "881": 48.3, "1024": 48.0, "1074": 59.5, "1076": 56.6, "1161": 48.7, "1164": 54.7, "1182": 60.9, "1198": 49.7, "1206": 53.9, "1310": 60.6, "1314": 50.7, "1316": 57.8, "1324": 52.8, "189": 55.0, "9": 54.9, "805": 54.8, "585": 54.8, "312": 54.7, "3": 54.6, "200": 54.5, "582": 54.4, "1228": 54.4, "313": 54.3, "127": 54.2, "985": 54.1, "817": 54.0, "128": 54.0, "798": 53.9, "789": 53.8, "190": 53.7, "1239": 53.6, "1222": 53.6, "271": 53.5, "1100": 53.4, "1150": 53.3, "207": 53.2, "943": 53.2, "1223": 53.1, "644": 53.0, "272": 52.9, "352": 52.8, "154": 52.8, "4": 52.7, "353": 52.6, "52": 52.5, "373": 52.4, "155": 52.3, "241": 52.3, "1131": 52.2, "1255": 52.1, "1256": 52.0, "762": 51.9, "8": 51.9, "12": 51.8, "584": 51.7, "13": 51.6, "1143": 51.5, "175": 51.5, "48": 51.4, "1053": 51.3, "921": 51.2, "764": 51.1, "749": 51.1, "1237": 51.0, "937": 50.9, "211": 50.8, "1082": 50.7, "379": 50.7, "801": 50.6, "380": 50.5, "161": 50.4, "1021": 50.3, "696": 50.3, "527": 50.2, "1221": 50.1, "528": 50.0, "1138": 49.9, "891": 49.9, "1249": 49.8, "578": 49.7, "176": 49.6, "546": 49.5, "923": 49.5, "400": 49.4, "550": 49.3, "939": 49.2, "401": 49.1, "1116": 49.1, "385": 49.0, "290": 48.9, "173": 48.8, "1225": 48.7, "386": 48.7, "239": 48.6, "1148": 48.5, "1251": 48.4, "564": 48.3, "1072": 48.3, "910": 48.2, "191": 48.1, "79": 48.0, "792": 47.9, "734": 47.9, "214": 47.8, "35": 47.7, "576": 47.6, "490": 47.5, "1224": 47.4, "1135": 47.4, "649": 47.3, "813": 47.2, "586": 47.1, "838": 47.0, "832": 47.0, "617": 46.9, "1240": 46.8, "786": 46.7, "1247": 46.6, "1236": 46.6, "588": 46.5, "1238": 46.4, "846": 46.3, "235": 46.2, "86": 46.2, "1115": 46.1, "236": 46.0, "256": 45.9, "902": 45.8, "579": 45.8, "412": 45.7, "253": 45.6, "265": 45.5, "845": 45.4, "182": 45.4, "906": 45.3, "709": 45.2, "441": 45.1, "562": 45.0, "875": 45.0, "33": 44.9, "1226": 44.8, "108": 44.7, "1118": 44.6, "274": 44.6, "275": 44.5, "1219": 44.4, "266": 44.3, "563": 44.2, "1232": 44.2, "686": 44.1, "574": 44.0, "567": 43.9, "1075": 43.8, "900": 43.8, "1085": 43.7, "87": 43.6, "671": 43.5, "1207": 43.4, "109": 43.4, "861": 43.3, "1113": 43.2, "1029": 43.1, "610": 43.0, "1088": 43.0, "382": 42.9, "178": 42.8, "575": 42.7, "90": 42.6, "908": 42.6, "556": 42.5, "110": 42.4, "413": 42.3, "93": 42.2, "436": 42.1, "255": 42.1, "395": 42.0, "437": 41.9, "1032": 41.8, "383": 41.7, "396": 41.7, "1071": 41.6, "222": 41.5, "172": 41.4, "552": 41.3, "181": 41.3, "613": 41.2, "19": 41.1, "51": 41.0, "20": 40.9, "487": 40.9, "1220": 40.8, "484": 40.7, "830": 40.6, "500": 40.5, "573": 40.5, "542": 40.4, "292": 40.3, "1231": 40.2, "836": 40.1, "293": 40.1, "834": 40.0, "1030": 39.9, "1243": 39.8, "252": 39.7, "844": 39.7, "814": 39.6, "624": 39.5, "23": 39.4, "24": 39.3, "210": 39.3, "442": 39.2, "645": 39.1, "506": 39.0, "374": 38.9, "1042": 38.9, "36": 38.8, "704": 38.7, "169": 38.6, "502": 38.5, "168": 38.5, "916": 38.4, "504": 38.3, "695": 38.2, "853": 38.1, "820": 38.1, "646": 38.0, "1003": 37.9, "583": 37.8, "848": 37.7, "739": 37.7, "1006": 37.6, "630": 37.5, "874": 37.4, "446": 37.3, "884": 37.2, "795": 37.2, "810": 37.1, "443": 37.0, "32": 36.9, "924": 36.8, "806": 36.8, "1004": 36.7, "692": 36.6, "170": 36.5, "712": 36.4, "447": 36.4, "859": 36.3, "430": 36.2, "858": 36.1, "1018": 36.0, "743": 36.0, "628": 35.9, "626": 35.8, "901": 35.7, "839": 35.6, "262": 35.6, "183": 35.5, "587": 35.4, "822": 35.3, "811": 35.2, "616": 35.2, "619": 35.1, "744": 35.0, "1300": 15.0, "375": 15.3, "1328": 15.6, "1305": 16.0, "1323": 16.3, "269": 16.6, "1306": 16.9, "1307": 17.2, "1322": 17.5, "1319": 17.9, "1302": 18.2, "1303": 18.5, "1033": 18.8, "1325": 19.1, "376": 19.4, "1321": 19.8, "824": 20.1, "493": 20.4, "660": 20.7, "632": 21.0, "682": 21.3, "1152": 21.7, "59": 22.0, "171": 22.3, "1326": 22.6, "828": 22.9, "826": 23.3, "1320": 23.6, "1329": 23.9, "803": 24.2, "1304": 24.5, "1077": 24.8, "1327": 25.2, "729": 25.5, "319": 25.8, "323": 26.1, "1317": 26.4, "1318": 26.7, "1313": 27.1, "327": 27.4, "1159": 27.7, "1308": 28.0, "1254": 28.3, "1244": 28.7, "1217": 29.0, "1218": 29.3, "1227": 29.6, "1233": 29.9, "1234": 30.2, "1246": 30.6, "462": 30.9, "1245": 31.2, "1330": 31.5, "1241": 31.8, "1235": 32.1, "1312": 32.5, "320": 32.8, "324": 33.1, "1315": 33.4, "328": 33.7, "463": 34.0, "1309": 34.4, "1311": 34.7, "1331": 35.0};
+  const TIER_AVG_SCORE = {"1": 37.54, "2": 35.03, "3": 39.46, "4": 37.67, "5": 40.86, "6": 40.07, "7": 41.07, "8": 45.97, "9": 40.54, "10": 42.37, "11": 44.63, "12": 42.17, "13": 47.79, "14": 45.37, "15": 45.87, "16": 46.58, "17": 46.97, "18": 52.06, "19": 41.01, "20": 53.7, "21": 34.4, "22": 59.1};
+  function competitiveScoreFor(mon){
+    return COMPETITIVE_SCORES[mon.id] != null ? COMPETITIVE_SCORES[mon.id] : (TIER_AVG_SCORE[mon.tier] || 40);
+  }
+  function expectedScoreForTier(tier){
+    return TIER_AVG_SCORE[tier] != null ? TIER_AVG_SCORE[tier] : 40;
+  }
+  function computeDraftGrades(d){
+    const results = d.trainers.map(trainer => {
+      let totalDelta = 0;
+      const picks = trainer.roster.map(mon => {
+        const actual = competitiveScoreFor(mon);
+        const expected = expectedScoreForTier(mon.tier);
+        const delta = actual - expected;
+        totalDelta += delta;
+        return { mon, actual, expected, delta };
+      });
+      picks.sort((a, b) => b.delta - a.delta);
+      return {
+        trainer, avgDelta: picks.length ? totalDelta / picks.length : 0,
+        biggestSteal: picks[0], biggestReach: picks[picks.length - 1]
+      };
+    });
+    results.sort((a, b) => b.avgDelta - a.avgDelta);
+    const n = results.length;
+    const GRADE_LETTERS = ['A','A-','B+','B','B-','C+','C','C-'];
+    results.forEach((r, i) => {
+      const percentile = n > 1 ? 1 - (i / (n - 1)) : 1;
+      const idx = Math.min(GRADE_LETTERS.length - 1, Math.floor((1 - percentile) * GRADE_LETTERS.length));
+      r.grade = GRADE_LETTERS[idx];
+    });
+    return results;
+  }
+
+  function renderComplete(d){
+    if(pickTimerInterval){ clearInterval(pickTimerInterval); pickTimerInterval=null; }
+    const grades = computeDraftGrades(d);
+    const gradeCardsHtml = grades.map(r => {
+      return '<div class="grade-card">' +
+        '<div class="grade-letter grade-' + r.grade.replace('+','plus').replace('-','minus') + '">' + r.grade + '</div>' +
+        '<div class="grade-trainer-name">' + escapeHtml(r.trainer.coachName || r.trainer.name) + '</div>' +
+      '</div>';
+    }).join('');
+
+    root.innerHTML =
+      '<div class="page-head">' +
+        '<span class="eyebrow">Draft Recap</span>' +
+        '<h1>' + escapeHtml(league.name || 'League') + '</h1>' +
+        '<p style="color:var(--cream-dim);font-size:13.5px;margin-top:8px;">Every pick, in order — scroll to see the full board.</p>' +
+      '</div>' +
+      '<div class="panel">' +
+        '<h2 style="margin-bottom:6px;">Draft Grades</h2>' +
+        '<p class="settings-note" style="margin-bottom:16px;">Grades compare what each Pokémon actually costs in your pool against how it performs in real Regulation M-C tournament data — a strong Pokémon at a cheap tier is a steal, an underwhelming one at a high tier is a reach. Grades are curved against how everyone else in your league drafted.</p>' +
+        '<div class="grade-cards-row">' + gradeCardsHtml + '</div>' +
+      '</div>' +
+      '<div class="recap-board-wrap"><div class="recap-board" id="recapBoard" style="grid-template-columns:88px repeat(' + d.trainers.length + ', 160px);"></div></div>';
+
+    const board = document.getElementById('recapBoard');
+
+    const cornerCell = document.createElement('div');
+    cornerCell.className = 'recap-corner';
+    board.appendChild(cornerCell);
+    d.trainers.forEach(trainer => {
+      const head = document.createElement('div');
+      head.className = 'recap-col-head';
+      const avatarHtml = trainer.avatar ? '<img src="' + escapeHtml(trainer.avatar) + '" alt="">' : '<span class="avatar-placeholder"></span>';
+      head.innerHTML = avatarHtml + '<span class="recap-col-name">' + escapeHtml(trainer.coachName || trainer.name) + '</span>';
+      board.appendChild(head);
+    });
+
+    for(let round = 0; round < d.numSlots; round++){
+      const roundLabel = document.createElement('div');
+      roundLabel.className = 'recap-round-label';
+      roundLabel.textContent = 'Round ' + (round + 1);
+      board.appendChild(roundLabel);
+
+      d.trainers.forEach((trainer, tIdx) => {
+        const cell = document.createElement('div');
+        cell.className = 'recap-cell';
+        const mon = trainer.roster[round];
+        if(mon){
+          const overallPick = d.pickOrder.findIndex((idx, i) => idx === tIdx && Math.floor(i / d.trainers.length) === round);
+          const pickLabel = document.createElement('div');
+          pickLabel.className = 'recap-pick-no';
+          pickLabel.textContent = 'Pick ' + (overallPick + 1);
+          cell.appendChild(pickLabel);
+          cell.appendChild(makeSpriteImg(mon, 'recap-sprite'));
+          const nameEl = document.createElement('div');
+          nameEl.className = 'recap-mon-name';
+          nameEl.textContent = mon.name + (mon.variation ? ' ' + mon.variation : '');
+          cell.appendChild(nameEl);
+          const tierEl = document.createElement('div');
+          tierEl.className = 'recap-mon-tier';
+          tierEl.textContent = mon.tier + ' pts';
+          cell.appendChild(tierEl);
+        } else {
+          cell.classList.add('recap-cell-empty');
+          cell.textContent = '—';
+        }
+        board.appendChild(cell);
+      });
+    }
+  }
+
+  // ============================================================
+  // SNAPSHOT LISTENER
+  // ============================================================
+  let lastHistoryLen = null;
+
+  function handleSnapshot(data){
+    league = data;
+    const memberEntries = Object.entries(league.members || {});
+    const isCommish = currentUser && league.commissionerUid === currentUser.uid;
+    const isMember = currentUser && league.members && league.members[currentUser.uid];
+
+    const subnavCommish = document.getElementById('subnavCommish');
+    if(subnavCommish) subnavCommish.style.display = isCommish ? '' : 'none';
+
+    const subnavDraft = document.getElementById('subnavDraft');
+    if(subnavDraft) subnavDraft.style.display = '';
+    updateNavGlow(league);
+
+    if(!isMember){
+      root.innerHTML = '<div class="panel state-msg">You need to join this league before you can view its draft. <a href="signin.html" style="color:var(--gold);text-decoration:underline;">Join with a code</a></div>';
+      return;
+    }
+
+    if(!league.draft){
+      lastHistoryLen = null;
+      renderSetup(memberEntries, isCommish);
+      return;
+    }
+
+    const d = league.draft;
+    if(lastHistoryLen !== null && d.history.length > lastHistoryLen){
+      const last = d.history[d.history.length - 1];
+      const trainer = d.trainers[last.trainerIdx];
+      const mon = trainer.roster.find(m => m.id === last.monId) || trainer.roster[trainer.roster.length-1];
+      showPickReveal(trainer.name, mon, !!last.auto);
+    }
+    lastHistoryLen = d.history.length;
+
+    renderActive(d);
+  }
+
+  const navUserEmail = document.getElementById('navUserEmail');
+  const navSignOutBtn = document.getElementById('navSignOutBtn');
+  navSignOutBtn.addEventListener('click', () => signOut(auth));
+
+  const navLeaguesBtn = document.getElementById('navLeaguesBtn');
+  const navLeaguesMenu = document.getElementById('navLeaguesMenu');
+  const navLeaguesList = document.getElementById('navLeaguesList');
+  const navLeaguesEmpty = document.getElementById('navLeaguesEmpty');
+  navLeaguesBtn.addEventListener('click', (e) => { e.stopPropagation(); navLeaguesMenu.classList.toggle('open'); });
+  document.addEventListener('click', () => navLeaguesMenu.classList.remove('open'));
+  navLeaguesMenu.addEventListener('click', (e) => e.stopPropagation());
+
+  function generateJoinCode(){
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
+    return code;
+  }
+
+  const navLeaguesDefaultView = document.getElementById('navLeaguesDefaultView');
+  const navJoinView = document.getElementById('navJoinView');
+  const navShowJoinBtn = document.getElementById('navShowJoinBtn');
+  const navJoinCodeInput = document.getElementById('navJoinCodeInput');
+  const navJoinSubmitBtn = document.getElementById('navJoinSubmitBtn');
+  const navJoinCancelBtn = document.getElementById('navJoinCancelBtn');
+  const navJoinStatus = document.getElementById('navJoinStatus');
+  let navCurrentUser = null;
+
+  function showNavDefault(){
+    navLeaguesDefaultView.style.display = 'block';
+    navJoinView.style.display = 'none';
+    navJoinStatus.textContent = '';
+  }
+  navShowJoinBtn.addEventListener('click', () => {
+    navLeaguesDefaultView.style.display = 'none';
+    navJoinView.style.display = 'block';
+  });
+  navJoinCancelBtn.addEventListener('click', showNavDefault);
+
+  navJoinSubmitBtn.addEventListener('click', async () => {
+    if(!navCurrentUser) return;
+    const code = navJoinCodeInput.value.trim().toUpperCase();
+    if(!code){ navJoinStatus.textContent = 'Enter a code.'; return; }
+    navJoinSubmitBtn.disabled = true;
+    try{
+      const q = query(collection(db, 'leagues'), where('joinCode', '==', code));
+      const snap = await getDocs(q);
+      if(snap.empty){
+        navJoinStatus.textContent = 'No league found with that code.';
+        navJoinSubmitBtn.disabled = false;
+        return;
+      }
+      const leagueDoc = snap.docs[0];
+      const leagueData = leagueDoc.data();
+      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
+      const currentMemberCount = Object.keys(leagueData.members || {}).length;
+      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
+        if(currentMemberCount >= maxTeams){
+          navJoinStatus.textContent = 'This league is full (' + maxTeams + ' team limit).';
+          navJoinSubmitBtn.disabled = false;
+          return;
+        }
+      }
+      await updateDoc(doc(db, 'leagues', leagueDoc.id), {
+        ['members.' + navCurrentUser.uid]: {
+          displayName: navCurrentUser.displayName || 'Trainer',
+          photoURL: navCurrentUser.photoURL || '',
+          joinedAt: Date.now()
+        }
+      });
+      navJoinCodeInput.value = '';
+      await loadNavLeagues(navCurrentUser);
+      showNavDefault();
+    }catch(err){
+      navJoinStatus.textContent = 'Error: ' + err.message;
+    }
+    navJoinSubmitBtn.disabled = false;
+  });
+
+
+  async function loadNavLeagues(user){
+    try{
+      const q = query(collection(db, 'leagues'), where('members.' + user.uid, '!=', null));
+      const snap = await getDocs(q);
+      navLeaguesList.innerHTML = '';
+      if(snap.empty){ navLeaguesEmpty.style.display = 'block'; return; }
+      navLeaguesEmpty.style.display = 'none';
+      snap.forEach(docSnap => {
+        const l = docSnap.data();
+        const isCommish = l.commissionerUid === user.uid;
+        const li = document.createElement('li');
+        li.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(l.name || 'Untitled League') + '</span>' + (isCommish ? '<span class="nlm-commish">Commish</span>' : '') + '</a>';
+        navLeaguesList.appendChild(li);
+      });
+    }catch(err){
+      navLeaguesEmpty.style.display = 'block';
+      navLeaguesEmpty.textContent = 'Could not load leagues.';
+    }
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    currentUser = user;
+    if(user){
+      navUserEmail.textContent = user.displayName || 'Trainer';
+      navCurrentUser = user;
+      loadNavLeagues(user);
+    }
+    if(!user){
+      root.innerHTML = '<div class="panel state-msg">Please <a href="signin.html" style="color:var(--gold);text-decoration:underline;">sign in</a> first.</div>';
+      return;
+    }
+    if(!leagueId){
+      root.innerHTML = '<div class="panel state-msg">No league specified — open this page from your league dashboard.</div>';
+      return;
+    }
+    onSnapshot(doc(db, 'leagues', leagueId), (snap) => {
+      if(!snap.exists()){
+        root.innerHTML = '<div class="panel state-msg">This league doesn\'t exist.</div>';
+        return;
+      }
+      handleSnapshot(snap.data());
+    }, (err) => {
+      root.innerHTML = '<div class="panel state-msg">Could not load: ' + escapeHtml(err.message) + '</div>';
+    });
+  });
+</script>
+
+</body>
+</html>
