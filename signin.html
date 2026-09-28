@@ -113,22 +113,12 @@
     padding:32px 28px;margin-top:36px;text-align:left;
   }
 
-  .google-btn{
-    display:flex;align-items:center;justify-content:center;gap:10px;
-    width:100%;background:#fff;color:#1f1f1f;border:none;border-radius:4px;
-    padding:13px 20px;font-family:var(--body);font-weight:600;font-size:14.5px;
-    cursor:pointer;transition:transform .12s ease, box-shadow .15s ease;
-  }
-  .google-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,0.3);}
-  .google-btn img{width:18px;height:18px;}
-
   .signed-in-card{text-align:center;}
-  .signed-in-card .avatar{
-    width:64px;height:64px;border-radius:50%;object-fit:cover;
-    border:2px solid var(--gold);margin:0 auto 14px;display:block;
-  }
-  .signed-in-card .name{font-family:var(--display);font-size:22px;text-transform:uppercase;}
-  .signed-in-card .email{color:var(--cream-dim);font-size:13px;margin-top:2px;}
+  .name-pin-form{display:flex;flex-direction:column;gap:14px;}
+  .name-pin-form label{display:block;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--cream-dim);margin-bottom:6px;}
+  .name-pin-form input{width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);padding:12px;border-radius:3px;font:14px var(--body);}
+  .name-pin-form input:focus{border-color:var(--gold);}
+  .name-pin-form .btn{justify-content:center;width:100%;}
 
   .btn{
     display:inline-flex;align-items:center;gap:8px;
@@ -236,27 +226,7 @@
       <a href="format.html">Format</a>
       <span id="navSignedOut"><a href="signin.html#authPanel" class="nav-cta">Sign In</a></span>
       <span id="navSignedIn" class="nav-account" style="display:none;">
-        <div class="nav-leagues-wrap">
-          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
-          <div id="navLeaguesMenu" class="nav-leagues-menu">
-            <div id="navLeaguesDefaultView">
-              <div class="nlm-label">My Leagues</div>
-              <ul id="navLeaguesList" class="nlm-list"></ul>
-              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
-              <div class="nlm-divider"></div>
-              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
-            </div>
-            <div id="navJoinView" style="display:none;">
-              <div class="nlm-label">Join a League</div>
-              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
-              <div class="nlm-form-actions">
-                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
-                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
-              </div>
-              <p class="nlm-status" id="navJoinStatus"></p>
-            </div>
-          </div>
-        </div>
+        <a href="league.html">League</a>
         <span id="navUserEmail"></span>
         <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
       </span>
@@ -267,229 +237,74 @@
 <main>
   <span class="eyebrow">Sign In</span>
   <h1>Welcome, Trainer</h1>
-  <p class="sub">Sign in with your Google account to join the league, claim your trainer identity, and — if you're the one who starts the draft — take the reins as league commissioner.</p>
+  <p class="sub">Use the name and PIN assigned to you by the league commissioner.</p>
 
   <div class="auth-panel" id="authPanel">
     <div id="signedOutView">
-      <button class="google-btn" id="googleSignInBtn">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="">
-        Sign in with Google
-      </button>
+      <form class="name-pin-form" id="signInForm">
+        <div><label for="trainerName">Trainer name</label><input id="trainerName" name="name" autocomplete="username" required maxlength="40"></div>
+        <div><label for="trainerPin">PIN</label><input id="trainerPin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" pattern="[0-9]{4,12}" required maxlength="12"></div>
+        <button class="btn btn-primary" type="submit" id="signInBtn">Sign In</button>
+      </form>
       <p class="auth-error" id="authError"></p>
     </div>
 
     <div id="signedInView" class="signed-in-card" style="display:none;">
-      <div class="my-leagues" id="myLeaguesSection" style="display:none;">
-        <span class="option-group-label" style="display:block;margin-bottom:8px;">My Leagues</span>
-        <ul class="my-leagues-list" id="myLeaguesList"></ul>
-      </div>
-      <div class="state-msg" id="noLeaguesMsg" style="display:none;padding:20px 0;">
-        You're not in any leagues yet — use the "Leagues" menu in the top right to create or join one.
-      </div>
+      <p class="state-msg" id="signedInMessage"></p>
+      <a class="btn btn-primary" href="league.html">Open League</a>
     </div>
   </div>
 </main>
 
 <footer>
-  Signing in creates a lightweight profile (name, email, photo) tied to your Google account — used only to recognize you across the league's pages.
+  Player accounts are assigned by the league commissioner.
 </footer>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import {
-    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import {
-    getFirestore, doc, setDoc, getDoc, serverTimestamp,
-    collection, addDoc, query, where, getDocs, updateDoc
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
-    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
-    projectId: "pokemon-vr-draft-league",
-    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
-    messagingSenderId: "400355118785",
-    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
-  };
-
-  const app = initializeApp(FIREBASE_CONFIG);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-  const provider = new GoogleAuthProvider();
+  import { getCurrentUser, signIn, signOut } from './league-api.js';
 
   const signedOutView = document.getElementById('signedOutView');
   const signedInView = document.getElementById('signedInView');
-  const googleSignInBtn = document.getElementById('googleSignInBtn');
+  const signInForm = document.getElementById('signInForm');
   const authError = document.getElementById('authError');
-
-  googleSignInBtn.addEventListener('click', async () => {
-    authError.style.display = 'none';
-    try{
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      // Create or update this user's profile doc — foundation for trainer
-      // linking and commissioner detection on later pages.
-      await setDoc(doc(db, 'users', user.uid), {
-        displayName: user.displayName || '',
-        email: user.email || '',
-        photoURL: user.photoURL || '',
-        lastSignIn: serverTimestamp()
-      }, { merge: true });
-    }catch(err){
-      authError.textContent = 'Sign-in failed: ' + err.message;
-      authError.style.display = 'block';
-    }
-  });
-
-  let currentUser = null;
-
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-
-  const myLeaguesSection = document.getElementById('myLeaguesSection');
-  const myLeaguesList = document.getElementById('myLeaguesList');
-
-  const navLeaguesBtn = document.getElementById('navLeaguesBtn');
-  const navLeaguesMenu = document.getElementById('navLeaguesMenu');
-  const navLeaguesList = document.getElementById('navLeaguesList');
-  const navLeaguesEmpty = document.getElementById('navLeaguesEmpty');
-  navLeaguesBtn.addEventListener('click', (e) => { e.stopPropagation(); navLeaguesMenu.classList.toggle('open'); });
-  document.addEventListener('click', () => navLeaguesMenu.classList.remove('open'));
-  navLeaguesMenu.addEventListener('click', (e) => e.stopPropagation());
-
-  function generateJoinCode(){
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
-    return code;
-  }
-
-  const navLeaguesDefaultView = document.getElementById('navLeaguesDefaultView');
-  const navJoinView = document.getElementById('navJoinView');
-  const navShowJoinBtn = document.getElementById('navShowJoinBtn');
-  const navJoinCodeInput = document.getElementById('navJoinCodeInput');
-  const navJoinSubmitBtn = document.getElementById('navJoinSubmitBtn');
-  const navJoinCancelBtn = document.getElementById('navJoinCancelBtn');
-  const navJoinStatus = document.getElementById('navJoinStatus');
-  let navCurrentUser = null;
-
-  function showNavDefault(){
-    navLeaguesDefaultView.style.display = 'block';
-    navJoinView.style.display = 'none';
-    navJoinStatus.textContent = '';
-  }
-  navShowJoinBtn.addEventListener('click', () => {
-    navLeaguesDefaultView.style.display = 'none';
-    navJoinView.style.display = 'block';
-  });
-  navJoinCancelBtn.addEventListener('click', showNavDefault);
-
-  navJoinSubmitBtn.addEventListener('click', async () => {
-    if(!navCurrentUser) return;
-    const code = navJoinCodeInput.value.trim().toUpperCase();
-    if(!code){ navJoinStatus.textContent = 'Enter a code.'; return; }
-    navJoinSubmitBtn.disabled = true;
-    try{
-      const q = query(collection(db, 'leagues'), where('joinCode', '==', code));
-      const snap = await getDocs(q);
-      if(snap.empty){
-        navJoinStatus.textContent = 'No league found with that code.';
-        navJoinSubmitBtn.disabled = false;
-        return;
-      }
-      const leagueDoc = snap.docs[0];
-      const leagueData = leagueDoc.data();
-      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
-      const currentMemberCount = Object.keys(leagueData.members || {}).length;
-      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
-        if(currentMemberCount >= maxTeams){
-          navJoinStatus.textContent = 'This league is full (' + maxTeams + ' team limit).';
-          navJoinSubmitBtn.disabled = false;
-          return;
-        }
-      }
-      await updateDoc(doc(db, 'leagues', leagueDoc.id), {
-        ['members.' + navCurrentUser.uid]: {
-          displayName: navCurrentUser.displayName || 'Trainer',
-          photoURL: navCurrentUser.photoURL || '',
-          joinedAt: Date.now()
-        }
-      });
-      navJoinCodeInput.value = '';
-      await loadMyLeagues(navCurrentUser);
-      showNavDefault();
-    }catch(err){
-      navJoinStatus.textContent = 'Error: ' + err.message;
-    }
-    navJoinSubmitBtn.disabled = false;
-  });
-
-
-  async function loadMyLeagues(user){
-    const noLeaguesMsg = document.getElementById('noLeaguesMsg');
-    try{
-      const q = query(collection(db, 'leagues'), where('members.' + user.uid, '!=', null));
-      const snap = await getDocs(q);
-      navLeaguesList.innerHTML = '';
-      if(snap.empty){
-        myLeaguesSection.style.display = 'none';
-        noLeaguesMsg.style.display = 'block';
-        navLeaguesEmpty.style.display = 'block';
-        return;
-      }
-      myLeaguesList.innerHTML = '';
-      noLeaguesMsg.style.display = 'none';
-      navLeaguesEmpty.style.display = 'none';
-      snap.forEach(docSnap => {
-        const league = docSnap.data();
-        const isCommish = league.commissionerUid === user.uid;
-        const rowHtml =
-          '<a href="league.html?id=' + docSnap.id + '">' +
-            '<span>' + escapeHtml(league.name || 'Untitled League') + '</span>' +
-            (isCommish ? '<span class="ml-commish">Commissioner</span>' : '') +
-          '</a>';
-        const li = document.createElement('li');
-        li.innerHTML = rowHtml;
-        myLeaguesList.appendChild(li);
-
-        const navLi = document.createElement('li');
-        navLi.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(league.name || 'Untitled League') + '</span>' + (isCommish ? '<span class="nlm-commish">Commish</span>' : '') + '</a>';
-        navLeaguesList.appendChild(navLi);
-      });
-      myLeaguesSection.style.display = 'block';
-    }catch(err){
-      myLeaguesSection.style.display = 'none';
-      noLeaguesMsg.style.display = 'none';
-      navLeaguesEmpty.style.display = 'block';
-      navLeaguesEmpty.textContent = 'Could not load leagues.';
-    }
-  }
-
+  const signInBtn = document.getElementById('signInBtn');
   const navSignedOut = document.getElementById('navSignedOut');
   const navSignedIn = document.getElementById('navSignedIn');
   const navUserEmail = document.getElementById('navUserEmail');
   const navSignOutBtn = document.getElementById('navSignOutBtn');
-  navSignOutBtn.addEventListener('click', () => signOut(auth));
 
-  onAuthStateChanged(auth, (user) => {
-    currentUser = user;
+  function showUser(user){
+    navSignedOut.style.display = user ? 'none' : '';
+    navSignedIn.style.display = user ? 'flex' : 'none';
+    signedOutView.style.display = user ? 'none' : 'block';
+    signedInView.style.display = user ? 'block' : 'none';
     if(user){
-      navSignedOut.style.display = 'none';
-      navSignedIn.style.display = 'flex';
-      navUserEmail.textContent = user.displayName || 'Trainer';
-      signedOutView.style.display = 'none';
-      signedInView.style.display = 'block';
-      navCurrentUser = user;
-      loadMyLeagues(user);
-    } else {
-      navSignedOut.style.display = '';
-      navSignedIn.style.display = 'none';
-      signedOutView.style.display = 'block';
-      signedInView.style.display = 'none';
+      navUserEmail.textContent = user.displayName;
+      document.getElementById('signedInMessage').textContent = 'Signed in as ' + user.displayName + '.';
+    }
+  }
+
+  signInForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    authError.style.display = 'none';
+    signInBtn.disabled = true;
+    try{
+      const data = new FormData(signInForm);
+      showUser(await signIn(data.get('name'), data.get('pin')));
+    }catch(error){
+      authError.textContent = error.message;
+      authError.style.display = 'block';
+    }finally{
+      signInBtn.disabled = false;
     }
   });
+
+  navSignOutBtn.addEventListener('click', async () => {
+    await signOut();
+    showUser(null);
+  });
+
+  showUser(await getCurrentUser().catch(() => null));
 </script>
 
 </body>

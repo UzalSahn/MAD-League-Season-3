@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>League — Pokemon VGC Draft League</title>
-<meta name="description" content="League dashboard — members, join code, and commissioner controls.">
+<meta name="description" content="MAD League announcements, match results, and player activity.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -241,27 +241,7 @@
       <a href="format.html">Format</a>
       <span id="navSignedOut"><a href="signin.html" class="nav-cta">Sign In</a></span>
       <span id="navSignedIn" class="nav-account" style="display:none;">
-        <div class="nav-leagues-wrap">
-          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
-          <div id="navLeaguesMenu" class="nav-leagues-menu">
-            <div id="navLeaguesDefaultView">
-              <div class="nlm-label">My Leagues</div>
-              <ul id="navLeaguesList" class="nlm-list"></ul>
-              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
-              <div class="nlm-divider"></div>
-              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
-            </div>
-            <div id="navJoinView" style="display:none;">
-              <div class="nlm-label">Join a League</div>
-              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
-              <div class="nlm-form-actions">
-                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
-                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
-              </div>
-              <p class="nlm-status" id="navJoinStatus"></p>
-            </div>
-          </div>
-        </div>
+        <a href="league.html" class="btn btn-sm">League</a>
         <span id="navUserEmail"></span>
         <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
       </span>
@@ -289,24 +269,9 @@
 </main>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, onSnapshot, updateDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { appendValue, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
 
-  const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
-    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
-    projectId: "pokemon-vr-draft-league",
-    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
-    messagingSenderId: "400355118785",
-    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
-  };
-
-  const app = initializeApp(FIREBASE_CONFIG);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  // ---------- sprites ----------
+// ---------- sprites ----------
   const PLACEHOLDER_SPRITE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" fill="none" stroke="#3A3A3A" stroke-width="2"/><line x1="3" y1="20" x2="37" y2="20" stroke="#3A3A3A" stroke-width="2"/><circle cx="20" cy="20" r="5" fill="#3A3A3A"/></svg>'
   );
@@ -361,7 +326,7 @@
 
   const content = document.getElementById('content');
   const params = new URLSearchParams(window.location.search);
-  const leagueId = params.get('id');
+  const leagueId = 'main';
 
   ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
     const el = document.getElementById(id);
@@ -418,7 +383,7 @@
     votes.push(currentUser.uid);
     const updatedTrades = (league.trades || []).map(t => t.id === trade.id ? Object.assign({}, t, { vetoVotes: votes }) : t);
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { trades: updatedTrades });
+      await updateLeague({ trades: updatedTrades });
     }catch(err){ alert('Could not record veto vote: ' + err.message); }
   }
 
@@ -430,7 +395,7 @@
     const updated = current.slice();
     updated.splice(idx, 1);
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { announcements: updated });
+      await updateLeague({ announcements: updated });
     }catch(err){ alert('Could not delete announcement: ' + err.message); }
   }
 
@@ -444,7 +409,7 @@
     if((league.draft.trainers[idx].announcementsSeenAt || 0) >= maxTs) return;
     announcementsSeenMarked = true;
     const updatedTrainers = league.draft.trainers.map((t, i) => i === idx ? Object.assign({}, t, { announcementsSeenAt: Date.now() }) : t);
-    updateDoc(doc(db, 'leagues', leagueId), { ['draft.trainers']: updatedTrainers }).catch(() => { announcementsSeenMarked = false; });
+    updateLeague({ ['draft.trainers']: updatedTrainers }).catch(() => { announcementsSeenMarked = false; });
   }
 
   function render(league){
@@ -571,7 +536,7 @@
       content.innerHTML = '<div class="state-msg error">No league specified — use a link from the sign-in page.</div>';
       return;
     }
-    onSnapshot(doc(db, 'leagues', leagueId), (snap) => {
+    subscribeLeague((snap) => {
       if(!snap.exists()){
         content.innerHTML = '<div class="state-msg error">This league doesn\'t exist or was deleted.</div>';
         return;
@@ -586,112 +551,15 @@
   const navSignedIn = document.getElementById('navSignedIn');
   const navUserEmail = document.getElementById('navUserEmail');
   const navSignOutBtn = document.getElementById('navSignOutBtn');
-  navSignOutBtn.addEventListener('click', () => signOut(auth));
-
-  const navLeaguesBtn = document.getElementById('navLeaguesBtn');
-  const navLeaguesMenu = document.getElementById('navLeaguesMenu');
-  const navLeaguesList = document.getElementById('navLeaguesList');
-  const navLeaguesEmpty = document.getElementById('navLeaguesEmpty');
-  navLeaguesBtn.addEventListener('click', (e) => { e.stopPropagation(); navLeaguesMenu.classList.toggle('open'); });
-  document.addEventListener('click', () => navLeaguesMenu.classList.remove('open'));
-  navLeaguesMenu.addEventListener('click', (e) => e.stopPropagation());
-
-  function generateJoinCode(){
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
-    return code;
-  }
-
-  const navLeaguesDefaultView = document.getElementById('navLeaguesDefaultView');
-  const navJoinView = document.getElementById('navJoinView');
-  const navShowJoinBtn = document.getElementById('navShowJoinBtn');
-  const navJoinCodeInput = document.getElementById('navJoinCodeInput');
-  const navJoinSubmitBtn = document.getElementById('navJoinSubmitBtn');
-  const navJoinCancelBtn = document.getElementById('navJoinCancelBtn');
-  const navJoinStatus = document.getElementById('navJoinStatus');
-  let navCurrentUser = null;
-
-  function showNavDefault(){
-    navLeaguesDefaultView.style.display = 'block';
-    navJoinView.style.display = 'none';
-    navJoinStatus.textContent = '';
-  }
-  navShowJoinBtn.addEventListener('click', () => {
-    navLeaguesDefaultView.style.display = 'none';
-    navJoinView.style.display = 'block';
-  });
-  navJoinCancelBtn.addEventListener('click', showNavDefault);
-
-  navJoinSubmitBtn.addEventListener('click', async () => {
-    if(!navCurrentUser) return;
-    const code = navJoinCodeInput.value.trim().toUpperCase();
-    if(!code){ navJoinStatus.textContent = 'Enter a code.'; return; }
-    navJoinSubmitBtn.disabled = true;
-    try{
-      const q = query(collection(db, 'leagues'), where('joinCode', '==', code));
-      const snap = await getDocs(q);
-      if(snap.empty){
-        navJoinStatus.textContent = 'No league found with that code.';
-        navJoinSubmitBtn.disabled = false;
-        return;
-      }
-      const leagueDoc = snap.docs[0];
-      const leagueData = leagueDoc.data();
-      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
-      const currentMemberCount = Object.keys(leagueData.members || {}).length;
-      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
-        if(currentMemberCount >= maxTeams){
-          navJoinStatus.textContent = 'This league is full (' + maxTeams + ' team limit).';
-          navJoinSubmitBtn.disabled = false;
-          return;
-        }
-      }
-      await updateDoc(doc(db, 'leagues', leagueDoc.id), {
-        ['members.' + navCurrentUser.uid]: {
-          displayName: navCurrentUser.displayName || 'Trainer',
-          photoURL: navCurrentUser.photoURL || '',
-          joinedAt: Date.now()
-        }
-      });
-      navJoinCodeInput.value = '';
-      await loadNavLeagues(navCurrentUser);
-      showNavDefault();
-    }catch(err){
-      navJoinStatus.textContent = 'Error: ' + err.message;
-    }
-    navJoinSubmitBtn.disabled = false;
-  });
+  navSignOutBtn.addEventListener('click', () => signOut());
 
 
-  async function loadNavLeagues(user){
-    try{
-      const q = query(collection(db, 'leagues'), where('members.' + user.uid, '!=', null));
-      const snap = await getDocs(q);
-      navLeaguesList.innerHTML = '';
-      if(snap.empty){ navLeaguesEmpty.style.display = 'block'; return; }
-      navLeaguesEmpty.style.display = 'none';
-      snap.forEach(docSnap => {
-        const l = docSnap.data();
-        const isCommish = l.commissionerUid === user.uid;
-        const li = document.createElement('li');
-        li.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(l.name || 'Untitled League') + '</span>' + (isCommish ? '<span class="nlm-commish">Commish</span>' : '') + '</a>';
-        navLeaguesList.appendChild(li);
-      });
-    }catch(err){
-      navLeaguesEmpty.style.display = 'block';
-      navLeaguesEmpty.textContent = 'Could not load leagues.';
-    }
-  }
-
-  onAuthStateChanged(auth, (user) => {
+  onUserChange( (user) => {
     currentUser = user;
     if(user){
       navSignedOut.style.display = 'none';
       navSignedIn.style.display = 'flex';
       navUserEmail.textContent = user.displayName || 'Trainer';
-      navCurrentUser = user;
-      loadNavLeagues(user);
     } else {
       navSignedOut.style.display = '';
       navSignedIn.style.display = 'none';

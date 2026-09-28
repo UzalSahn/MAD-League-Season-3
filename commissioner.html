@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>League — Pokemon VGC Draft League</title>
-<meta name="description" content="League dashboard — members, join code, and commissioner controls.">
+<meta name="description" content="Manage the MAD League, player PIN accounts, and commissioner settings.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -231,27 +231,7 @@
       <a href="format.html">Format</a>
       <span id="navSignedOut"><a href="signin.html" class="nav-cta">Sign In</a></span>
       <span id="navSignedIn" class="nav-account" style="display:none;">
-        <div class="nav-leagues-wrap">
-          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
-          <div id="navLeaguesMenu" class="nav-leagues-menu">
-            <div id="navLeaguesDefaultView">
-              <div class="nlm-label">My Leagues</div>
-              <ul id="navLeaguesList" class="nlm-list"></ul>
-              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
-              <div class="nlm-divider"></div>
-              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
-            </div>
-            <div id="navJoinView" style="display:none;">
-              <div class="nlm-label">Join a League</div>
-              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
-              <div class="nlm-form-actions">
-                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
-                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
-              </div>
-              <p class="nlm-status" id="navJoinStatus"></p>
-            </div>
-          </div>
-        </div>
+        <a href="league.html" class="btn btn-sm">League</a>
         <span id="navUserEmail"></span>
         <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
       </span>
@@ -290,24 +270,9 @@
 </main>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, onSnapshot, updateDoc, arrayUnion, deleteDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { appendValue, createPlayer, fetchPlayers, onUserChange, signOut, subscribeLeague, updateLeague, updatePlayer } from './league-api.js';
 
-  const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
-    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
-    projectId: "pokemon-vr-draft-league",
-    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
-    messagingSenderId: "400355118785",
-    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
-  };
-
-  const app = initializeApp(FIREBASE_CONFIG);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  function escapeHtml(s){
+function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
@@ -329,7 +294,7 @@
 
   const content = document.getElementById('content');
   const params = new URLSearchParams(window.location.search);
-  const leagueId = params.get('id');
+  const leagueId = 'main';
 
   ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
     const el = document.getElementById(id);
@@ -460,7 +425,7 @@
 
   function pushAnnouncementHere(league, type, message, mons, droppedIds){
     const entry = { type, message, mons: mons || [], droppedIds: droppedIds || [], timestamp: Date.now() };
-    return updateDoc(doc(db, 'leagues', leagueId), { announcements: arrayUnion(entry) }).catch(() => {});
+    return updateLeague({ announcements: appendValue(entry) }).catch(() => {});
   }
 
   async function commishProcessFAPickupNow(league, move){
@@ -487,7 +452,7 @@
     const log = { id: pendingMoveId(), type: 'fa_swap', timestamp: Date.now(), reversed: false,
       trainerUid: move.trainerUid, trainerName: move.trainerName, claims: [move.mon], drops: move.conditionalDrop ? [move.conditionalDrop] : [] };
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { draft: updatedDraft, pendingMoves: updatedPending, waivers: newWaiver ? (league.waivers || []).concat([newWaiver]) : (league.waivers || []), transactionLog: (league.transactionLog || []).concat([log]) });
+      await updateLeague({ draft: updatedDraft, pendingMoves: updatedPending, waivers: newWaiver ? (league.waivers || []).concat([newWaiver]) : (league.waivers || []), transactionLog: (league.transactionLog || []).concat([log]) });
       pushAnnouncementHere(league, 'pickup', 'Commissioner' + ' manually processed ' + move.trainerName + '\'s pickup of ' + move.mon.name + ' immediately' + (move.conditionalDrop ? ' (and dropped ' + move.conditionalDrop.name + ')' : ''), move.conditionalDrop ? [move.mon, move.conditionalDrop] : [move.mon], move.conditionalDrop ? [move.conditionalDrop.id] : []);
       sendDiscordFATrade('📥 **' + move.trainerName + '** officially added **' + move.mon.name + '** to their roster' + (move.conditionalDrop ? ' and dropped **' + move.conditionalDrop.name + '**' : '') + '.', discordTrainerMonEmbeds(t, move.conditionalDrop ? [move.mon, move.conditionalDrop] : [move.mon]));
     }catch(err){ alert('Could not process: ' + err.message); }
@@ -521,7 +486,7 @@
     const log = { id: pendingMoveId(), type: 'fa_swap', timestamp: Date.now(), reversed: false,
       trainerUid: move.trainerUid, trainerName: move.trainerName, claims, drops };
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { draft: updatedDraft, pendingMoves: updatedPending, waivers: (league.waivers || []).concat(newWaivers), transactionLog: (league.transactionLog || []).concat([log]) });
+      await updateLeague({ draft: updatedDraft, pendingMoves: updatedPending, waivers: (league.waivers || []).concat(newWaivers), transactionLog: (league.transactionLog || []).concat([log]) });
       const claimNames = claims.map(c => c.name).join(', ') || 'nothing';
       const dropNote = drops.length ? (' and dropped ' + drops.map(d => d.name).join(', ')) : '';
       pushAnnouncementHere(league, 'pickup', 'Commissioner' + ' manually processed ' + move.trainerName + '\'s claim of ' + claimNames + dropNote + ' immediately', claims.concat(drops), drops.map(d=>d.id));
@@ -560,7 +525,7 @@
       offered: move.offered, requested: move.requested };
 
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { draft: updatedDraft, pendingMoves: updatedPending, trades: updatedTrades, transactionLog: (league.transactionLog || []).concat([log]) });
+      await updateLeague({ draft: updatedDraft, pendingMoves: updatedPending, trades: updatedTrades, transactionLog: (league.transactionLog || []).concat([log]) });
       pushAnnouncementHere(league, 'trade', 'Commissioner' + ' manually processed the trade between ' + move.proposerName + ' and ' + move.recipientName + ' immediately', move.offered.concat(move.requested));
       sendDiscordFATrade('🔄 Trade complete: **' + move.proposerName + '** sent ' + move.offered.map(x=>x.name).join(', ') + ' to **' + move.recipientName + '** for ' + move.requested.map(x=>x.name).join(', ') + '.', discordTrainerMonEmbeds(proposer, move.offered).concat(discordTrainerMonEmbeds(recipient, move.requested)));
     }catch(err){
@@ -572,12 +537,11 @@
     if(league.draft){ alert('The draft has already started — members can no longer be removed.'); return; }
     const m = (league.members || {})[uid];
     const name = m ? (m.teamName || m.displayName || 'this trainer') : 'this trainer';
-    if(!confirm('Are you sure you want to remove ' + name + ' from the league? They\'ll need a new invite code to rejoin.')) return;
-    const updatedMembers = Object.assign({}, league.members || {});
-    delete updatedMembers[uid];
+    if(!confirm('Are you sure you want to disable ' + name + '\'s player account?')) return;
     const entry = { type: 'league', message: 'Commissioner' + ' removed ' + name + ' from the league', timestamp: Date.now() };
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { members: updatedMembers, announcements: arrayUnion(entry) });
+      await updatePlayer(uid, { enabled: false });
+      await updateLeague({ announcements: appendValue(entry) });
     }catch(err){ alert('Could not remove member: ' + err.message); }
   }
 
@@ -623,7 +587,7 @@
     const updatedPending = (league.pendingMoves || []).concat([move]);
     const updatedTrades = (league.trades || []).map(t => t.id === trade.id ? Object.assign({}, t, { status: 'finalized_pending', effectiveAt: move.effectiveAt }) : t);
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { pendingMoves: updatedPending, trades: updatedTrades });
+      await updateLeague({ pendingMoves: updatedPending, trades: updatedTrades });
       pushAnnouncementHere(league, 'trade', escapeHtml(trade.proposerName) + ' and ' + escapeHtml(trade.recipientName) + ' accepted a trade — takes effect Monday', trade.offered.concat(trade.requested));
     }catch(err){ alert('Could not finalize trade: ' + err.message); }
   }
@@ -631,7 +595,7 @@
   async function cancelVetoTrade(league, trade, newStatus){
     const updatedTrades = (league.trades || []).map(t => t.id === trade.id ? Object.assign({}, t, { status: newStatus }) : t);
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { trades: updatedTrades });
+      await updateLeague({ trades: updatedTrades });
     }catch(err){ alert('Could not update trade: ' + err.message); }
   }
 
@@ -692,7 +656,7 @@
       return;
     }
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { 'draft.trainers': updatedTrainers });
+      await updateLeague({ 'draft.trainers': updatedTrainers });
       alert('Fixed ' + changed + ' Pokémon ' + (changed === 1 ? 'entry' : 'entries') + ' across your league\'s rosters.');
     }catch(err){
       alert('Could not apply fix: ' + err.message);
@@ -845,7 +809,7 @@
     const entry = { type: 'league', message: 'Commissioner' + ' undid a transaction' + (notes.length ? ' (partially — see commissioner page for details)' : ''), timestamp: Date.now() };
 
     try{
-      await updateDoc(doc(db, 'leagues', leagueId), { draft: updatedDraft, transactionLog: updatedLog, announcements: arrayUnion(entry) });
+      await updateLeague({ draft: updatedDraft, transactionLog: updatedLog, announcements: appendValue(entry) });
       if(notes.length) alert('Undo completed with some exceptions:\n\n' + notes.join('\n'));
     }catch(err){ alert('Could not undo: ' + err.message); }
   }
@@ -989,6 +953,18 @@
       '</div>' +
 
       '<div class="panel">' +
+        '<h2>Designated Player Accounts</h2>' +
+        '<p class="settings-note" style="margin:0 0 14px;">Create a name and PIN for each player. Share each PIN privately.</p>' +
+        '<form id="playerAccountForm" style="display:flex;align-items:end;gap:10px;flex-wrap:wrap;">' +
+          '<div class="settings-field"><label for="playerAccountName">Player name</label><input id="playerAccountName" maxlength="40" required></div>' +
+          '<div class="settings-field"><label for="playerAccountPin">PIN (4-12 digits)</label><input id="playerAccountPin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" maxlength="12" required></div>' +
+          '<button class="btn btn-primary" type="submit" id="createPlayerBtn">Add Player</button>' +
+        '</form>' +
+        '<p class="settings-status" id="playerAccountStatus"></p>' +
+        '<ul class="member-manage-list" id="playerAccountList"></ul>' +
+      '</div>' +
+
+      '<div class="panel">' +
         '<h2>League Branding</h2>' +
         '<p class="settings-note" style="margin:0 0 14px;">This logo shows up on Match, Standing, and Announcements.</p>' +
         '<div class="logo-row">' +
@@ -1013,9 +989,9 @@
       '<div class="panel">' +
         '<h2>League Size</h2>' +
         '<div class="settings-grid">' +
-          '<div class="settings-field"><label>Max Teams Allowed to Join</label><input type="number" id="setMaxTeams" min="' + Object.keys(league.members||{}).length + '" value="' + s.maxTeams + '"></div>' +
+          '<div class="settings-field"><label>Maximum Team Accounts</label><input type="number" id="setMaxTeams" min="' + Object.keys(league.members||{}).length + '" value="' + s.maxTeams + '"></div>' +
         '</div>' +
-        '<p class="settings-note">Currently ' + Object.keys(league.members||{}).length + ' trainer(s) have joined. The join code will stop working once this limit is reached.</p>' +
+        '<p class="settings-note">Currently ' + Object.keys(league.members||{}).length + ' player account(s) are assigned.</p>' +
       '</div>' +
 
       '<div class="panel">' +
@@ -1097,18 +1073,59 @@
       '<button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>' +
       '<p class="settings-status" id="settingsStatus"></p>' +
 
-      '<div class="panel" style="border-color:rgba(238,21,21,0.4);margin-top:32px;">' +
-        '<h2 style="color:#FF8A8A;">Danger Zone</h2>' +
-        '<p class="settings-note" style="margin-bottom:14px;">Permanently deletes this league and everything in it — draft results, rosters, trades, standings, all of it. This cannot be undone.</p>' +
-        '<button class="btn btn-sm btn-danger" id="deleteLeagueBtn">Delete League</button>' +
-        '<div id="deleteLeagueConfirmWrap" style="display:none;margin-top:16px;">' +
-          '<p class="settings-note" style="margin-bottom:10px;">Type the league\'s exact name — <b style="color:var(--cream);">' + escapeHtml(league.name || '') + '</b> — to confirm.</p>' +
-          '<div class="settings-field" style="margin-bottom:10px;max-width:280px;"><input type="text" id="deleteLeagueConfirmInput" placeholder="League name"></div>' +
-          '<button class="btn btn-sm btn-danger" id="deleteLeagueConfirmBtn" disabled>Permanently Delete This League</button>' +
-          '<button class="btn btn-sm" id="deleteLeagueCancelBtn" style="margin-left:8px;">Cancel</button>' +
-          '<p class="settings-status" id="deleteLeagueStatus"></p>' +
-        '</div>' +
       '</div>';
+
+    const playerAccountForm = document.getElementById('playerAccountForm');
+    const playerAccountList = document.getElementById('playerAccountList');
+    const playerAccountStatus = document.getElementById('playerAccountStatus');
+    const createPlayerBtn = document.getElementById('createPlayerBtn');
+    async function renderPlayerAccounts(){
+      try{
+        const players = await fetchPlayers();
+        playerAccountList.innerHTML = '';
+        players.filter(player => player.role !== 'commissioner').forEach(player => {
+          const item = document.createElement('li');
+          item.className = 'member-manage-item';
+          const name = document.createElement('span');
+          name.className = 'member-manage-name';
+          name.textContent = player.displayName + (player.enabled ? '' : ' (disabled)');
+          const reset = document.createElement('button');
+          reset.type = 'button';
+          reset.className = 'btn btn-sm';
+          reset.textContent = 'Reset PIN';
+          reset.addEventListener('click', async () => {
+            const pin = prompt('Enter a new 4-12 digit PIN for ' + player.displayName + '.');
+            if(!pin) return;
+            try{ await updatePlayer(player.uid, { pin }); playerAccountStatus.textContent = 'PIN updated.'; }
+            catch(error){ playerAccountStatus.textContent = error.message; }
+          });
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'btn btn-sm btn-danger';
+          toggle.textContent = player.enabled ? 'Disable' : 'Enable';
+          toggle.addEventListener('click', async () => {
+            try{ await updatePlayer(player.uid, { enabled: !player.enabled }); await renderPlayerAccounts(); }
+            catch(error){ playerAccountStatus.textContent = error.message; }
+          });
+          item.append(name, reset, toggle);
+          playerAccountList.appendChild(item);
+        });
+      }catch(error){ playerAccountStatus.textContent = error.message; }
+    }
+    playerAccountForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      createPlayerBtn.disabled = true;
+      const name = document.getElementById('playerAccountName').value.trim();
+      const pin = document.getElementById('playerAccountPin').value;
+      try{
+        await createPlayer(name, pin);
+        playerAccountForm.reset();
+        playerAccountStatus.textContent = 'Player account created.';
+        await renderPlayerAccounts();
+      }catch(error){ playerAccountStatus.textContent = error.message; }
+      createPlayerBtn.disabled = false;
+    });
+    renderPlayerAccounts();
 
     document.querySelectorAll('.member-remove-btn').forEach(btn => {
       btn.addEventListener('click', () => removeMember(league, btn.getAttribute('data-uid')));
@@ -1119,40 +1136,6 @@
     if(fixMegaZBtn) fixMegaZBtn.addEventListener('click', () => fixMegaZTypes(league));
     renderPendingTransactions(league);
     renderTransactionLog(league);
-
-    const deleteLeagueBtn = document.getElementById('deleteLeagueBtn');
-    const deleteLeagueConfirmWrap = document.getElementById('deleteLeagueConfirmWrap');
-    const deleteLeagueConfirmInput = document.getElementById('deleteLeagueConfirmInput');
-    const deleteLeagueConfirmBtn = document.getElementById('deleteLeagueConfirmBtn');
-    const deleteLeagueCancelBtn = document.getElementById('deleteLeagueCancelBtn');
-    const deleteLeagueStatus = document.getElementById('deleteLeagueStatus');
-
-    deleteLeagueBtn.addEventListener('click', () => {
-      deleteLeagueConfirmWrap.style.display = 'block';
-      deleteLeagueBtn.style.display = 'none';
-    });
-    deleteLeagueCancelBtn.addEventListener('click', () => {
-      deleteLeagueConfirmWrap.style.display = 'none';
-      deleteLeagueBtn.style.display = '';
-      deleteLeagueConfirmInput.value = '';
-      deleteLeagueStatus.textContent = '';
-    });
-    deleteLeagueConfirmInput.addEventListener('input', () => {
-      deleteLeagueConfirmBtn.disabled = deleteLeagueConfirmInput.value.trim() !== (league.name || '').trim();
-    });
-    deleteLeagueConfirmBtn.addEventListener('click', async () => {
-      deleteLeagueConfirmBtn.disabled = true;
-      deleteLeagueConfirmBtn.textContent = 'Deleting…';
-      try{
-        await deleteDoc(doc(db, 'leagues', leagueId));
-        window.location.href = 'index.html';
-      }catch(err){
-        deleteLeagueStatus.textContent = 'Could not delete league: ' + err.message;
-        deleteLeagueStatus.style.color = '#FF8A8A';
-        deleteLeagueConfirmBtn.disabled = false;
-        deleteLeagueConfirmBtn.textContent = 'Permanently Delete This League';
-      }
-    });
 
     document.getElementById('leagueLogoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -1171,7 +1154,7 @@
       }
       btn.disabled = true; btn.textContent = 'Saving…';
       try{
-        await updateDoc(doc(db, 'leagues', leagueId), { logo: pendingLeagueLogoDataUrl });
+        await updateLeague({ logo: pendingLeagueLogoDataUrl });
         statusEl.textContent = 'Saved!';
         statusEl.style.color = 'var(--gold)';
       }catch(err){
@@ -1208,7 +1191,7 @@
         faDeadlineWeek: parseInt(document.getElementById('setFADeadlineWeek').value, 10) || 0
       };
       try{
-        await updateDoc(doc(db, 'leagues', leagueId), { settings: newSettings });
+        await updateLeague({ settings: newSettings });
         status.textContent = 'Saved!';
         status.style.color = 'var(--gold)';
       }catch(err){
@@ -1225,7 +1208,7 @@
       content.innerHTML = '<div class="state-msg error">No league specified — use a link from the sign-in page.</div>';
       return;
     }
-    onSnapshot(doc(db, 'leagues', leagueId), (snap) => {
+    subscribeLeague((snap) => {
       if(!snap.exists()){
         content.innerHTML = '<div class="state-msg error">This league doesn\'t exist or was deleted.</div>';
         return;
@@ -1240,112 +1223,15 @@
   const navSignedIn = document.getElementById('navSignedIn');
   const navUserEmail = document.getElementById('navUserEmail');
   const navSignOutBtn = document.getElementById('navSignOutBtn');
-  navSignOutBtn.addEventListener('click', () => signOut(auth));
-
-  const navLeaguesBtn = document.getElementById('navLeaguesBtn');
-  const navLeaguesMenu = document.getElementById('navLeaguesMenu');
-  const navLeaguesList = document.getElementById('navLeaguesList');
-  const navLeaguesEmpty = document.getElementById('navLeaguesEmpty');
-  navLeaguesBtn.addEventListener('click', (e) => { e.stopPropagation(); navLeaguesMenu.classList.toggle('open'); });
-  document.addEventListener('click', () => navLeaguesMenu.classList.remove('open'));
-  navLeaguesMenu.addEventListener('click', (e) => e.stopPropagation());
-
-  function generateJoinCode(){
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
-    return code;
-  }
-
-  const navLeaguesDefaultView = document.getElementById('navLeaguesDefaultView');
-  const navJoinView = document.getElementById('navJoinView');
-  const navShowJoinBtn = document.getElementById('navShowJoinBtn');
-  const navJoinCodeInput = document.getElementById('navJoinCodeInput');
-  const navJoinSubmitBtn = document.getElementById('navJoinSubmitBtn');
-  const navJoinCancelBtn = document.getElementById('navJoinCancelBtn');
-  const navJoinStatus = document.getElementById('navJoinStatus');
-  let navCurrentUser = null;
-
-  function showNavDefault(){
-    navLeaguesDefaultView.style.display = 'block';
-    navJoinView.style.display = 'none';
-    navJoinStatus.textContent = '';
-  }
-  navShowJoinBtn.addEventListener('click', () => {
-    navLeaguesDefaultView.style.display = 'none';
-    navJoinView.style.display = 'block';
-  });
-  navJoinCancelBtn.addEventListener('click', showNavDefault);
-
-  navJoinSubmitBtn.addEventListener('click', async () => {
-    if(!navCurrentUser) return;
-    const code = navJoinCodeInput.value.trim().toUpperCase();
-    if(!code){ navJoinStatus.textContent = 'Enter a code.'; return; }
-    navJoinSubmitBtn.disabled = true;
-    try{
-      const q = query(collection(db, 'leagues'), where('joinCode', '==', code));
-      const snap = await getDocs(q);
-      if(snap.empty){
-        navJoinStatus.textContent = 'No league found with that code.';
-        navJoinSubmitBtn.disabled = false;
-        return;
-      }
-      const leagueDoc = snap.docs[0];
-      const leagueData = leagueDoc.data();
-      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
-      const currentMemberCount = Object.keys(leagueData.members || {}).length;
-      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
-        if(currentMemberCount >= maxTeams){
-          navJoinStatus.textContent = 'This league is full (' + maxTeams + ' team limit).';
-          navJoinSubmitBtn.disabled = false;
-          return;
-        }
-      }
-      await updateDoc(doc(db, 'leagues', leagueDoc.id), {
-        ['members.' + navCurrentUser.uid]: {
-          displayName: navCurrentUser.displayName || 'Trainer',
-          photoURL: navCurrentUser.photoURL || '',
-          joinedAt: Date.now()
-        }
-      });
-      navJoinCodeInput.value = '';
-      await loadNavLeagues(navCurrentUser);
-      showNavDefault();
-    }catch(err){
-      navJoinStatus.textContent = 'Error: ' + err.message;
-    }
-    navJoinSubmitBtn.disabled = false;
-  });
+  navSignOutBtn.addEventListener('click', () => signOut());
 
 
-  async function loadNavLeagues(user){
-    try{
-      const q = query(collection(db, 'leagues'), where('members.' + user.uid, '!=', null));
-      const snap = await getDocs(q);
-      navLeaguesList.innerHTML = '';
-      if(snap.empty){ navLeaguesEmpty.style.display = 'block'; return; }
-      navLeaguesEmpty.style.display = 'none';
-      snap.forEach(docSnap => {
-        const l = docSnap.data();
-        const isCommish = l.commissionerUid === user.uid;
-        const li = document.createElement('li');
-        li.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(l.name || 'Untitled League') + '</span>' + (isCommish ? '<span class="nlm-commish">Commish</span>' : '') + '</a>';
-        navLeaguesList.appendChild(li);
-      });
-    }catch(err){
-      navLeaguesEmpty.style.display = 'block';
-      navLeaguesEmpty.textContent = 'Could not load leagues.';
-    }
-  }
-
-  onAuthStateChanged(auth, (user) => {
+  onUserChange( (user) => {
     currentUser = user;
     if(user){
       navSignedOut.style.display = 'none';
       navSignedIn.style.display = 'flex';
       navUserEmail.textContent = user.displayName || 'Trainer';
-      navCurrentUser = user;
-      loadNavLeagues(user);
     } else {
       navSignedOut.style.display = '';
       navSignedIn.style.display = 'none';

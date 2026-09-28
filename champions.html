@@ -129,27 +129,7 @@
       <a href="format.html">Format</a>
       <span id="navSignedOut"><a href="signin.html" class="nav-cta">Sign In</a></span>
       <span id="navSignedIn" class="nav-account" style="display:none;">
-        <div class="nav-leagues-wrap">
-          <button id="navLeaguesBtn" class="btn btn-sm" type="button">Leagues &#9662;</button>
-          <div id="navLeaguesMenu" class="nav-leagues-menu">
-            <div id="navLeaguesDefaultView">
-              <div class="nlm-label">My Leagues</div>
-              <ul id="navLeaguesList" class="nlm-list"></ul>
-              <div class="nlm-empty" id="navLeaguesEmpty" style="display:none;">You're not in any leagues yet.</div>
-              <div class="nlm-divider"></div>
-              <button type="button" class="nlm-action" id="navShowJoinBtn">+ Join a League</button>
-            </div>
-            <div id="navJoinView" style="display:none;">
-              <div class="nlm-label">Join a League</div>
-              <input type="text" id="navJoinCodeInput" class="nlm-input" placeholder="e.g. 7QJKXT" maxlength="6" style="text-transform:uppercase;">
-              <div class="nlm-form-actions">
-                <button type="button" class="btn btn-primary btn-sm" id="navJoinSubmitBtn">Join</button>
-                <button type="button" class="btn btn-sm" id="navJoinCancelBtn">Cancel</button>
-              </div>
-              <p class="nlm-status" id="navJoinStatus"></p>
-            </div>
-          </div>
-        </div>
+        <a href="league.html" class="btn btn-sm">League</a>
         <span id="navUserEmail"></span>
         <button id="navSignOutBtn" class="btn btn-sm">Sign Out</button>
       </span>
@@ -243,23 +223,9 @@
 
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, collection, query, where, getDocs, addDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { appendValue, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
 
-  const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyArHYUDlo49rdA889l9woNhOuUSKe72CeE",
-    authDomain: "pokemon-vr-draft-league.firebaseapp.com",
-    projectId: "pokemon-vr-draft-league",
-    storageBucket: "pokemon-vr-draft-league.firebasestorage.app",
-    messagingSenderId: "400355118785",
-    appId: "1:400355118785:web:bee98aa998c87ea5098e40"
-  };
-  const app = initializeApp(FIREBASE_CONFIG);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  // ---------- dynamically load champions from any completed league ----------
+// ---------- dynamically load champions from any completed league ----------
   const ID_TO_POKEAPI_ID_CHAMP = {"9": "10035", "1242": "10296", "128": "10038", "1206": "1018", "1074": "902", "1228": "10285", "1182": "1000", "376": "10052", "463": "10076", "1076": "903", "1227": "10308", "328": "10064", "662": "547", "545": "445", "353": "10051", "878": "727", "155": "10039", "1198": "1013", "189": "142", "190": "10042", "1159": "979", "13": "10036", "1239": "10293", "1024": "861", "1164": "983", "1241": "10295", "313": "10049", "817": "681", "200": "149", "1161": "981", "1256": "10321", "528": "10088", "1100": "925", "349": "279", "312": "248", "764": "637", "80": "10230", "1245": "10298", "324": "10050", "8": "10034", "48": "36", "1053": "887", "1222": "10281", "1235": "10290", "550": "10059", "881": "730", "1218": "10305", "320": "10065", "272": "10046", "1221": "10280", "837": "700", "798": "663", "402": "324", "79": "59", "1219": "10278", "546": "10058", "176": "10041", "762": "635", "943": "784", "1223": "10282", "462": "376", "429": "350", "52": "10104", "585": "10009", "1255": "10320", "1234": "10289", "4": "10033", "985": "823", "644": "530", "1232": "10287", "1150": "970", "175": "130", "241": "186", "682": "560", "3": "3", "87": "10037", "239": "184", "1075": "10248", "579": "10068", "1240": "10294", "1244": "10297", "576": "473", "383": "10054", "1082": "908", "1077": "904", "1143": "964", "1217": "10304", "584": "10008", "910": "752", "1246": "10299", "805": "670", "846": "707", "813": "678", "937": "778", "51": "38", "588": "10012", "373": "302", "271": "212", "1233": "10288", "1225": "10284", "493": "398", "173": "10252", "1138": "959", "401": "10087", "1254": "10303", "352": "282", "1237": "10313", "1247": "10300", "624": "510", "386": "10055", "923": "765", "35": "26", "916": "758", "801": "666", "413": "10067", "12": "9", "323": "257", "1236": "10291", "1226": "10306", "828": "691", "1224": "10283", "1021": "858", "671": "553", "1243": "10314", "861": "715", "567": "464", "374": "10066", "660": "545", "327": "260", "172": "10251", "564": "461", "696": "10239", "380": "10053", "1115": "936", "1116": "937", "1238": "10292", "1249": "10315", "1251": "10302", "1231": "10286", "578": "475", "127": "94", "704": "579", "109": "10071", "191": "143", "921": "763", "211": "10233", "709": "584", "649": "534", "729": "604", "490": "395", "252": "196", "806": "671", "792": "658", "838": "701", "275": "10047", "1152": "972", "487": "392", "154": "115", "382": "308", "1148": "968", "24": "10073", "169": "10040", "396": "10070", "108": "80", "110": "10165", "255": "199", "1220": "10279", "1071": "899", "562": "460", "563": "10060", "820": "683", "734": "609", "795": "660", "845": "10242", "293": "10048", "1207": "1019", "1072": "900", "549": "448", "810": "675", "256": "10172", "542": "442", "266": "10072", "695": "571", "86": "65", "437": "10056", "20": "10090", "7": "6", "686": "563", "789": "655", "1135": "956", "1113": "934", "574": "471", "853": "711", "552": "450", "573": "470", "902": "10152", "375": "303", "908": "750", "1018": "855", "1088": "914", "269": "211", "36": "10100", "1030": "867", "610": "497", "1085": "911", "210": "157", "253": "197", "181": "134", "59": "45", "443": "10057", "1032": "869", "236": "10045", "1118": "939", "786": "652", "830": "693", "875": "10244", "178": "132", "582": "478", "447": "10074", "749": "623", "844": "706", "832": "695", "182": "135", "500": "405", "90": "68", "824": "687", "632": "518", "803": "668", "504": "409", "502": "407", "586": "10010", "617": "10236", "319": "254", "161": "121", "484": "389", "556": "454", "834": "697", "645": "531", "646": "10069", "836": "699", "739": "614", "891": "740", "874": "724", "939": "780", "613": "500", "214": "160", "1003": "841", "183": "136", "575": "472", "274": "214", "900": "745", "1029": "866", "924": "766", "1131": "952", "290": "227", "171": "10250", "906": "748", "848": "709", "93": "71", "379": "306", "32": "24", "222": "168", "826": "689", "506": "411", "1033": "870", "814": "10025", "1042": "877", "583": "479", "587": "10011", "1006": "844", "395": "319", "822": "685", "265": "208", "170": "128", "442": "359", "412": "334", "235": "181", "1004": "842", "858": "713", "859": "10243", "436": "354", "19": "15", "400": "323", "430": "351", "441": "358", "839": "702", "712": "587", "262": "205", "811": "676", "692": "569", "446": "362", "292": "229", "527": "428", "901": "10126", "385": "310", "207": "154", "23": "18", "33": "25", "168": "127", "616": "503", "630": "516", "626": "512", "628": "514", "743": "618", "744": "10180", "884": "733", "619": "505", "1300": "83", "1302": "122", "1303": "317", "1304": "865", "1305": "40", "1306": "53", "1307": "10108", "1308": "10307", "1309": "10089", "1310": "373", "1311": "10309", "1312": "10310", "1313": "673", "1314": "768", "1315": "10316", "1316": "812", "1317": "815", "1318": "818", "1319": "828", "1320": "849", "1321": "853", "1322": "863", "1323": "871", "1324": "10186", "1325": "876", "1326": "923", "1327": "930", "1328": "931", "1329": "943", "1330": "998", "1331": "10325"};
   function computeChampionMvp(league, championUid, rosterIds){
     const tally = {};
@@ -355,24 +321,17 @@
     const wrap = document.getElementById('dynamicChampionsWrap');
     if(!wrap) return;
     try{
-      const q = query(collection(db, 'leagues'), where('seasonComplete', '==', true));
-      const snap = await getDocs(q);
-      snap.forEach(docSnap => {
-        const league = docSnap.data();
-        if(!league.draft || !league.championUid) return;
-        const championTrainer = league.draft.trainers.find(t => t.uid === league.championUid);
-        if(!championTrainer) return;
-        const rosterIds = (championTrainer.roster || []).map(m => m.id);
-        const mvpMonId = computeChampionMvp(league, league.championUid, rosterIds);
-        wrap.appendChild(buildDynamicChampionCard(league, championTrainer, mvpMonId));
-      });
+      const league = await fetchLeague();
+      if(!league.seasonComplete || !league.draft || !league.championUid) return;
+      const championTrainer = league.draft.trainers.find(t => t.uid === league.championUid);
+      if(!championTrainer) return;
+      const rosterIds = (championTrainer.roster || []).map(m => m.id);
+      const mvpMonId = computeChampionMvp(league, league.championUid, rosterIds);
+      wrap.appendChild(buildDynamicChampionCard(league, championTrainer, mvpMonId));
     }catch(err){
-      // If Firestore rules don't allow this broad a query, fail quietly rather than break the page
-      console.warn('Could not load dynamic champions:', err.message);
+      console.warn('Could not load current champion:', err.message);
     }
   }
-  loadDynamicChampions();
-
   function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
@@ -382,108 +341,6 @@
   const navUserEmail = document.getElementById("navUserEmail");
   const navSignOutBtn = document.getElementById("navSignOutBtn");
 
-  const navLeaguesBtn = document.getElementById("navLeaguesBtn");
-  const navLeaguesMenu = document.getElementById("navLeaguesMenu");
-  const navLeaguesList = document.getElementById("navLeaguesList");
-  const navLeaguesEmpty = document.getElementById("navLeaguesEmpty");
-
-  navLeaguesBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    navLeaguesMenu.classList.toggle("open");
-  });
-  document.addEventListener("click", () => navLeaguesMenu.classList.remove("open"));
-  navLeaguesMenu.addEventListener("click", (e) => e.stopPropagation());
-
-  function generateJoinCode(){
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let code = "";
-    for(let i = 0; i < 6; i++){ code += chars[Math.floor(Math.random() * chars.length)]; }
-    return code;
-  }
-
-  const navLeaguesDefaultView = document.getElementById("navLeaguesDefaultView");
-  const navJoinView = document.getElementById("navJoinView");
-  const navShowJoinBtn = document.getElementById("navShowJoinBtn");
-  const navJoinCodeInput = document.getElementById("navJoinCodeInput");
-  const navJoinSubmitBtn = document.getElementById("navJoinSubmitBtn");
-  const navJoinCancelBtn = document.getElementById("navJoinCancelBtn");
-  const navJoinStatus = document.getElementById("navJoinStatus");
-  let navCurrentUser = null;
-
-  function showNavDefault(){
-    navLeaguesDefaultView.style.display = "block";
-    navJoinView.style.display = "none";
-    navJoinStatus.textContent = "";
-  }
-  navShowJoinBtn.addEventListener("click", () => {
-    navLeaguesDefaultView.style.display = "none";
-    navJoinView.style.display = "block";
-  });
-  navJoinCancelBtn.addEventListener("click", showNavDefault);
-
-  navJoinSubmitBtn.addEventListener("click", async () => {
-    if(!navCurrentUser) return;
-    const code = navJoinCodeInput.value.trim().toUpperCase();
-    if(!code){ navJoinStatus.textContent = "Enter a code."; return; }
-    navJoinSubmitBtn.disabled = true;
-    try{
-      const q = query(collection(db, "leagues"), where("joinCode", "==", code));
-      const snap = await getDocs(q);
-      if(snap.empty){
-        navJoinStatus.textContent = "No league found with that code.";
-        navJoinSubmitBtn.disabled = false;
-        return;
-      }
-      const leagueDoc = snap.docs[0];
-      const leagueData = leagueDoc.data();
-      const maxTeams = (leagueData.settings && leagueData.settings.maxTeams) || Infinity;
-      const currentMemberCount = Object.keys(leagueData.members || {}).length;
-      if(!leagueData.members || !leagueData.members[navCurrentUser.uid]){
-        if(currentMemberCount >= maxTeams){
-          navJoinStatus.textContent = "This league is full (" + maxTeams + " team limit).";
-          navJoinSubmitBtn.disabled = false;
-          return;
-        }
-      }
-      await updateDoc(doc(db, "leagues", leagueDoc.id), {
-        ["members." + navCurrentUser.uid]: {
-          displayName: navCurrentUser.displayName || "Trainer",
-          photoURL: navCurrentUser.photoURL || "",
-          joinedAt: Date.now()
-        }
-      });
-      navJoinCodeInput.value = "";
-      await loadNavLeagues(navCurrentUser);
-      showNavDefault();
-    }catch(err){
-      navJoinStatus.textContent = "Error: " + err.message;
-    }
-    navJoinSubmitBtn.disabled = false;
-  });
-
-
-  async function loadNavLeagues(user){
-    try{
-      const q = query(collection(db, "leagues"), where("members." + user.uid, "!=", null));
-      const snap = await getDocs(q);
-      navLeaguesList.innerHTML = "";
-      if(snap.empty){
-        navLeaguesEmpty.style.display = "block";
-        return;
-      }
-      navLeaguesEmpty.style.display = "none";
-      snap.forEach(docSnap => {
-        const league = docSnap.data();
-        const isCommish = league.commissionerUid === user.uid;
-        const li = document.createElement("li");
-        li.innerHTML = '<a href="league.html?id=' + docSnap.id + '"><span>' + escapeHtml(league.name || "Untitled League") + "</span>" + (isCommish ? '<span class="nlm-commish">Commish</span>' : "") + "</a>";
-        navLeaguesList.appendChild(li);
-      });
-    }catch(err){
-      navLeaguesEmpty.style.display = "block";
-      navLeaguesEmpty.textContent = "Could not load leagues.";
-    }
-  }
 
   // ---------- illustrative examples ----------
   const PLACEHOLDER_SPRITE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -529,20 +386,19 @@
   fillRow('tradeGetRow', [{ name: 'Garchomp', tier: 18, pokeapiId: 445 }]);
   document.getElementById('tradeExampleMath').innerHTML = 'Same number of Pokémon on each side — 1 for 1. Team A sends 20 points of value and receives 18 back; the 2-point gap is simply deducted from their remaining budget, no separate approval needed beyond accepting the trade itself.';
 
-  onAuthStateChanged(auth, (user) => {
+  onUserChange( (user) => {
     if(user){
       navSignedOut.style.display = "none";
       navSignedIn.style.display = "flex";
       navUserEmail.textContent = user.displayName || "Trainer";
-      navCurrentUser = user;
-      loadNavLeagues(user);
+      loadDynamicChampions();
     } else {
       navSignedOut.style.display = "";
       navSignedIn.style.display = "none";
     }
   });
 
-  navSignOutBtn.addEventListener("click", () => signOut(auth));
+  navSignOutBtn.addEventListener("click", () => signOut());
 </script>
 </body>
 </html>

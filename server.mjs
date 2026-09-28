@@ -1,0 +1,328 @@
+import { createServer } from 'node:http';
+import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
+import Database from 'better-sqlite3';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.dirname(fileURLToPath(import.meta.url));
+const dataDir = path.resolve(process.env.DATA_DIR || path.join(root, '..', 'mad-league-data'));
+const storePath = path.join(dataDir, 'league.sqlite');
+const port = Number(process.env.PORT || 3000);
+const sessions = new Map();
+const loginAttempts = new Map();
+const listeners = new Set();
+const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+let store;
+let database;
+
+function normalizedName(name) {
+  return String(name || '').trim().replace(/\s+/g, ' ');
+}
+
+function nameKey(name) {
+  return normalizedName(name).toLocaleLowerCase('en-US');
+}
+
+function hashPin(pin, salt) {
+  return scryptSync(String(pin), salt, 64).toString('hex');
+}
+
+function createAccount(name, pin, role = 'player') {
+  const salt = randomBytes(16).toString('hex');
+  return {
+    id: randomUUID(),
+    name: normalizedName(name),
+    nameKey: nameKey(name),
+    pinSalt: salt,
+    pinHash: hashPin(pin, salt),
+    role,
+    enabled: true
+  };
+}
+
+function publicAccount(account) {
+  return { uid: account.id, displayName: account.name, role: account.role };
+}
+
+function createEmptyLeague(commissioner) {
+  return {
+    id: 'main',
+    name: process.env.LEAGUE_NAME || 'MAD League',
+    commissionerUid: commissioner.id,
+    members: {
+      [commissioner.id]: { displayName: commissioner.name, joinedAt: Date.now() }
+    },
+    settings: { maxTeams: 12, draftBudget: 100, rosterSize: 10 },
+    announcements: [],
+    trades: [],
+    pendingMoves: [],
+    waivers: [],
+    transactionLog: []
+  };
+}
+
+async function initializeStore() {
+  await mkdir(dataDir, { recursive: true });
+  database = new Database(storePath);
+  database.pragma('journal_mode = WAL');
+  database.exec('CREATE TABLE IF NOT EXISTS league_state (id INTEGER PRIMARY KEY CHECK (id = 1), payload TEXT NOT NULL)');
+  const existing = database.prepare('SELECT payload FROM league_state WHERE id = 1').get();
+  if (existing) {
+    store = JSON.parse(existing.payload);
+    if (!store || !Array.isArray(store.accounts) || !store.league) throw new Error('Invalid league store.');
+    return;
+  }
+
+  const commissionerName = normalizedName(process.env.COMMISSIONER_NAME);
+  const commissionerPin = String(process.env.COMMISSIONER_PIN || '');
+  if (!commissionerName || !/^\d{4,12}$/.test(commissionerPin)) {
+    throw new Error('First run requires COMMISSIONER_NAME and a 4-12 digit COMMISSIONER_PIN.');
+  }
+  const commissioner = createAccount(commissionerName, commissionerPin, 'commissioner');
+  store = { accounts: [commissioner], league: createEmptyLeague(commissioner), revision: 1 };
+  await persistStore();
+}
+
+function persistStore() {
+  database.prepare(`
+    INSERT INTO league_state (id, payload) VALUES (1, ?)
+    ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
+  `).run(JSON.stringify(store));
+}
+
+function parseCookies(request) {
+  return Object.fromEntries((request.headers.cookie || '').split(';').map(part => {
+    const separator = part.indexOf('=');
+    return separator < 0 ? ['', ''] : [part.slice(0, separator).trim(), decodeURIComponent(part.slice(separator + 1).trim())];
+  }).filter(([key]) => key));
+}
+
+function getAccount(request) {
+  const token = parseCookies(request).league_session;
+  const session = token && sessions.get(token);
+  if (!session || session.expiresAt <= Date.now()) {
+    if (token) sessions.delete(token);
+    return null;
+  }
+  const account = store.accounts.find(item => item.id === session.accountId && item.enabled);
+  return account || null;
+}
+
+function send(response, status, data, headers = {}) {
+  response.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers });
+  response.end(data === undefined ? '' : JSON.stringify(data));
+}
+
+function readBody(request) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    request.on('data', chunk => {
+      body += chunk;
+      if (Buffer.byteLength(body) > MAX_BODY_BYTES) {
+        reject(Object.assign(new Error('Request body is too large.'), { status: 413 }));
+        request.destroy();
+      }
+    });
+    request.on('end', () => {
+      try { resolve(body ? JSON.parse(body) : {}); }
+      catch { reject(Object.assign(new Error('Request body must be valid JSON.'), { status: 400 })); }
+    });
+    request.on('error', reject);
+  });
+}
+
+function sendLeagueEvent(response) {
+  response.write(`event: league\ndata: ${JSON.stringify({ revision: store.revision, league: store.league })}\n\n`);
+}
+
+function broadcastLeague() {
+  for (const response of listeners) sendLeagueEvent(response);
+}
+
+function setPath(target, field, value) {
+  const parts = field.split('.');
+  if (!parts.length || parts.some(part => !part || ['__proto__', 'prototype', 'constructor'].includes(part))) {
+    throw Object.assign(new Error('Invalid update path.'), { status: 400 });
+  }
+  let cursor = target;
+  for (const part of parts.slice(0, -1)) {
+    if (!cursor[part] || typeof cursor[part] !== 'object') cursor[part] = {};
+    cursor = cursor[part];
+  }
+  cursor[parts.at(-1)] = value;
+}
+
+const MIME_TYPES = {
+  '.css': 'text/css; charset=utf-8',
+  '.html': 'text/html; charset=utf-8',
+  '.ico': 'image/x-icon',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.webp': 'image/webp'
+};
+
+async function serveStatic(request, response, pathname) {
+  const requestedPath = pathname === '/' ? '/index.html' : decodeURIComponent(pathname);
+  const filePath = path.resolve(root, '.' + requestedPath);
+  if (!filePath.startsWith(root + path.sep)) return send(response, 403, { error: 'Forbidden.' });
+  const relativeToData = path.relative(dataDir, filePath);
+  if (relativeToData === '' || (!relativeToData.startsWith('..') && !path.isAbsolute(relativeToData))) {
+    return send(response, 403, { error: 'Forbidden.' });
+  }
+  try {
+    const body = await readFile(filePath);
+    response.writeHead(200, { 'content-type': MIME_TYPES[path.extname(filePath)] || 'application/octet-stream' });
+    response.end(body);
+  } catch {
+    send(response, 404, { error: 'Not found.' });
+  }
+}
+
+const server = createServer(async (request, response) => {
+  try {
+    const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+    const account = getAccount(request);
+
+    if (url.pathname === '/api/session' && request.method === 'GET') {
+      return send(response, 200, { user: account ? publicAccount(account) : null });
+    }
+    if (url.pathname === '/api/session' && request.method === 'POST') {
+      const body = await readBody(request);
+      const name = normalizedName(body.name);
+      const key = `${request.socket.remoteAddress || 'unknown'}:${nameKey(name)}`;
+      const attempt = loginAttempts.get(key) || { count: 0, until: 0 };
+      if (attempt.until > Date.now()) return send(response, 429, { error: 'Too many attempts. Try again in a few minutes.' });
+      const candidate = store.accounts.find(item => item.nameKey === nameKey(name) && item.enabled);
+      const pin = String(body.pin || '');
+      const valid = candidate && /^\d{4,12}$/.test(pin) && timingSafeEqual(Buffer.from(hashPin(pin, candidate.pinSalt), 'hex'), Buffer.from(candidate.pinHash, 'hex'));
+      if (!valid) {
+        attempt.count++;
+        if (attempt.count >= 6) { attempt.count = 0; attempt.until = Date.now() + 10 * 60 * 1000; }
+        loginAttempts.set(key, attempt);
+        return send(response, 401, { error: 'Name or PIN is incorrect.' });
+      }
+      loginAttempts.delete(key);
+      const token = randomBytes(32).toString('base64url');
+      sessions.set(token, { accountId: candidate.id, expiresAt: Date.now() + SESSION_MS });
+      const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+      return send(response, 200, { user: publicAccount(candidate) }, {
+        'set-cookie': `league_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${Math.floor(SESSION_MS / 1000)}${secure}`
+      });
+    }
+    if (url.pathname === '/api/session' && request.method === 'DELETE') {
+      const token = parseCookies(request).league_session;
+      if (token) sessions.delete(token);
+      return send(response, 200, { user: null }, { 'set-cookie': 'league_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
+    }
+
+    if (!url.pathname.startsWith('/api/')) return serveStatic(request, response, url.pathname);
+    if (!account) return send(response, 401, { error: 'Sign in to continue.' });
+
+    if (url.pathname === '/api/league' && request.method === 'GET') {
+      return send(response, 200, { league: store.league, revision: store.revision });
+    }
+    if (url.pathname === '/api/league/events' && request.method === 'GET') {
+      response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
+      response.write(': connected\n\n');
+      listeners.add(response);
+      sendLeagueEvent(response);
+      request.on('close', () => listeners.delete(response));
+      return;
+    }
+    if (url.pathname === '/api/league' && request.method === 'PATCH') {
+      const body = await readBody(request);
+      const updates = body.updates;
+      if (!updates || typeof updates !== 'object' || Array.isArray(updates)) return send(response, 400, { error: 'Updates must be an object.' });
+      for (const [field, value] of Object.entries(updates)) {
+        const topLevel = field.split('.')[0];
+        if (account.role !== 'commissioner' && ['settings', 'logo', 'commissionerUid', 'seasonComplete', 'championUid'].includes(topLevel)) {
+          return send(response, 403, { error: 'Commissioner access required for this change.' });
+        }
+        if (account.role !== 'commissioner' && topLevel === 'members' && field.split('.')[1] !== account.id) {
+          return send(response, 403, { error: 'You can only edit your own player profile.' });
+        }
+        if (value && typeof value === 'object' && value.__appendToLeague === true) {
+          const current = field.split('.').reduce((target, part) => target && target[part], store.league);
+          setPath(store.league, field, (Array.isArray(current) ? current : []).concat([value.value]));
+        } else {
+          setPath(store.league, field, value);
+        }
+      }
+      store.revision++;
+      await persistStore();
+      broadcastLeague();
+      return send(response, 200, { revision: store.revision });
+    }
+    if (url.pathname === '/api/players' && request.method === 'GET') {
+      if (account.role !== 'commissioner') return send(response, 403, { error: 'Commissioner access required.' });
+      return send(response, 200, { players: store.accounts.map(item => ({ ...publicAccount(item), enabled: item.enabled })) });
+    }
+    if (url.pathname === '/api/players' && request.method === 'POST') {
+      if (account.role !== 'commissioner') return send(response, 403, { error: 'Commissioner access required.' });
+      const body = await readBody(request);
+      const name = normalizedName(body.name);
+      const pin = String(body.pin || '');
+      if (name.length < 2 || name.length > 40) return send(response, 400, { error: 'Name must be 2-40 characters.' });
+      if (!/^\d{4,12}$/.test(pin)) return send(response, 400, { error: 'PIN must contain 4-12 digits.' });
+      if (store.accounts.some(item => item.nameKey === nameKey(name))) return send(response, 409, { error: 'That name already has an account.' });
+      const maxTeams = Number(store.league.settings && store.league.settings.maxTeams) || Infinity;
+      if (Object.keys(store.league.members || {}).length >= maxTeams) return send(response, 409, { error: 'Maximum team accounts reached.' });
+      const player = createAccount(name, pin);
+      store.accounts.push(player);
+      store.league.members[player.id] = { displayName: player.name, joinedAt: Date.now() };
+      store.revision++;
+      await persistStore();
+      broadcastLeague();
+      return send(response, 201, { player: { ...publicAccount(player), enabled: true } });
+    }
+    if (url.pathname.startsWith('/api/players/') && request.method === 'PATCH') {
+      if (account.role !== 'commissioner') return send(response, 403, { error: 'Commissioner access required.' });
+      const playerId = decodeURIComponent(url.pathname.slice('/api/players/'.length));
+      const body = await readBody(request);
+      const player = store.accounts.find(item => item.id === playerId && item.role !== 'commissioner');
+      if (!player) return send(response, 404, { error: 'Player not found.' });
+      if (body.enabled !== undefined && Boolean(body.enabled) !== player.enabled && store.league.draft) {
+        return send(response, 409, { error: 'Player accounts cannot be changed after the draft starts.' });
+      }
+      if (body.enabled === false) {
+        player.enabled = false;
+        delete store.league.members[player.id];
+      }
+      if (body.enabled === true) {
+        const maxTeams = Number(store.league.settings && store.league.settings.maxTeams) || Infinity;
+        if (!player.enabled && Object.keys(store.league.members || {}).length >= maxTeams) {
+          return send(response, 409, { error: 'Maximum team accounts reached.' });
+        }
+        player.enabled = true;
+        store.league.members[player.id] ||= { displayName: player.name, joinedAt: Date.now() };
+      }
+      if (body.pin !== undefined) {
+        if (!/^\d{4,12}$/.test(String(body.pin))) return send(response, 400, { error: 'PIN must contain 4-12 digits.' });
+        player.pinSalt = randomBytes(16).toString('hex');
+        player.pinHash = hashPin(body.pin, player.pinSalt);
+      }
+      store.revision++;
+      await persistStore();
+      broadcastLeague();
+      return send(response, 200, { player: { ...publicAccount(player), enabled: player.enabled } });
+    }
+    return send(response, 404, { error: 'Not found.' });
+  } catch (error) {
+    if (!response.headersSent) send(response, error.status || 500, { error: error.status ? error.message : 'Server error.' });
+    else response.end();
+  }
+});
+
+initializeStore().then(() => {
+  server.listen(port, '0.0.0.0', () => console.log(`MAD League server listening on port ${server.address().port}`));
+}).catch(error => {
+  console.error(error.message);
+  process.exitCode = 1;
+});
