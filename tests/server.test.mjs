@@ -54,6 +54,10 @@ test('commissioner provisions designated player sessions', async () => {
 
   try {
     await started;
+    const homepage = await fetch(`http://127.0.0.1:${port}/`);
+    assert.equal(homepage.status, 200);
+    assert.match(await homepage.text(), /<!DOCTYPE html>/i);
+
     const preflight = await fetch(`http://127.0.0.1:${port}/api/session`, {
       method: 'OPTIONS',
       headers: {
