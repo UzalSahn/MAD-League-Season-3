@@ -154,6 +154,21 @@ export async function fetchLeague() {
   return (await request(seasonApiUrl('/api/league'))).league;
 }
 
+export async function fetchChampions() {
+  if (isFirebase()) return firebaseCall('listChampions');
+  return request('/api/champions');
+}
+
+export async function saveChampion(champion) {
+  if (isFirebase()) return firebaseCall('saveChampion', { champion });
+  return request('/api/champions', { method: 'POST', body: JSON.stringify({ champion }) });
+}
+
+export async function deleteChampion(id) {
+  if (isFirebase()) return firebaseCall('deleteChampion', { id });
+  return request('/api/champions/' + encodeURIComponent(id), { method: 'DELETE' });
+}
+
 export function subscribeLeague(onChange, onError = () => {}) {
   const seasonId = getCurrentSeasonId();
   if (isFirebase()) {

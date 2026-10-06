@@ -15,6 +15,7 @@ const leagues = db.collection('leagues');
 const seasons = db.collection('seasons');
 const accounts = db.collection('accounts');
 const names = db.collection('accountNames');
+const champions = db.collection('champions');
 
 function normalizedName(name) {
   return String(name || '').trim().replace(/\s+/g, ' ');
@@ -431,5 +432,66 @@ export const updateLeague = onCall({ cors: true, invoker: 'public' }, async requ
     }
     transaction.set(leagueRef, league);
   });
+  return { ok: true };
+});
+
+function championRecord(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    fail('invalid-argument', 'Champion details are required.');
+  }
+  if (typeof input.season !== 'string' || typeof input.winner !== 'string'
+      || (input.coach !== undefined && typeof input.coach !== 'string')
+      || (input.id !== undefined && (typeof input.id !== 'string' || !input.id.trim()))) {
+    fail('invalid-argument', 'Season, winner, coach, or record ID is invalid.');
+  }
+  const season = normalizedName(input.season);
+  const winner = normalizedName(input.winner);
+  const coach = normalizedName(input.coach);
+  const roster = input.roster;
+  if (season.length < 2 || season.length > 80 || winner.length < 2 || winner.length > 80
+      || coach.length > 80 || !Array.isArray(roster) || roster.length > 15
+      || roster.some(name => typeof name !== 'string' || normalizedName(name).length < 1 || normalizedName(name).length > 50)) {
+    fail('invalid-argument', 'Season, winner, coach, or roster details are invalid.');
+  }
+  return { season, winner, coach, roster: roster.map(normalizedName) };
+}
+
+export const listChampions = onCall({ cors: true, invoker: 'public' }, async () => {
+  const snapshot = await champions.get();
+  return {
+    champions: snapshot.docs.map(document => ({ id: document.id, ...document.data() }))
+  };
+});
+
+export const saveChampion = onCall({ cors: true, invoker: 'public' }, async request => {
+  await requireAccount(request, true);
+  const record = championRecord(request.data?.champion);
+  const requestedId = request.data?.champion?.id;
+  if (requestedId !== undefined && typeof requestedId !== 'string') {
+    fail('invalid-argument', 'Champion record ID is invalid.');
+  }
+  const id = requestedId ? String(requestedId) : randomUUID();
+  if (id.length > 100 || id.includes('/')) fail('invalid-argument', 'Champion record ID is invalid.');
+  const ref = champions.doc(id);
+  const snapshot = requestedId ? await ref.get() : null;
+  if (requestedId && !snapshot.exists) fail('not-found', 'Champion record not found.');
+  const now = Date.now();
+  const champion = {
+    ...record,
+    createdAt: snapshot ? snapshot.get('createdAt') || now : now,
+    updatedAt: now
+  };
+  await ref.set(champion);
+  return { champion: { id, ...champion } };
+});
+
+export const deleteChampion = onCall({ cors: true, invoker: 'public' }, async request => {
+  await requireAccount(request, true);
+  const id = String(request.data?.id || '');
+  if (!id || id.length > 100 || id.includes('/')) fail('invalid-argument', 'Champion record ID is invalid.');
+  const ref = champions.doc(id);
+  const snapshot = await ref.get();
+  if (!snapshot.exists) fail('not-found', 'Champion record not found.');
+  await ref.delete();
   return { ok: true };
 });

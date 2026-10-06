@@ -143,12 +143,41 @@
     <p class="fmt-hero-sub">Every season's winner, immortalized here with the roster that got them the championship.</p>
   </div>
 
+  <section class="champion-editor" id="championEditor" hidden>
+    <h2>Manage champion history</h2>
+    <p>Record winners from earlier leagues. These entries stay alongside the current season's automatically recorded champion.</p>
+    <form id="championForm">
+      <input id="championId" type="hidden">
+      <div class="champion-form-grid">
+        <label>Season or league
+          <input id="championSeason" type="text" maxlength="80" required placeholder="e.g. MAD League — 2023">
+        </label>
+        <label>Winning team
+          <input id="championWinner" type="text" maxlength="80" required placeholder="Team or coach name">
+        </label>
+        <label>Coach (optional)
+          <input id="championCoach" type="text" maxlength="80" placeholder="Coach name">
+        </label>
+        <label class="champion-roster-field">Winning roster
+          <textarea id="championRoster" rows="4" placeholder="One Pokémon per line"></textarea>
+        </label>
+      </div>
+      <div class="champion-form-actions">
+        <button class="champion-action champion-action-primary" id="championSaveBtn" type="submit">Add champion</button>
+        <button class="champion-action" id="championCancelBtn" type="button" hidden>Cancel edit</button>
+      </div>
+      <p class="champion-editor-status" id="championEditorStatus" role="status" aria-live="polite"></p>
+    </form>
+    <div id="championManageList" class="champion-manage-list"></div>
+  </section>
+
   <section class="fmt-section" style="border-bottom:1px solid var(--line);">
     <div class="champion-season-card" id="championPlaceholder">
       <div class="champion-season-label">Champion History</div>
-      <div class="champion-season-record">Completed season champions will appear here.</div>
+      <div class="champion-season-record">No champions have been recorded yet.</div>
     </div>
   </section>
+  <div id="savedChampionsWrap"></div>
   <div id="dynamicChampionsWrap"></div>
 </main>
 
@@ -164,10 +193,41 @@
     font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
     color:var(--ink);background:var(--gold);padding:2px 8px;border-radius:10px;margin-top:2px;
   }
+  .champion-editor{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:24px;margin-bottom:28px;}
+  .champion-editor[hidden]{display:none;}
+  .champion-editor h2{font-family:var(--display);font-size:28px;text-transform:uppercase;margin:0;}
+  .champion-editor p{font-size:13px;margin:8px 0 18px;}
+  .champion-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+  .champion-form-grid label{display:block;color:var(--cream-dim);font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;}
+  .champion-form-grid input,.champion-form-grid textarea{
+    display:block;width:100%;margin-top:6px;padding:10px 12px;border:1px solid var(--line);border-radius:4px;
+    background:var(--ink-soft);color:var(--cream);font:14px var(--body);resize:vertical;
+  }
+  .champion-form-grid input:focus,.champion-form-grid textarea:focus{outline:1px solid var(--gold);border-color:var(--gold);}
+  .champion-roster-field{grid-column:1/-1;}
+  .champion-form-actions,.champion-manage-actions{display:flex;gap:8px;margin-top:14px;}
+  .champion-action{border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--cream);padding:8px 14px;font:600 12px var(--body);cursor:pointer;}
+  .champion-action:hover{border-color:var(--gold);color:var(--gold);}
+  .champion-action-primary{background:var(--gold);border-color:var(--gold);color:var(--ink);}
+  .champion-action-primary:hover{background:#ffdb52;color:var(--ink);}
+  .champion-action:disabled{opacity:.55;cursor:wait;}
+  .champion-editor-status{min-height:1.5em;margin-bottom:0!important;}
+  .champion-manage-list{display:grid;gap:8px;margin-top:20px;}
+  .champion-manage-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;background:var(--ink-soft);border-radius:4px;}
+  .champion-manage-label{font-size:13px;font-weight:600;}
+  .champion-manage-actions{margin:0;}
+  .champion-delete{color:#ff8a8a;}
+  .champion-roster-list{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin:24px auto 0;}
+  .champion-roster-item{border:1px solid var(--line);border-radius:20px;padding:6px 12px;color:var(--cream);font-size:13px;font-weight:600;}
+  @media(max-width:600px){
+    .champion-form-grid{grid-template-columns:1fr;}
+    .champion-roster-field{grid-column:auto;}
+    .champion-manage-item{align-items:flex-start;flex-direction:column;}
+  }
 </style>
 
 <script type="module">
-  import { appendValue, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { deleteChampion, fetchChampions, onUserChange, saveChampion, signOut, fetchLeague } from './league-api.js';
 
 // ---------- dynamically load champions from any completed league ----------
   const ID_TO_POKEAPI_ID_CHAMP = {"9": "10035", "1242": "10296", "128": "10038", "1206": "1018", "1074": "902", "1228": "10285", "1182": "1000", "376": "10052", "463": "10076", "1076": "903", "1227": "10308", "328": "10064", "662": "547", "545": "445", "353": "10051", "878": "727", "155": "10039", "1198": "1013", "189": "142", "190": "10042", "1159": "979", "13": "10036", "1239": "10293", "1024": "861", "1164": "983", "1241": "10295", "313": "10049", "817": "681", "200": "149", "1161": "981", "1256": "10321", "528": "10088", "1100": "925", "349": "279", "312": "248", "764": "637", "80": "10230", "1245": "10298", "324": "10050", "8": "10034", "48": "36", "1053": "887", "1222": "10281", "1235": "10290", "550": "10059", "881": "730", "1218": "10305", "320": "10065", "272": "10046", "1221": "10280", "837": "700", "798": "663", "402": "324", "79": "59", "1219": "10278", "546": "10058", "176": "10041", "762": "635", "943": "784", "1223": "10282", "462": "376", "429": "350", "52": "10104", "585": "10009", "1255": "10320", "1234": "10289", "4": "10033", "985": "823", "644": "530", "1232": "10287", "1150": "970", "175": "130", "241": "186", "682": "560", "3": "3", "87": "10037", "239": "184", "1075": "10248", "579": "10068", "1240": "10294", "1244": "10297", "576": "473", "383": "10054", "1082": "908", "1077": "904", "1143": "964", "1217": "10304", "584": "10008", "910": "752", "1246": "10299", "805": "670", "846": "707", "813": "678", "937": "778", "51": "38", "588": "10012", "373": "302", "271": "212", "1233": "10288", "1225": "10284", "493": "398", "173": "10252", "1138": "959", "401": "10087", "1254": "10303", "352": "282", "1237": "10313", "1247": "10300", "624": "510", "386": "10055", "923": "765", "35": "26", "916": "758", "801": "666", "413": "10067", "12": "9", "323": "257", "1236": "10291", "1226": "10306", "828": "691", "1224": "10283", "1021": "858", "671": "553", "1243": "10314", "861": "715", "567": "464", "374": "10066", "660": "545", "327": "260", "172": "10251", "564": "461", "696": "10239", "380": "10053", "1115": "936", "1116": "937", "1238": "10292", "1249": "10315", "1251": "10302", "1231": "10286", "578": "475", "127": "94", "704": "579", "109": "10071", "191": "143", "921": "763", "211": "10233", "709": "584", "649": "534", "729": "604", "490": "395", "252": "196", "806": "671", "792": "658", "838": "701", "275": "10047", "1152": "972", "487": "392", "154": "115", "382": "308", "1148": "968", "24": "10073", "169": "10040", "396": "10070", "108": "80", "110": "10165", "255": "199", "1220": "10279", "1071": "899", "562": "460", "563": "10060", "820": "683", "734": "609", "795": "660", "845": "10242", "293": "10048", "1207": "1019", "1072": "900", "549": "448", "810": "675", "256": "10172", "542": "442", "266": "10072", "695": "571", "86": "65", "437": "10056", "20": "10090", "7": "6", "686": "563", "789": "655", "1135": "956", "1113": "934", "574": "471", "853": "711", "552": "450", "573": "470", "902": "10152", "375": "303", "908": "750", "1018": "855", "1088": "914", "269": "211", "36": "10100", "1030": "867", "610": "497", "1085": "911", "210": "157", "253": "197", "181": "134", "59": "45", "443": "10057", "1032": "869", "236": "10045", "1118": "939", "786": "652", "830": "693", "875": "10244", "178": "132", "582": "478", "447": "10074", "749": "623", "844": "706", "832": "695", "182": "135", "500": "405", "90": "68", "824": "687", "632": "518", "803": "668", "504": "409", "502": "407", "586": "10010", "617": "10236", "319": "254", "161": "121", "484": "389", "556": "454", "834": "697", "645": "531", "646": "10069", "836": "699", "739": "614", "891": "740", "874": "724", "939": "780", "613": "500", "214": "160", "1003": "841", "183": "136", "575": "472", "274": "214", "900": "745", "1029": "866", "924": "766", "1131": "952", "290": "227", "171": "10250", "906": "748", "848": "709", "93": "71", "379": "306", "32": "24", "222": "168", "826": "689", "506": "411", "1033": "870", "814": "10025", "1042": "877", "583": "479", "587": "10011", "1006": "844", "395": "319", "822": "685", "265": "208", "170": "128", "442": "359", "412": "334", "235": "181", "1004": "842", "858": "713", "859": "10243", "436": "354", "19": "15", "400": "323", "430": "351", "441": "358", "839": "702", "712": "587", "262": "205", "811": "676", "692": "569", "446": "362", "292": "229", "527": "428", "901": "10126", "385": "310", "207": "154", "23": "18", "33": "25", "168": "127", "616": "503", "630": "516", "626": "512", "628": "514", "743": "618", "744": "10180", "884": "733", "619": "505", "1300": "83", "1302": "122", "1303": "317", "1304": "865", "1305": "40", "1306": "53", "1307": "10108", "1308": "10307", "1309": "10089", "1310": "373", "1311": "10309", "1312": "10310", "1313": "673", "1314": "768", "1315": "10316", "1316": "812", "1317": "815", "1318": "818", "1319": "828", "1320": "849", "1321": "853", "1322": "863", "1323": "871", "1324": "10186", "1325": "876", "1326": "923", "1327": "930", "1328": "931", "1329": "943", "1330": "998", "1331": "10325"};
@@ -207,7 +267,7 @@
 
     const label = document.createElement('div');
     label.className = 'champion-season-label';
-    label.textContent = escapeHtmlChamp(league.name || 'League') + ' Champion';
+    label.textContent = (league.name || 'League') + ' Champion';
     cardWrap.appendChild(label);
 
     const nameEl = document.createElement('div');
@@ -257,24 +317,192 @@
     return section;
   }
 
-  function escapeHtmlChamp(s){
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const championForm = document.getElementById('championForm');
+  const championEditor = document.getElementById('championEditor');
+  const championEditorStatus = document.getElementById('championEditorStatus');
+  const championIdInput = document.getElementById('championId');
+  const championSeasonInput = document.getElementById('championSeason');
+  const championWinnerInput = document.getElementById('championWinner');
+  const championCoachInput = document.getElementById('championCoach');
+  const championRosterInput = document.getElementById('championRoster');
+  const championSaveBtn = document.getElementById('championSaveBtn');
+  const championCancelBtn = document.getElementById('championCancelBtn');
+  let savedChampions = [];
+
+  function refreshChampionPlaceholder(){
+    const hasSaved = savedChampions.length > 0;
+    const hasCurrent = document.getElementById('dynamicChampionsWrap').childElementCount > 0;
+    document.getElementById('championPlaceholder').hidden = hasSaved || hasCurrent;
   }
+
+  function buildSavedChampionCard(champion){
+    const section = document.createElement('section');
+    section.className = 'fmt-section';
+    const card = document.createElement('div');
+    card.className = 'champion-season-card';
+
+    const label = document.createElement('div');
+    label.className = 'champion-season-label';
+    label.textContent = champion.season;
+    card.appendChild(label);
+
+    const winner = document.createElement('div');
+    winner.className = 'champion-season-name';
+    winner.textContent = champion.winner;
+    card.appendChild(winner);
+
+    if(champion.coach){
+      const coach = document.createElement('div');
+      coach.className = 'champion-season-record';
+      coach.textContent = champion.coach;
+      card.appendChild(coach);
+    }
+    if(champion.roster.length){
+      const roster = document.createElement('div');
+      roster.className = 'champion-roster-list';
+      champion.roster.forEach(name => {
+        const item = document.createElement('span');
+        item.className = 'champion-roster-item';
+        item.textContent = name;
+        roster.appendChild(item);
+      });
+      card.appendChild(roster);
+    }
+    section.appendChild(card);
+    return section;
+  }
+
+  function renderChampionManager(){
+    const list = document.getElementById('championManageList');
+    list.replaceChildren();
+    savedChampions.forEach(champion => {
+      const item = document.createElement('div');
+      item.className = 'champion-manage-item';
+      const label = document.createElement('span');
+      label.className = 'champion-manage-label';
+      label.textContent = champion.season + ' — ' + champion.winner;
+      item.appendChild(label);
+      const actions = document.createElement('div');
+      actions.className = 'champion-manage-actions';
+
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.className = 'champion-action';
+      editButton.textContent = 'Edit';
+      editButton.addEventListener('click', () => {
+        championIdInput.value = champion.id;
+        championSeasonInput.value = champion.season;
+        championWinnerInput.value = champion.winner;
+        championCoachInput.value = champion.coach || '';
+        championRosterInput.value = champion.roster.join('\n');
+        championSaveBtn.textContent = 'Save changes';
+        championCancelBtn.hidden = false;
+        championEditorStatus.textContent = '';
+        championSeasonInput.focus();
+      });
+      actions.appendChild(editButton);
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'champion-action champion-delete';
+      deleteButton.textContent = 'Delete';
+      deleteButton.addEventListener('click', async () => {
+        if(!window.confirm('Delete the ' + champion.season + ' champion record?')) return;
+        deleteButton.disabled = true;
+        championEditorStatus.textContent = 'Deleting champion…';
+        try{
+          await deleteChampion(champion.id);
+          if(championIdInput.value === champion.id) resetChampionForm();
+          await loadChampionRecords();
+          championEditorStatus.textContent = 'Champion record deleted.';
+        }catch(err){
+          championEditorStatus.textContent = 'Could not delete champion: ' + err.message;
+          deleteButton.disabled = false;
+        }
+      });
+      actions.appendChild(deleteButton);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  function resetChampionForm(){
+    championForm.reset();
+    championIdInput.value = '';
+    championSaveBtn.textContent = 'Add champion';
+    championCancelBtn.hidden = true;
+  }
+
+  async function loadChampionRecords(){
+    try{
+      const result = await fetchChampions();
+      if(!result || !Array.isArray(result.champions)) throw new Error('The champion list response was invalid.');
+      savedChampions = result.champions.map(champion => ({
+        ...champion,
+        season: String(champion.season || ''),
+        winner: String(champion.winner || ''),
+        coach: String(champion.coach || ''),
+        roster: Array.isArray(champion.roster) ? champion.roster.map(String) : []
+      }));
+      document.getElementById('savedChampionsWrap').replaceChildren(...savedChampions.map(buildSavedChampionCard));
+      renderChampionManager();
+      refreshChampionPlaceholder();
+    }catch(err){
+      console.error('Could not load champion history:', err);
+      document.querySelector('#championPlaceholder .champion-season-record').textContent = 'Could not load champion history: ' + err.message;
+    }
+  }
+
+  championForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    championSaveBtn.disabled = true;
+    championEditorStatus.textContent = 'Saving champion…';
+    const id = championIdInput.value;
+    const champion = {
+      ...(id ? { id } : {}),
+      season: championSeasonInput.value.trim(),
+      winner: championWinnerInput.value.trim(),
+      coach: championCoachInput.value.trim(),
+      roster: championRosterInput.value.split(/\r?\n/).map(name => name.trim()).filter(Boolean)
+    };
+    try{
+      await saveChampion(champion);
+      resetChampionForm();
+      await loadChampionRecords();
+      championEditorStatus.textContent = 'Champion record saved.';
+    }catch(err){
+      championEditorStatus.textContent = 'Could not save champion: ' + err.message;
+    }finally{
+      championSaveBtn.disabled = false;
+    }
+  });
+  championCancelBtn.addEventListener('click', () => {
+    resetChampionForm();
+    championEditorStatus.textContent = '';
+  });
 
   async function loadDynamicChampions(){
     const wrap = document.getElementById('dynamicChampionsWrap');
     if(!wrap) return;
+    wrap.replaceChildren();
     try{
       const league = await fetchLeague();
-      if(!league.seasonComplete || !league.draft || !league.championUid) return;
+      if(!league.seasonComplete || !league.draft || !league.championUid){
+        refreshChampionPlaceholder();
+        return;
+      }
       const championTrainer = league.draft.trainers.find(t => t.uid === league.championUid);
-      if(!championTrainer) return;
+      if(!championTrainer){
+        refreshChampionPlaceholder();
+        return;
+      }
       const rosterIds = (championTrainer.roster || []).map(m => m.id);
       const mvpMonId = computeChampionMvp(league, league.championUid, rosterIds);
       wrap.appendChild(buildDynamicChampionCard(league, championTrainer, mvpMonId));
-      document.getElementById('championPlaceholder').hidden = true;
+      refreshChampionPlaceholder();
     }catch(err){
       console.warn('Could not load current champion:', err.message);
+      refreshChampionPlaceholder();
     }
   }
   function escapeHtml(s){
@@ -321,29 +549,31 @@
     { name: 'Mimikyu', tier: 11, pokeapiId: 778 },
     { name: 'Pikachu', tier: 1, pokeapiId: 25 }
   ]);
-  document.getElementById('draftExampleMath').innerHTML = '18 + 18 + 19 + 11 + 1 = <b>67 points spent</b> — 33 left for the rest of the roster.';
 
   fillRow('faDropRow', [{ name: 'Pikachu', tier: 1, pokeapiId: 25 }]);
   fillRow('faClaimRow', [{ name: 'Dragapult', tier: 15, pokeapiId: 887 }]);
-  document.getElementById('faExampleMath').innerHTML = 'Dropping Pikachu frees a slot and refunds <b>1 pt</b>. Claiming Dragapult costs <b>15 pts</b> — both land on your roster together, next Monday. Pikachu goes to waivers, not straight back to the pool.';
 
   fillRow('tradeGiveRow', [{ name: 'Charizard', tier: 20, pokeapiId: 10035 }]);
   fillRow('tradeGetRow', [{ name: 'Garchomp', tier: 18, pokeapiId: 445 }]);
-  document.getElementById('tradeExampleMath').innerHTML = 'Same number of Pokémon on each side — 1 for 1. Team A sends 20 points of value and receives 18 back; the 2-point gap is simply deducted from their remaining budget, no separate approval needed beyond accepting the trade itself.';
 
   onUserChange( (user) => {
     if(user){
       navSignedOut.style.display = "none";
       navSignedIn.style.display = "flex";
       navUserEmail.textContent = user.displayName || "Trainer";
+      championEditor.hidden = user.role !== 'commissioner';
       loadDynamicChampions();
     } else {
       navSignedOut.style.display = "";
       navSignedIn.style.display = "none";
+      championEditor.hidden = true;
+      document.getElementById('dynamicChampionsWrap').replaceChildren();
+      refreshChampionPlaceholder();
     }
   });
 
   navSignOutBtn.addEventListener("click", () => signOut());
+  loadChampionRecords();
 </script>
 </body>
 </html>

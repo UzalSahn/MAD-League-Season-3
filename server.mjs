@@ -94,6 +94,7 @@ async function initializeStore() {
     seasons: {
       main: { id: 'main', name: 'Season 1', createdAt: Date.now(), memberIds: Object.keys(league.members) }
     },
+    champions: [],
     revision: 1
   };
   await persistStore();
@@ -248,6 +249,9 @@ const server = createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
     const account = getAccount(request);
 
+    if (url.pathname === '/api/champions' && request.method === 'GET') {
+      return send(response, 200, { champions: store.champions || [] });
+    }
     if (url.pathname === '/api/session' && request.method === 'GET') {
       return send(response, 200, { user: account ? publicAccount(account) : null });
     }
@@ -280,9 +284,60 @@ const server = createServer(async (request, response) => {
       if (token) sessions.delete(token);
       return send(response, 200, { user: null }, { 'set-cookie': 'league_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0' });
     }
-
     if (!url.pathname.startsWith('/api/')) return serveStatic(request, response, url.pathname);
     if (!account) return send(response, 401, { error: 'Sign in to continue.' });
+
+    if (url.pathname === '/api/champions' && request.method === 'POST') {
+      if (account.role !== 'commissioner') return send(response, 403, { error: 'Commissioner access required.' });
+      const body = await readBody(request);
+      const input = body.champion;
+      if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        return send(response, 400, { error: 'Champion details are required.' });
+      }
+      if (typeof input.season !== 'string' || typeof input.winner !== 'string'
+          || (input.coach !== undefined && typeof input.coach !== 'string')
+          || (input.id !== undefined && (typeof input.id !== 'string' || !input.id.trim()))) {
+        return send(response, 400, { error: 'Season, winner, coach, or record ID is invalid.' });
+      }
+      const season = normalizedName(input.season);
+      const winner = normalizedName(input.winner);
+      const coach = normalizedName(input.coach);
+      const roster = input.roster;
+      if (season.length < 2 || season.length > 80 || winner.length < 2 || winner.length > 80
+          || coach.length > 80 || !Array.isArray(roster) || roster.length > 15
+          || roster.some(name => typeof name !== 'string' || normalizedName(name).length < 1 || normalizedName(name).length > 50)) {
+        return send(response, 400, { error: 'Season, winner, coach, or roster details are invalid.' });
+      }
+      const id = typeof input.id === 'string' ? input.id : '';
+      const existing = id && (store.champions || []).find(champion => champion.id === id);
+      if (id && !existing) return send(response, 404, { error: 'Champion record not found.' });
+      const champion = {
+        id: existing ? id : randomUUID(),
+        season,
+        winner,
+        coach,
+        roster: roster.map(normalizedName),
+        updatedAt: Date.now(),
+        createdAt: existing ? existing.createdAt : Date.now()
+      };
+      store.champions ||= [];
+      if (existing) store.champions = store.champions.map(item => item.id === id ? champion : item);
+      else store.champions.push(champion);
+      store.revision++;
+      await persistStore();
+      return send(response, existing ? 200 : 201, { champion });
+    }
+    const championRoute = url.pathname.match(/^\/api\/champions\/([^/]+)$/);
+    if (championRoute && request.method === 'DELETE') {
+      if (account.role !== 'commissioner') return send(response, 403, { error: 'Commissioner access required.' });
+      const id = decodeURIComponent(championRoute[1]);
+      const champions = store.champions || [];
+      if (!champions.some(champion => champion.id === id)) return send(response, 404, { error: 'Champion record not found.' });
+      store.champions = champions.filter(champion => champion.id !== id);
+      store.revision++;
+      await persistStore();
+      return send(response, 200, { ok: true });
+    }
 
     if (url.pathname === '/api/seasons' && request.method === 'GET') {
       const seasons = Object.values(store.seasons)
