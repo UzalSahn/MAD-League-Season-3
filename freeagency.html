@@ -708,7 +708,7 @@ function escapeHtml(s){
         '<div><span class="fa-stat-label">Roster</span><span class="fa-stat-value">' + effRoster + ' / ' + league.draft.numSlots + '</span></div>' +
         '<div><span class="fa-stat-label">Pickups Used</span><span class="fa-stat-value">' + pickupsUsed + ' / ' + settings.faPickupsPerSeason + '</span></div>' +
       '</div>' +
-      '<p class="settings-note" style="margin-bottom:12px;">Rosters stay at ' + league.draft.numSlots + ' at all times — to drop a Pokémon, claim its replacement below and you\'ll be asked who to drop as part of that claim.</p>' +
+      '<p class="settings-note" style="margin-bottom:12px;">Rosters stay at [league.draft.numSlots] + at all times. To drop a Pokémon, claim its replacement below and you\'ll be asked who to drop as part of that claim.</p>' +
       '<ul class="fa-roster-list" id="myRosterList"></ul>';
 
     const ul = document.getElementById('myRosterList');
@@ -1433,7 +1433,7 @@ function escapeHtml(s){
       '<div class="page-head">' +
         '<span class="eyebrow">Free Agency</span>' +
         '<h1>' + escapeHtml(league.name || 'League') + '</h1>' +
-        '<p style="color:var(--cream-dim);font-size:13.5px;margin-top:10px;">Pickups cost points equal to a Pokémon\'s tier, drawn from whatever budget you have left after the draft. Dropping a Pokémon sends it to waivers before it\'s free for anyone to grab. Claims lock in but don\'t hit your roster until the following Monday, so opponents have a fair week to prep.' + (faSettingsForBanner.faDeadlineWeek > 0 ? ' Free agency closes after Week ' + faSettingsForBanner.faDeadlineWeek + '.' : '') + '</p>' +
+        '<p style="color:var(--cream-dim);font-size:13.5px;margin-top:10px;">Pickups can be grabbed from whatever budget you have left after the draft. Dropping a Pokémon sends it to waivers before it\'s free for anyone to grab. Claims lock in but don\'t hit your roster until the following Monday, so opponents have a fair week to prep.' + (faSettingsForBanner.faDeadlineWeek > 0 ? ' Free agency closes after Week ' + faSettingsForBanner.faDeadlineWeek + '.' : '') + '</p>' +
       '</div>' +
       (nearFADeadline && !league.seasonComplete
         ? '<div class="panel state-msg" style="border-color:rgba(255,203,5,0.4);color:var(--gold);">⏰ Free agency deadline is next week (Week ' + faSettingsForBanner.faDeadlineWeek + ') — this is your last week to make a claim.</div>'

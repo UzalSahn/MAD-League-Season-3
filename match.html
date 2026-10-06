@@ -938,7 +938,7 @@ function escapeHtml(s){
     const startLabel = new Date(schedule.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     try{
       await updateLeague({ schedule });
-      pushAnnouncement(league, 'match', 'Commissioner' + ' generated the season schedule (' + weeks.length + ' weeks, starting ' + startLabel + ')');
+      pushAnnouncement(league, 'match', 'Austin generated the season schedule (' + weeks.length + ' weeks, starting ' + startLabel + ')');
     }catch(err){ alert('Could not generate schedule: ' + err.message); }
   }
 
@@ -1558,8 +1558,8 @@ function escapeHtml(s){
           pushAnnouncement(league, 'match', 'Commissioner' + ' corrected the result of ' + nameA + ' vs ' + nameB);
         } else {
           const mvpMon = result.mvp ? league.draft.trainers.find(t=>t.uid===result.winner).roster.find(m=>m.id===result.mvp) : null;
-          const mvpNote = mvpMon ? (' — MVP: ' + mvpMon.name) : '';
-          const diffNote = result.games.length ? (' (differential: ' + (matchDifferential(result)>0?'+':'') + matchDifferential(result) + ')') : '';
+          const mvpNote = mvpMon ? ('Match MVP: ' + mvpMon.name) : '';
+          const diffNote = result.games.length ? (' (differential: ' + (matchDifferential(result)>0?'+':'. ') + matchDifferential(result) + ')') : '';
           pushAnnouncement(league, 'match', trainerName(league, result.winner) + ' defeated ' + trainerName(league, result.loser) + diffNote + mvpNote, mvpMon ? [mvpMon] : [], mvpMon ? mvpMon.id : null);
           sendDiscordGeneral('🏆 **' + trainerName(league, result.winner) + '** defeated **' + trainerName(league, result.loser) + '**' + diffNote + (mvpMon ? (' — MVP: **' + mvpMon.name + '**') : ''), discordMatchEmbed(league.draft.trainers.find(t=>t.uid===result.winner), mvpMon));
         }

@@ -920,7 +920,7 @@ function escapeHtml(s){
       '<div class="page-head">' +
         '<span class="eyebrow">Trades</span>' +
         '<h1>' + escapeHtml(league.name || 'League') + '</h1>' +
-        '<p style="color:var(--cream-dim);font-size:13.5px;margin-top:10px;">Accepted trades lock in immediately but don\'t swap rosters until the following Monday, so opponents have a fair week to prepare. Trades can only be proposed or accepted Monday through Friday, so everyone has the weekend to review and veto if needed.' + (tdSettings.tradeDeadlineWeek > 0 ? ' Trades close after Week ' + tdSettings.tradeDeadlineWeek + '.' : '') + '</p>' +
+        '<p style="color:var(--cream-dim);font-size:13.5px;margin-top:10px;">Accepted trades lock in immediately but don\'t swap rosters until the following Monday, so abdy has a fair week to prep. Trades can only be proposed or accepted Monday through Friday!,' + (tdSettings.tradeDeadlineWeek > 0 ? ' Trades close after Week ' + tdSettings.tradeDeadlineWeek + '.' : '') + '</p>' +
       '</div>' +
       (nearDeadline && !seasonComplete
         ? '<div class="panel state-msg" style="border-color:rgba(255,203,5,0.4);color:var(--gold);">⏰ Trade deadline is next week (Week ' + tdSettings.tradeDeadlineWeek + ') — this is your last week to make a trade.</div>'
