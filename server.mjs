@@ -296,16 +296,19 @@ const server = createServer(async (request, response) => {
       }
       if (typeof input.season !== 'string' || typeof input.winner !== 'string'
           || (input.coach !== undefined && typeof input.coach !== 'string')
+          || (input.mvp !== undefined && typeof input.mvp !== 'string')
           || (input.id !== undefined && (typeof input.id !== 'string' || !input.id.trim()))) {
         return send(response, 400, { error: 'Season, winner, coach, or record ID is invalid.' });
       }
       const season = normalizedName(input.season);
       const winner = normalizedName(input.winner);
       const coach = normalizedName(input.coach);
+      const mvp = normalizedName(input.mvp);
       const roster = input.roster;
       if (season.length < 2 || season.length > 80 || winner.length < 2 || winner.length > 80
           || coach.length > 80 || !Array.isArray(roster) || roster.length > 15
-          || roster.some(name => typeof name !== 'string' || normalizedName(name).length < 1 || normalizedName(name).length > 50)) {
+          || roster.some(name => typeof name !== 'string' || normalizedName(name).length < 1 || normalizedName(name).length > 50)
+          || mvp.length > 50 || (mvp && !roster.some(name => typeof name === 'string' && normalizedName(name).toLocaleLowerCase('en-US') === mvp.toLocaleLowerCase('en-US')))) {
         return send(response, 400, { error: 'Season, winner, coach, or roster details are invalid.' });
       }
       const id = typeof input.id === 'string' ? input.id : '';
@@ -316,6 +319,7 @@ const server = createServer(async (request, response) => {
         season,
         winner,
         coach,
+        mvp,
         roster: roster.map(normalizedName),
         updatedAt: Date.now(),
         createdAt: existing ? existing.createdAt : Date.now()

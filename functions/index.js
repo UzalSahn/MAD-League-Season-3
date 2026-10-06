@@ -447,13 +447,15 @@ function championRecord(input) {
   const season = normalizedName(input.season);
   const winner = normalizedName(input.winner);
   const coach = normalizedName(input.coach);
+  const mvp = normalizedName(input.mvp);
   const roster = input.roster;
   if (season.length < 2 || season.length > 80 || winner.length < 2 || winner.length > 80
       || coach.length > 80 || !Array.isArray(roster) || roster.length > 15
-      || roster.some(name => typeof name !== 'string' || normalizedName(name).length < 1 || normalizedName(name).length > 50)) {
+      || roster.some(name => typeof name !== 'string' || normalizedName(name).length < 1 || normalizedName(name).length > 50)
+      || mvp.length > 50 || (mvp && !roster.some(name => typeof name === 'string' && normalizedName(name).toLocaleLowerCase('en-US') === mvp.toLocaleLowerCase('en-US')))) {
     fail('invalid-argument', 'Season, winner, coach, or roster details are invalid.');
   }
-  return { season, winner, coach, roster: roster.map(normalizedName) };
+  return { season, winner, coach, mvp, roster: roster.map(normalizedName) };
 }
 
 export const listChampions = onCall({ cors: true, invoker: 'public' }, async () => {

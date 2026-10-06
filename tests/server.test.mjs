@@ -98,14 +98,20 @@ test('commissioner provisions designated player sessions', async () => {
       token: commissionerToken
     });
     assert.equal(invalidChampion.response.status, 400);
+    const invalidChampionMvp = await call('/api/champions', {
+      method: 'POST', body: { champion: { season: 'Legacy Season', winner: 'The Winners', roster: ['Pikachu'], mvp: 'Gengar' } },
+      token: commissionerToken
+    });
+    assert.equal(invalidChampionMvp.response.status, 400);
     const savedChampion = await call('/api/champions', {
       method: 'POST',
-      body: { champion: { season: 'Legacy Season', winner: 'The Winners', coach: 'Coach One', roster: ['Pikachu', 'Gengar'] } },
+      body: { champion: { season: 'Legacy Season', winner: 'The Winners', coach: 'Coach One', roster: ['Pikachu', 'Gengar'], mvp: 'Gengar' } },
       token: commissionerToken
     });
     assert.equal(savedChampion.response.status, 201);
     const championId = savedChampion.data.champion.id;
     assert.deepEqual((await call('/api/champions')).data.champions[0].roster, ['Pikachu', 'Gengar']);
+    assert.equal((await call('/api/champions')).data.champions[0].mvp, 'Gengar');
     const localDatabase = new Database(path.join(dataDir, 'league.sqlite'), { readonly: true });
     const savedData = localDatabase.prepare('SELECT payload FROM league_state WHERE id = 1').get().payload;
     localDatabase.close();
@@ -134,11 +140,12 @@ test('commissioner provisions designated player sessions', async () => {
     assert.equal(deniedPlayerChampionWrite.response.status, 403);
     const editedChampion = await call('/api/champions', {
       method: 'POST',
-      body: { champion: { id: championId, season: 'Updated Legacy Season', winner: 'The Winners', coach: '', roster: ['Raichu'] } },
+      body: { champion: { id: championId, season: 'Updated Legacy Season', winner: 'The Winners', coach: '', roster: ['Raichu'], mvp: 'Raichu' } },
       token: commissionerToken
     });
     assert.equal(editedChampion.response.status, 200);
     assert.equal(editedChampion.data.champion.season, 'Updated Legacy Season');
+    assert.equal(editedChampion.data.champion.mvp, 'Raichu');
     const deniedPlayerChampionDelete = await call('/api/champions/' + championId, { method: 'DELETE', token: playerToken });
     assert.equal(deniedPlayerChampionDelete.response.status, 403);
     const deletedChampion = await call('/api/champions/' + championId, { method: 'DELETE', token: commissionerToken });
