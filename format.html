@@ -140,7 +140,7 @@
   <div class="fmt-hero">
     <span class="eyebrow">Format</span>
     <h1>How Victory Road Works</h1>
-    <p class="fmt-hero-sub">A points-budget draft league, run entirely through this site — from opening pick to championship bracket. Here's the whole system, section by section.</p>
+    <p class="fmt-hero-sub">Rules will largely be the same as before but we're moving to a different game, which means Mega Evolutions instead of Teras!</p>
   </div>
 
   <div class="fmt-toc">
@@ -157,12 +157,12 @@
       <span class="fmt-num">01</span>
       <div>
         <h2>The Draft</h2>
-        <p>Every trainer starts with the same points budget — no auction, no bidding war, just picks. Order snakes back and forth each round, so the last pick in Round 1 gets the first pick in Round 2 (the commissioner can also manually set who picks first before the draft begins). Every roster fills to the same number of slots, and the site won't let you spend down to a point where you can't afford to fill the rest — you always have to leave at least 1 point per remaining slot.</p>
-        <p>You can build a personal <b style="color:var(--gold);">draft queue</b> ahead of time — star any Pokémon in the pool to rank it, and if your clock runs out, auto-pick works through your queue top to bottom instead of just grabbing the highest tier left on the board.</p>
+        <p>We'll all start with [points_num] points. It'll be snake order drafting again; with players who finished lower last season getting precedence over their order. Every roster will need [team_size_min] to [team_size_max] Pokes, staying within the budget — the site won't let you spend down to a point where you can't afford to fill the rest — you always have to leave at least 1 point per remaining slot.</p>
+        <p>You can build a personal <b style="color:var(--gold);">draft queue</b> ahead of time using the star button next them on the Draft Pool (yes I know it's unaligned deal with it). If your clock runs out (5 min time limit so should be fine), auto-pick works through your queue top to bottom instead of just grabbing nothing. If you don't have a queue, it'll take the next highest pick you can afford</p>
       </div>
     </div>
     <div class="fmt-example-card">
-      <div class="fmt-example-label">Example — a 100-point budget, five picks in</div>
+      <div class="fmt-example-label">Example team (Drovid Style) — a 100-point budget, five picks in</div>
       <div class="fmt-mon-row" id="draftExampleRow"></div>
       <div class="fmt-example-math" id="draftExampleMath"></div>
     </div>
@@ -173,13 +173,13 @@
       <span class="fmt-num">02</span>
       <div>
         <h2>Free Agency &amp; Waivers</h2>
-        <p><b style="color:var(--gold);">Every roster must have exactly your league's roster size at all times</b> — no exceptions. Anything not drafted is a free agent, claimable for points equal to its tier. Because rosters can never drop below full, there's no way to drop a Pokémon on its own. Claiming is what triggers a drop instead: if your roster's already full, claiming opens a picker asking which Pokémon to send back — and both changes land together, atomically, in the same transaction, so you're never left short a Pokémon. Need more than one for the numbers to work? You can bundle multiple claims and multiple drops together, up to your league's per-transaction limit, as long as the count you claim and the count you drop line up exactly. A Pokémon already committed to a pending trade won't show up as an option to drop either — the two systems check each other.</p>
-        <p>Whatever gets dropped this way doesn't just vanish — it sits on <b style="color:var(--gold);">waivers</b> for a set number of days, where any trainer can place a claim (with images, types, and tiers shown right in the list, no more digging). If more than one team wants it, priority rotates — whoever's used their turn least goes to the front of the line. Commissioners can also set a <b style="color:var(--gold);">free agency deadline week</b> — trainers get a heads-up the week before it hits, and after that, no new claims or waiver placements go through for the rest of the season.</p>
-        <p><b style="color:var(--gold);">This season:</b> each team gets <b style="color:var(--gold);">1 free agency transaction</b> for the whole season, and that single transaction can add up to <b style="color:var(--gold);">2 Pokémon</b> (dropping 2 to match). The <b style="color:var(--gold);">free agency deadline is Week 8</b> — no claims or waiver placements after that.</p>
+        <p><b style="color:var(--gold);">Anything not drafted is a free agent, claimable for points equal to its tier.</b> Because rosters can never drop below [team_size_min], dropping a Pokémon on its own sounded too annoying to implement. Claiming another is what triggers a drop instead: if your roster's already full, claiming opens a picker asking which Pokémon to send back and both changes land together in the same transaction, so you're never left short a Pokémon. Need more than one for the numbers to work? You can bundle multiple claims and multiple drops together, up to the transaction limit, as long as the count you claim and the count you drop line up exactly. A Pokémon already committed to a pending trade won't show up as an option to drop either — the two systems check each other.</p>
+        <p>A mon you drop like this sits on <b style="color:var(--gold);">waivers</b> for a set number of days, where anyone can place a claim on it. If more than one team wants it, I set rotating priority — whoever's used their "turn" least goes to the front of the line (will be shown on the league table). There'll also be a <b style="color:var(--gold);">free agency deadline week</b> — like before. The site'll give a heads-up the week before it hits. Waivers are a new feature that might end up being cancer, but I think it keeps it more fair than first come first serve like before.</p>
+        <p><b style="color:var(--gold);">This season:</b> each team gets <b style="color:var(--gold);">[num_trans_seas] free agency transaction</b> for the whole season, and that transaction can add up to <b style="color:var(--gold);">[trade_budget_mons] mons</b> (dropping enough to match). The <b style="color:var(--gold);">free agency deadline is Week [free_agency_deadline_week]</b> — so nae claims after that.</p>
       </div>
     </div>
     <div class="fmt-example-card">
-      <div class="fmt-example-label">Example — your roster's full, but you want in on a big claim</div>
+      <div class="fmt-example-label">Example — roster's full, but you're "ahh-in" on a big claim</div>
       <div class="fmt-swap-row">
         <div class="fmt-swap-side">
           <span class="fmt-swap-label">Dropping</span>
@@ -200,13 +200,13 @@
       <span class="fmt-num">03</span>
       <div>
         <h2>Trades</h2>
-        <p>The same <b style="color:var(--gold);">roster must always stay at exactly your league's roster size</b> rule applies to trades too. Propose a trade with any other trainer — up to your league's per-side limit — and trades always have to be even: offer 1, get 1 back; offer 2, get 2 back. There's no way to throw in an extra drop to balance things out, since that would leave someone short a Pokémon — value gaps get absorbed entirely by budget instead, so a roster's size never changes from a trade. The site checks this live as you build the offer, disabling "Send" if the counts don't match or if either side's budget would go negative, and it won't let you offer or accept with a Pokémon that's already committed to a pending free agency move either.</p>
-        <p>They can accept, decline, or let it sit. If your league has veto enabled, an accepted trade opens a window where the rest of the league can vote it down before it locks in. Trades can only be proposed or accepted <b style="color:var(--gold);">Monday through Friday</b> — never on a weekend — so there's always at least a couple of days for the rest of the league to notice and weigh in before a trade locks in for Monday. Commissioners can also set a <b style="color:var(--gold);">trade deadline week</b> — trainers get a heads-up the week before it hits, and after that, no new trades can be proposed or accepted for the rest of the season.</p>
+        <p>The <b style="color:var(--gold);">"roster must stay within the league's roster size"</b> rule applies to trades too. The site supports trade requests to anyone but locks the team size to the defined limits, so was really buggy with uneven swaps.  Trades therefore always have to be even: offer 1, get 1 back; offer 2, get 2 back. There's no way to throw in an extra drop to balance things out, since that would leave someone short a mon. Geez a break!</p>
+        <p>When someone gets a request, they'll get notified and can accept, decline, or let it sit ( >:D ). I've set it so trades can only be proposed or accepted <b style="color:var(--gold);">Monday to Friday.</b> This at least gives a couple of days for the rest of the league to notice what happened (before we move on with fixtures). Might also set a <b style="color:var(--gold);">trade deadline week</b> but trades have been fairly few and far between in the last seasons.</p>
         <p><b style="color:var(--gold);">This season:</b> each team gets <b style="color:var(--gold);">2 trades</b> for the whole season, and each trade can move up to <b style="color:var(--gold);">2 Pokémon</b> per side. The <b style="color:var(--gold);">trade deadline is Week 6</b> — no proposing or accepting trades after that.</p>
       </div>
     </div>
     <div class="fmt-example-card">
-      <div class="fmt-example-label">Example — an even trade, balanced by budget</div>
+      <div class="fmt-example-label">Example — a worthy trade (no Clodsire or Chansey sadly)</div>
       <div class="fmt-swap-row">
         <div class="fmt-swap-side">
           <span class="fmt-swap-label">Team A gives</span>
@@ -227,8 +227,8 @@
       <span class="fmt-num">04</span>
       <div>
         <h2>Weekly Matches</h2>
-        <p>Every week runs <b style="color:var(--gold);">Monday 12:00 AM to Sunday 11:59 PM</b>. Any claim or accepted trade made mid-week doesn't touch your roster until the following Monday — so your opponent always knows exactly who they're playing that week, no last-minute surprises.</p>
-        <p>Matches are recorded game by game: enter how many Pokémon were left standing on each side, and the site totals up the differential automatically. The winning trainer can also tag an <b style="color:var(--gold);">MVP Pokémon</b> for the match. Once a result's locked in, only the commissioner can correct it — including declaring a winner outright by forfeit, no game data required, for whenever a match just needs to be closed out. Click either team's name on a match card to see their full roster and recent transaction history at a glance.</p>
+        <p>The site will calculate our weekly match schedule randomly. Officially, the week will be <b style="color:var(--gold);">Monday 12:00 AM to Sunday 11:59 PM</b>. Any claim or accepted trade made mid-week doesn't touch your roster until the following Monday — keeps it fair ken haye.</p>
+        <p>Anyone can input match results with a super simple dead vs. alive interface. The winner can also tag their <b style="color:var(--gold);">MVP Pokémon</b> for the match. Once a result's locked in, I (Austin) can still change it, but it'll be locked for everyone else — message me any boo-boos. Click either team's name on a match card to see their full roster and recent transaction history at a glance. There's also a funky (but largely useless) star-wars text scroll thing. Someone please use it at least once? I'll know.</p>
       </div>
     </div>
   </section>
@@ -238,8 +238,8 @@
       <span class="fmt-num">05</span>
       <div>
         <h2>Standings &amp; Playoffs</h2>
-        <p>Standings track <b style="color:var(--gold);">W, L, Win %, KO Differential, Waiver Priority,</b> and current <b style="color:var(--gold);">Streak</b>, with each team's logo shown right alongside their record. The regular season is round robin — everyone plays everyone. Ties are broken in order: <b style="color:var(--gold);">Wins → KO Differential → Head-to-Head Record → Losses.</b></p>
-        <p>Before the postseason, the Playoffs tab shows a live projection of the bracket based on today's standings. Once the commissioner generates the real bracket, seeding locks in — best record faces the worst qualifying record, working inward — and it becomes a real, playable bracket: enter results the same way you would in a regular match, and winners automatically advance to the next round. When the championship match locks in, the season is marked complete — a champion banner goes up, free agency and trading close for good, and rosters freeze as final.</p>
+        <p>Standings track <b style="color:var(--gold);">W, L, Win %, KO Differential, Waiver Priority (see Trades),</b> and a new <b style="color:var(--green);">Streak tracker</b>. Or in Charlie's case a <b style="color:var(--red);">Streak tracker</b>.  The regular season is round robin as usual — abdy plays abdy. Ties are broken in a new simpler order (favouring who beat who in the round robin): <b style="color:var(--gold);">Wins → KO Differential → Head-to-Head Record → Losses.</b></p>
+        <p>Before the postseason, the Playoffs tab will show a live projection of the bracket based on current standings (the mental gymnastics last season about killed me). Once the regular season ends, I'll lock in the seeding — best record faces the worst qualifying record, working inward. Players who make it enter results the same way they would in a regular match, and winners automatically advance to the next round. When the championship match locks in, the season is marked complete — a champion banner goes up, free agency and trading close for good, and rosters freeze as final, but it'll all remain browseable which is nice.</p>
       </div>
     </div>
   </section>
@@ -249,9 +249,8 @@
       <span class="fmt-num">06</span>
       <div>
         <h2>Rosters, Roles &amp; Commissioner Tools</h2>
-        <p>Every trainer manages their own team — logo, team name, and first name, all editable from the Team page, and required before the draft can start. The league itself has its own logo too, set by the commissioner, shown alongside Match, Standing, and Announcements. Every Pokémon in the Pool, Draft Room, and Free Agency also shows its abilities now, and you can search by ability directly — handy if you're hunting for a specific Intimidate or a hidden ability.</p>
-        <p>The <b style="color:var(--gold);">commissioner</b> sets the rules everyone else plays under: draft order, budgets, roster size, waiver and trade settings, free agency and trade deadlines, playoff size, and season start date. Beyond settings, they can remove a trainer who joined by mistake (before the draft starts), fast-track any pending free agency move or trade instead of waiting for Monday, correct a mis-entered match score, and undo a completed transaction if something genuinely went wrong — all from one place on the Commissioner page.</p>
-        <p>A "Needs Your Attention" panel on the League page also flags anything waiting specifically on you — a trade offer, a match result to enter — so nothing gets missed just because it wasn't the page you happened to open.</p>
+        <p>You all now manage your own team — logo, team name, and first name are all editable from the Team page, and are required before the draft can start. No more asking me to change stuff! If you want to build your logo based on who you draft, just upload a placeholder image and change it afterwards. The pool is also much easier to browse than the spreadsheet: every Pokémon in the Pool, Draft Room, and Free Agency also shows its abilities, and you can search by ability directly which is handy if you're hunting for Intimidater or weather setter etc.</p>
+        <p>A "Needs Your Attention" panel on the League page also flags anything waiting specifically on you — a trade offer, a match result to enter. Should be easy enough.</p>
       </div>
     </div>
   </section>
@@ -301,10 +300,10 @@ function escapeHtml(s){
     { name: 'Garchomp', tier: 18, pokeapiId: 445 },
     { name: 'Incineroar', tier: 18, pokeapiId: 727 },
     { name: 'Gholdengo', tier: 19, pokeapiId: 1000 },
-    { name: 'Mimikyu', tier: 11, pokeapiId: 778 },
+    { name: 'Mega Charizard Y', tier: 22, pokeapiId: 10035 },
     { name: 'Pikachu', tier: 1, pokeapiId: 25 }
   ]);
-  document.getElementById('draftExampleMath').innerHTML = '18 + 18 + 19 + 11 + 1 = <b>67 points spent</b> — 33 left for the rest of the roster.';
+  document.getElementById('draftExampleMath').innerHTML = '18 + 18 + 19 + 22 + 1 = <b>78 points spent</b> — 22 left for the rest of the roster.';
 
   fillRow('faDropRow', [{ name: 'Pikachu', tier: 1, pokeapiId: 25 }]);
   fillRow('faClaimRow', [{ name: 'Dragapult', tier: 15, pokeapiId: 887 }]);
