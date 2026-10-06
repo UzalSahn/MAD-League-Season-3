@@ -12,7 +12,7 @@ Firebase Hosting serves the static pages. Firestore stores the league and accoun
 **Important billing note:** Firebase Hosting and Firestore have no-cost allowances, but deploying Cloud Functions requires the Firebase project to use the Blaze plan with a billing account linked. A small league may stay within no-cost usage allowances, but Blaze is pay-as-you-go and usage can incur charges. Review current [Firebase pricing](https://firebase.google.com/pricing) and set a Google Cloud budget alert before deployment.
 
 1. Create or select a Firebase project. Register a Web App and copy its Firebase web configuration.
-2. In the Firebase console, enable **Authentication** and create a **Cloud Firestore** database. Players will not use Google sign-in; Authentication is used for the site's custom name/PIN sign-in.
+2. In the Firebase console, open **Authentication** and click **Get started** to initialize Firebase Authentication for this project. The app uses custom-token authentication, so players do not need Google accounts or email/password accounts. Under **Authentication > Settings > Authorized domains**, make sure the GitHub Pages host (for example, `uzalsahn.github.io`) is listed. Also create a **Cloud Firestore** database.
 3. Install the Firebase CLI, sign in, and associate this repository with the project:
 
    ```powershell
@@ -30,8 +30,12 @@ Firebase Hosting serves the static pages. Firestore stores the league and accoun
 
    Do not commit these values. The commissioner can create the other player accounts and assign their PINs from the Commissioner page.
 
-5. Edit `site-config.js`: set `BACKEND` to `'firebase'` and replace the placeholder values in `FIREBASE_CONFIG` with the Web App configuration from the Firebase console. The web configuration is public; do not put PINs or service-account credentials there.
-6. Deploy the Firestore rules, callable functions, and website:
+5. Grant the Cloud Functions runtime service account these IAM roles:
+
+   - **Service Account Token Creator** (`roles/iam.serviceAccountTokenCreator`) on that same service account. This is needed to sign Firebase Authentication custom tokens. In this project's default setup, the runtime account is `142064518823-compute@developer.gserviceaccount.com`; under **Google Cloud Console > IAM & Admin > Service Accounts**, open its permissions and grant the role to that account itself.
+   - **Cloud Datastore User** (`roles/datastore.user`) on the project. This gives the function the Firestore document read/write access it needs for league and account data. In **Google Cloud Console > IAM & Admin > IAM**, grant the role to the runtime account as a project-level role.
+6. Edit `site-config.js`: set `BACKEND` to `'firebase'` and replace the placeholder values in `FIREBASE_CONFIG` with the Web App configuration from the Firebase console. The web configuration is public; do not put PINs or service-account credentials there.
+7. Deploy the Firestore rules, callable functions, and website:
 
    ```powershell
    firebase deploy --only firestore:rules,functions,hosting

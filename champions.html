@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Champions — Pokemon VGC Draft League</title>
+<title>Champions — The MAD League</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -119,7 +119,7 @@
         <circle cx="50" cy="50" r="15" fill="#fff" stroke="#111" stroke-width="7"/>
         <circle cx="50" cy="50" r="6" fill="#111"/>
       </svg>
-      Pokemon VGC Draft League
+      The MAD League
     </a>
     <a href="champions.html" class="nav-former-champions">Past Champions</a>
     </div>
@@ -144,11 +144,9 @@
   </div>
 
   <section class="fmt-section" style="border-bottom:1px solid var(--line);">
-    <div class="champion-season-card">
-      <div class="champion-season-label">Season 1 Champion</div>
-      <div class="champion-season-name" id="s1ChampionName"></div>
-      <div class="champion-season-record" id="s1ChampionRecord"></div>
-      <div class="fmt-mon-row" id="s1RosterRow" style="justify-content:center;margin-top:26px;"></div>
+    <div class="champion-season-card" id="championPlaceholder">
+      <div class="champion-season-label">Champion History</div>
+      <div class="champion-season-record">Completed season champions will appear here.</div>
     </div>
   </section>
   <div id="dynamicChampionsWrap"></div>
@@ -167,60 +165,6 @@
     color:var(--ink);background:var(--gold);padding:2px 8px;border-radius:10px;margin-top:2px;
   }
 </style>
-
-<script>
-  const S1_CHAMPION = { name: 'Gatlin', wins: 4, losses: 1 };
-  const S1_ROSTER = [
-    { name: 'Sinistcha', variation: '', tier: 18, pokeapiId: 1013 },
-    { name: 'Delphox', variation: 'Mega', tier: 17, pokeapiId: 10293 },
-    { name: 'Kingambit', variation: '', tier: 17, pokeapiId: 983 },
-    { name: 'Ninetales', variation: 'Alola', tier: 14, pokeapiId: 10104 },
-    { name: 'Gallade', variation: 'Mega', tier: 12, pokeapiId: 10068, mvp: true },
-    { name: 'Tsareena', variation: '', tier: 8, pokeapiId: 763 },
-    { name: 'Ceruledge', variation: '', tier: 8, pokeapiId: 937 },
-    { name: 'Morpeko', variation: '', tier: 2, pokeapiId: 877 },
-    { name: 'Ariados', variation: '', tier: 2, pokeapiId: 168 },
-    { name: 'Falinks', variation: '', tier: 2, pokeapiId: 870 }
-  ];
-
-  function displayMonName(mon){
-    if(mon.variation && mon.variation.toLowerCase().indexOf('mega') === 0){
-      return mon.variation + ' ' + mon.name;
-    }
-    return mon.name + (mon.variation ? ' ' + mon.variation : '');
-  }
-
-  document.getElementById('s1ChampionName').textContent = S1_CHAMPION.name;
-  document.getElementById('s1ChampionRecord').textContent = 'Regular Season: ' + S1_CHAMPION.wins + '-' + S1_CHAMPION.losses;
-  const rosterRow = document.getElementById('s1RosterRow');
-  S1_ROSTER.forEach(mon => {
-    const card = document.createElement('div');
-    card.className = 'fmt-mon-card champion-mon-card' + (mon.mvp ? ' is-mvp' : '');
-    const img = document.createElement('img');
-    img.className = 'fmt-mon-sprite champion-mon-sprite';
-    img.alt = mon.name;
-    img.loading = 'lazy';
-    img.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/' + mon.pokeapiId + '.png';
-    card.appendChild(img);
-    if(mon.mvp){
-      const mvpTag = document.createElement('div');
-      mvpTag.className = 'champion-mvp-tag';
-      mvpTag.textContent = '★ MVP';
-      card.appendChild(mvpTag);
-    }
-    const nameEl = document.createElement('div');
-    nameEl.className = 'fmt-mon-name';
-    nameEl.textContent = displayMonName(mon);
-    card.appendChild(nameEl);
-    const tierEl = document.createElement('div');
-    tierEl.className = 'fmt-mon-tier';
-    tierEl.textContent = mon.tier + ' pts';
-    card.appendChild(tierEl);
-    rosterRow.appendChild(card);
-  });
-</script>
-
-
 
 <script type="module">
   import { appendValue, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
@@ -328,6 +272,7 @@
       const rosterIds = (championTrainer.roster || []).map(m => m.id);
       const mvpMonId = computeChampionMvp(league, league.championUid, rosterIds);
       wrap.appendChild(buildDynamicChampionCard(league, championTrainer, mvpMonId));
+      document.getElementById('championPlaceholder').hidden = true;
     }catch(err){
       console.warn('Could not load current champion:', err.message);
     }

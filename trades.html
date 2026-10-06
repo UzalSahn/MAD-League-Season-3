@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>League — Pokemon VGC Draft League</title>
+<title>League — The MAD League</title>
 <meta name="description" content="MAD League trade offers and roster exchanges.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -226,7 +226,7 @@
         <circle cx="50" cy="50" r="15" fill="#fff" stroke="#111" stroke-width="7"/>
         <circle cx="50" cy="50" r="6" fill="#111"/>
       </svg>
-      Pokemon VGC Draft League
+      The MAD League
     </a>
     <a href="champions.html" class="nav-former-champions">Past Champions</a>
     </div>
@@ -406,17 +406,7 @@ function escapeHtml(s){
     const pokeapiId = ID_TO_POKEAPI_ID[mon.id];
     return pokeapiId ? ('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/' + pokeapiId + '.png') : null;
   }
-  const DISCORD_LOGO_URLS = {
-    king: 'https://aminrahul001.github.io/Season-2/logos/king.png',
-    priyesh: 'https://aminrahul001.github.io/Season-2/logos/priyesh.png',
-    anmol: 'https://aminrahul001.github.io/Season-2/logos/anmol.png',
-    daniel: 'https://aminrahul001.github.io/Season-2/logos/daniel.png',
-    danny: 'https://aminrahul001.github.io/Season-2/logos/daniel.png',
-    rahul: 'https://aminrahul001.github.io/Season-2/logos/rahul.png',
-    gatlin: 'https://aminrahul001.github.io/Season-2/logos/gatlin.png',
-    nirav: 'https://aminrahul001.github.io/Season-2/logos/nirav.png',
-    ardale: 'https://aminrahul001.github.io/Season-2/logos/ardale.png'
-  };
+  const DISCORD_LOGO_URLS = {};
   function discordLogoFor(trainer){
     if(!trainer || !trainer.coachName) return null;
     return DISCORD_LOGO_URLS[trainer.coachName.trim().toLowerCase()] || null;
