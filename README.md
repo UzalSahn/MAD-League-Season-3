@@ -37,7 +37,7 @@ Firebase Hosting serves the static pages. Firestore stores the league and accoun
    firebase deploy --only firestore:rules,functions,hosting
    ```
 
-   Functions use Node.js 20. The first deployment initializes no league records; the commissioner account and empty league are created on the commissioner's first successful sign-in.
+   Functions use Node.js 22. The first deployment initializes no league records; the commissioner account and empty league are created on the commissioner's first successful sign-in.
 
 To go back to local development, set `BACKEND` to `'local'` in `site-config.js`, then run the local server below. Keep the Firebase project configuration in the file if you intend to deploy the Firebase version again.
 
