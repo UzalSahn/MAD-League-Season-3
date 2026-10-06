@@ -86,6 +86,18 @@ test('commissioner provisions designated player sessions', async () => {
     const authenticatedRead = await call('/api/league', { token: commissionerToken });
     assert.equal(authenticatedRead.response.status, 200);
     assert.equal(authenticatedRead.data.league.name, 'MAD League');
+    const defaultPoolPrices = await call('/api/pool-prices');
+    assert.equal(defaultPoolPrices.response.status, 200);
+    assert.deepEqual(defaultPoolPrices.data.overrides, {});
+    const savedPoolPrices = await call('/api/league', {
+      method: 'PATCH', body: { updates: { poolPointOverrides: { '3': 18, '4': 20 } } }, token: commissionerToken
+    });
+    assert.equal(savedPoolPrices.response.status, 200);
+    assert.deepEqual((await call('/api/pool-prices')).data.overrides, { '3': 18, '4': 20 });
+    const invalidPoolPrices = await call('/api/league', {
+      method: 'PATCH', body: { updates: { poolPointOverrides: { '3': 0 } } }, token: commissionerToken
+    });
+    assert.equal(invalidPoolPrices.response.status, 400);
     const publicChampionRead = await call('/api/champions');
     assert.equal(publicChampionRead.response.status, 200);
     assert.deepEqual(publicChampionRead.data.champions, []);
@@ -157,6 +169,10 @@ test('commissioner provisions designated player sessions', async () => {
       method: 'PATCH', body: { updates: { settings: { maxTeams: 100 } } }, token: playerToken
     });
     assert.equal(deniedSettingsChange.response.status, 403);
+    const deniedPoolPriceChange = await call('/api/league', {
+      method: 'PATCH', body: { updates: { poolPointOverrides: { '3': 1 } } }, token: playerToken
+    });
+    assert.equal(deniedPoolPriceChange.response.status, 403);
 
     const createdSeason = await call('/api/seasons', {
       method: 'POST', body: { name: 'Season Two' }, token: commissionerToken

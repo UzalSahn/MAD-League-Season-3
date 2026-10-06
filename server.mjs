@@ -205,6 +205,12 @@ function setPath(target, field, value) {
   cursor[parts.at(-1)] = value;
 }
 
+function validPoolPointOverrides(overrides) {
+  return overrides && typeof overrides === 'object' && !Array.isArray(overrides)
+    && Object.keys(overrides).length <= 2000
+    && Object.entries(overrides).every(([id, points]) => /^\d+$/.test(id) && Number.isInteger(points) && points >= 1 && points <= 100);
+}
+
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -249,6 +255,12 @@ const server = createServer(async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
     const account = getAccount(request);
 
+    if (url.pathname === '/api/pool-prices' && request.method === 'GET') {
+      const seasonId = url.searchParams.get('id') || 'main';
+      const league = store.leagues[seasonId];
+      if (!league) return send(response, 404, { error: 'Season not found.' });
+      return send(response, 200, { overrides: league.poolPointOverrides || {} });
+    }
     if (url.pathname === '/api/champions' && request.method === 'GET') {
       return send(response, 200, { champions: store.champions || [] });
     }
@@ -435,6 +447,14 @@ const server = createServer(async (request, response) => {
       if (!updates || typeof updates !== 'object' || Array.isArray(updates)) return send(response, 400, { error: 'Updates must be an object.' });
       const seasonId = url.searchParams.get('id') || 'main';
       const league = getSeasonLeague(seasonId, account);
+      for (const [field, value] of Object.entries(updates)) {
+        if (field.split('.')[0] === 'poolPointOverrides'
+            && (account.role !== 'commissioner' || field !== 'poolPointOverrides' || !validPoolPointOverrides(value))) {
+          return send(response, account.role !== 'commissioner' ? 403 : 400, {
+            error: account.role !== 'commissioner' ? 'Commissioner access required for this change.' : 'Pool point overrides are invalid.'
+          });
+        }
+      }
       for (const [field, value] of Object.entries(updates)) {
         const topLevel = field.split('.')[0];
         if (account.role !== 'commissioner' && ['settings', 'logo', 'commissionerUid', 'seasonComplete', 'championUid'].includes(topLevel)) {

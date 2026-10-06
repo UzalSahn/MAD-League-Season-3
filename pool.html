@@ -80,6 +80,18 @@
   select, .pool-controls input{background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);padding:9px 11px;border-radius:3px;font-family:var(--body);font-size:13.5px;}
   select:focus, .pool-controls input:focus{border-color:var(--gold);}
   .pool-count{font-family:var(--mono);font-size:12px;color:var(--cream-dim);margin-left:auto;align-self:center;}
+  .pool-price-editor{display:none;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px;padding:12px;background:rgba(255,203,5,0.07);border:1px solid rgba(255,203,5,0.25);border-radius:4px;}
+  .pool-price-editor.visible{display:flex;}
+  .pool-price-editor p{margin:0;flex:1 1 240px;font-size:12.5px;}
+  .pool-price-status{width:100%;min-height:1.4em;font-size:12px;color:var(--cream-dim);}
+  .pool-load-status{font-size:12px;color:var(--cream-dim);margin:0 0 10px;}
+  .pool-load-status:empty{display:none;}
+  .pool-price-input{width:68px;padding:6px 8px;border:1px solid var(--line);border-radius:4px;background:var(--ink-soft);color:var(--gold);font:700 13px var(--mono);}
+  .pool-price-input:focus{outline:1px solid var(--gold);border-color:var(--gold);}
+  .pool-action{border:1px solid var(--line);border-radius:3px;background:transparent;color:var(--cream);padding:7px 12px;font:600 11px var(--body);cursor:pointer;}
+  .pool-action:hover{border-color:var(--gold);color:var(--gold);}
+  .pool-action-primary{background:var(--gold);border-color:var(--gold);color:var(--ink);}
+  .pool-action:disabled{opacity:.5;cursor:wait;}
 
   table{width:100%;border-collapse:collapse;font-size:13.5px;}
   thead th{text-align:left;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--cream-dim);padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);}
@@ -141,6 +153,13 @@
   </div>
 
   <div class="panel">
+    <p class="pool-load-status" id="poolLoadStatus" role="status" aria-live="polite">Loading league point values…</p>
+    <div class="pool-price-editor" id="poolPriceEditor">
+      <p>Commissioner: edit pool costs below. Changes update draft and free-agency prices for this league. Enter 1–100 points.</p>
+      <button type="button" class="pool-action pool-action-primary" id="savePoolPricesBtn" disabled>Save point changes</button>
+      <button type="button" class="pool-action" id="discardPoolPricesBtn" disabled>Discard</button>
+      <span class="pool-price-status" id="poolPriceStatus" role="status" aria-live="polite"></span>
+    </div>
     <div class="pool-controls">
       <div class="field-inline"><label>Search</label><input type="text" id="searchBox" placeholder="Pokémon name…"></div>
       <div class="field-inline"><label>Ability</label><input type="text" id="abilitySearchBox" placeholder="e.g. intimidate…"></div>
@@ -158,7 +177,7 @@
     </div>
     <div class="pool-scroll">
       <table>
-        <thead><tr><th></th><th>Pokémon</th><th>Type</th><th>Abilities</th><th>Tier</th></tr></thead>
+        <thead><tr><th></th><th>Pokémon</th><th>Type</th><th>Abilities</th><th id="poolPointsHeading">Points</th></tr></thead>
         <tbody id="poolBody"></tbody>
       </table>
     </div>
@@ -166,7 +185,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { applyPoolPointOverrides, fetchPoolPointOverrides, onUserChange, signOut, updateLeague } from './league-api.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -259,11 +278,49 @@ function escapeHtml(s){
     document.querySelectorAll('.type-dropdown-menu.show').forEach(m => m.classList.remove('show'));
   });
 
-  function populateFilters(){
+  let currentUser = null;
+  let poolPointOverrides = {};
+  const pendingPointEdits = new Map();
+  const poolPriceStatus = document.getElementById('poolPriceStatus');
+  const poolLoadStatus = document.getElementById('poolLoadStatus');
+  const savePoolPricesBtn = document.getElementById('savePoolPricesBtn');
+  const discardPoolPricesBtn = document.getElementById('discardPoolPricesBtn');
+  const poolPriceEditor = document.getElementById('poolPriceEditor');
+  let poolPricesReady = false;
+
+  function refreshPriceEditor(){
+    const hasEdits = pendingPointEdits.size > 0;
+    savePoolPricesBtn.disabled = !hasEdits || !poolPricesReady;
+    discardPoolPricesBtn.disabled = !hasEdits;
+    savePoolPricesBtn.textContent = hasEdits ? 'Save ' + pendingPointEdits.size + ' point change' + (pendingPointEdits.size === 1 ? '' : 's') : 'Save point changes';
+  }
+
+  function renderTierFilterOptions(){
     const tierSel = document.getElementById('tierFilter');
+    const selected = tierSel.value;
+    tierSel.replaceChildren(new Option('All tiers', 'all'));
     Array.from(new Set(POOL.map(p=>p.tier))).sort((a,b)=>b-a).forEach(t=>{
-      const o=document.createElement('option'); o.value=t; o.textContent='Tier '+t; tierSel.appendChild(o);
+      tierSel.add(new Option('Tier ' + t, String(t)));
     });
+    tierSel.value = Array.from(tierSel.options).some(option => option.value === selected) ? selected : 'all';
+  }
+
+  function queuePointEdit(input){
+    const id = Number(input.dataset.poolId);
+    const points = Number(input.value);
+    if(!input.checkValidity()){
+      pendingPointEdits.delete(id);
+      poolPriceStatus.textContent = 'Point values must be whole numbers from 1 to 100.';
+      refreshPriceEditor();
+      return;
+    }
+    pendingPointEdits.set(id, points);
+    poolPriceStatus.textContent = pendingPointEdits.size + ' unsaved point change' + (pendingPointEdits.size === 1 ? '' : 's') + '.';
+    refreshPriceEditor();
+  }
+
+  function populateFilters(){
+    renderTierFilterOptions();
     initColorTypeDropdown('typeFilterTrigger', 'typeFilterMenu', 'typeFilter');
   }
 
@@ -299,12 +356,32 @@ function escapeHtml(s){
       tr.appendChild(nameCell);
       const typeCell = document.createElement('td'); typeCell.innerHTML='<div class="type-badges">'+typeBadgesHtml(p.types)+'</div>'; tr.appendChild(typeCell);
       const abilitiesCell = document.createElement('td'); abilitiesCell.innerHTML = abilitiesHtml(p.id); tr.appendChild(abilitiesCell);
-      const tierCell = document.createElement('td'); tierCell.innerHTML='<span class="tier-chip">'+p.tier+'</span>'; tr.appendChild(tierCell);
+      const tierCell = document.createElement('td');
+      if(currentUser && currentUser.role === 'commissioner'){
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'pool-price-input';
+        input.min = '1';
+        input.max = '100';
+        input.step = '1';
+        input.required = true;
+        input.value = String(pendingPointEdits.get(p.id) ?? p.tier);
+        input.setAttribute('aria-label', p.name + (p.variation ? ' ' + p.variation : '') + ' points');
+        input.dataset.poolId = String(p.id);
+        tierCell.appendChild(input);
+      } else {
+        const chip = document.createElement('span');
+        chip.className = 'tier-chip';
+        chip.textContent = p.tier;
+        tierCell.appendChild(chip);
+      }
+      tr.appendChild(tierCell);
       body.appendChild(tr);
     });
   }
 
   document.getElementById('poolSubtext').textContent = 'All ' + POOL.length + ' draftable Pokémon under Regulation Set M-C. Search, filter, and sort to scout before your draft.';
+  applyPoolPointOverrides(POOL);
   populateFilters();
   renderPool();
   ['searchBox','abilitySearchBox','tierFilter','typeFilter','sortMode'].forEach(id => {
@@ -318,7 +395,11 @@ function escapeHtml(s){
   const navSignOutBtn = document.getElementById("navSignOutBtn");
 
 
-  onUserChange( (user) => {
+  onUserChange((user) => {
+    currentUser = user;
+    poolPriceEditor.classList.toggle('visible', !!user && user.role === 'commissioner');
+    document.getElementById('poolPointsHeading').textContent = user && user.role === 'commissioner' ? 'Points (editable)' : 'Points';
+    renderPool();
     if(user){
       navSignedOut.style.display = "none";
       navSignedIn.style.display = "flex";
@@ -327,6 +408,66 @@ function escapeHtml(s){
       navSignedOut.style.display = "";
       navSignedIn.style.display = "none";
     }
+  });
+
+  document.getElementById('poolBody').addEventListener('input', event => {
+    if(event.target.matches('.pool-price-input')) queuePointEdit(event.target);
+  });
+
+  document.getElementById('discardPoolPricesBtn').addEventListener('click', () => {
+    pendingPointEdits.clear();
+    poolPriceStatus.textContent = 'Unsaved point changes discarded.';
+    refreshPriceEditor();
+    renderPool();
+  });
+
+  document.getElementById('savePoolPricesBtn').addEventListener('click', async () => {
+    if(!currentUser || currentUser.role !== 'commissioner') return;
+    const invalidInput = Array.from(document.querySelectorAll('.pool-price-input')).find(input => !input.checkValidity());
+    if(invalidInput){
+      invalidInput.reportValidity();
+      return;
+    }
+    const nextOverrides = { ...poolPointOverrides };
+    pendingPointEdits.forEach((points, id) => {
+      const mon = POOL.find(p => p.id === id);
+      if(!mon) return;
+      if(points === mon._baseTier) delete nextOverrides[id];
+      else nextOverrides[id] = points;
+    });
+    savePoolPricesBtn.disabled = true;
+    discardPoolPricesBtn.disabled = true;
+    poolPriceStatus.textContent = 'Saving pool point changes…';
+    try{
+      await updateLeague({ poolPointOverrides: nextOverrides });
+      poolPointOverrides = nextOverrides;
+      pendingPointEdits.clear();
+      applyPoolPointOverrides(POOL, poolPointOverrides);
+      renderTierFilterOptions();
+      renderPool();
+      poolPriceStatus.textContent = 'Pool point changes saved.';
+      refreshPriceEditor();
+    }catch(error){
+      poolPriceStatus.textContent = 'Could not save pool point changes: ' + error.message;
+      refreshPriceEditor();
+    }
+  });
+
+  fetchPoolPointOverrides().then(result => {
+    if(!result || !result.overrides || typeof result.overrides !== 'object' || Array.isArray(result.overrides)){
+      throw new Error('Pool point override response was invalid.');
+    }
+    poolPointOverrides = result.overrides;
+    applyPoolPointOverrides(POOL, poolPointOverrides);
+    poolPricesReady = true;
+    renderTierFilterOptions();
+    renderPool();
+    poolLoadStatus.textContent = '';
+    refreshPriceEditor();
+  }).catch(error => {
+    console.error('Could not load custom pool point values:', error);
+    poolLoadStatus.textContent = 'Could not load league-specific point values; showing default costs. ' + error.message;
+    poolPriceStatus.textContent = poolLoadStatus.textContent;
   });
 
   navSignOutBtn.addEventListener("click", () => signOut());

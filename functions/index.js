@@ -170,6 +170,12 @@ async function createInitialCommissioner(name, pin) {
   return findAccountByName(commissioner.nameKey);
 }
 
+function validPoolPointOverrides(overrides) {
+  return overrides && typeof overrides === 'object' && !Array.isArray(overrides)
+    && Object.keys(overrides).length <= 2000
+    && Object.entries(overrides).every(([id, points]) => /^\d+$/.test(id) && Number.isInteger(points) && points >= 1 && points <= 100);
+}
+
 function checkUpdates(updates, account) {
   if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
     fail('invalid-argument', 'Updates must be an object.');
@@ -180,6 +186,11 @@ function checkUpdates(updates, account) {
       fail('invalid-argument', 'Invalid update path.');
     }
     const topLevel = parts[0];
+    if (topLevel === 'poolPointOverrides'
+        && (account.role !== 'commissioner' || field !== 'poolPointOverrides' || !validPoolPointOverrides(updates[field]))) {
+      fail(account.role !== 'commissioner' ? 'permission-denied' : 'invalid-argument',
+        account.role !== 'commissioner' ? 'Commissioner access required for this change.' : 'Pool point overrides are invalid.');
+    }
     if (account.role !== 'commissioner'
         && ['settings', 'logo', 'commissionerUid', 'seasonComplete', 'championUid'].includes(topLevel)) {
       fail('permission-denied', 'Commissioner access required for this change.');
@@ -188,6 +199,7 @@ function checkUpdates(updates, account) {
       fail('permission-denied', 'You can only edit your own player profile.');
     }
   }
+
 }
 
 function setPath(target, field, value) {
@@ -433,6 +445,14 @@ export const updateLeague = onCall({ cors: true, invoker: 'public' }, async requ
     transaction.set(leagueRef, league);
   });
   return { ok: true };
+});
+
+export const listPoolPointOverrides = onCall({ cors: true, invoker: 'public' }, async request => {
+  const seasonId = String(request.data?.seasonId || 'main');
+  if (!validSeasonId(seasonId)) fail('invalid-argument', 'Season ID is invalid.');
+  const snapshot = await leagues.doc(seasonId).get();
+  if (!snapshot.exists) fail('not-found', 'Season not found.');
+  return { overrides: snapshot.get('poolPointOverrides') || {} };
 });
 
 function championRecord(input) {

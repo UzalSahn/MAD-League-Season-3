@@ -154,6 +154,22 @@ export async function fetchLeague() {
   return (await request(seasonApiUrl('/api/league'))).league;
 }
 
+export async function fetchPoolPointOverrides() {
+  const seasonId = getCurrentSeasonId();
+  if (isFirebase()) return firebaseCall('listPoolPointOverrides', { seasonId });
+  return request('/api/pool-prices?id=' + encodeURIComponent(seasonId));
+}
+
+export function applyPoolPointOverrides(pool, overrides = {}) {
+  pool.forEach(mon => {
+    if (!Object.prototype.hasOwnProperty.call(mon, '_baseTier')) {
+      Object.defineProperty(mon, '_baseTier', { value: mon.tier });
+    }
+    const override = overrides[String(mon.id)];
+    mon.tier = Number.isInteger(override) && override >= 1 && override <= 100 ? override : mon._baseTier;
+  });
+}
+
 export async function fetchChampions() {
   if (isFirebase()) return firebaseCall('listChampions');
   return request('/api/champions');

@@ -354,7 +354,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { applyPoolPointOverrides, appendValue, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1410,6 +1410,7 @@ function escapeHtml(s){
 
   function render(league){
     currentLeague = league;
+    applyPoolPointOverrides(POOL, league.poolPointOverrides || {});
     const isCommish = currentUser && league.commissionerUid === currentUser.uid;
     const subnavCommish = document.getElementById('subnavCommish');
     if(subnavCommish) subnavCommish.style.display = isCommish ? '' : 'none';
