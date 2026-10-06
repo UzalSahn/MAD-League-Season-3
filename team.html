@@ -373,7 +373,7 @@ function escapeHtml(s){
 
     let rosterHtml;
     if(!league.draft){
-      rosterHtml = '<div class="panel state-msg">Your roster will show up here once your league\'s draft is complete.</div>';
+      rosterHtml = '<div class="panel state-msg">Your roster will be here when draft is done.</div>';
     } else {
       const myTrainer = (league.draft.trainers || []).find(t => t.uid === currentUser.uid);
       if(!myTrainer){

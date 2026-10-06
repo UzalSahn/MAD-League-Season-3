@@ -512,10 +512,10 @@ const POOL = [{"id": 3, "name": "Venusaur", "variation": "", "gen": 1, "tier": 1
     if(!isCommish){
       root.innerHTML =
         scheduledHtml +
-        '<div class="panel state-msg" style="margin-bottom:14px;">Waiting for <b style="color:var(--gold);">' + escapeHtml(commissName) + '</b> to start the draft. This page will update automatically once it begins.</div>' +
+        '<div class="panel state-msg" style="margin-bottom:14px;">Waiting for the draft to start!. This page will update automatically when it does.</div>' +
         '<div class="panel">' +
-          '<h2 style="margin-bottom:8px;">Who\'s In (' + memberEntries.length + ')</h2>' +
-          '<p style="color:var(--cream-dim);font-size:13.5px;margin:0 0 14px;">Everyone who\'s joined so far, and whether they\'ve finished setting up their team.</p>' +
+          '<h2 style="margin-bottom:8px;">Fa\'s Here (' + memberEntries.length + ')</h2>' +
+          '<p style="color:var(--cream-dim);font-size:13.5px;margin:0 0 14px;">Everyone who\'s joined so far, and whether they\'ve finished setting up their team. Back oot Greg didnae gettin...</p>' +
           '<ul class="readiness-list">' +
             memberEntries.map(([uid, m]) => {
               const ready = isProfileComplete(m);
