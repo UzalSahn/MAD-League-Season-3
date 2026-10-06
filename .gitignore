@@ -1,3 +1,7 @@
 node_modules/
 .league-data/
 data/
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
