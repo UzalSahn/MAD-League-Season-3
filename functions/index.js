@@ -205,7 +205,8 @@ function currentAtPath(target, field) {
 
 export const signInWithPin = onCall({
   secrets: [commissionerNameSecret, commissionerPinSecret],
-  cors: true
+  cors: true,
+  invoker: 'public'
 }, async request => {
   const name = normalizedName(request.data?.name);
   const pin = String(request.data?.pin || '');
@@ -227,7 +228,7 @@ export const signInWithPin = onCall({
   return { token, user: publicAccount(account) };
 });
 
-export const createPlayer = onCall({ cors: true }, async request => {
+export const createPlayer = onCall({ cors: true, invoker: 'public' }, async request => {
   const commissioner = await requireAccount(request, true);
   const seasonId = String(request.data?.seasonId || 'main');
   if (!validSeasonId(seasonId)) fail('invalid-argument', 'Season ID is invalid.');
@@ -267,40 +268,56 @@ export const createPlayer = onCall({ cors: true }, async request => {
   return { player: publicAccount(player) };
 });
 
-export const listSeasons = onCall({ cors: true }, async request => {
-  const account = await requireAccount(request);
-  await ensureMainSeason();
-  const snapshot = await seasons.get();
-  const result = snapshot.docs
-    .map(document => ({ id: document.id, ...document.data() }))
-    .filter(season => account.role === 'commissioner' || (season.memberIds || []).includes(account.id))
-    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-  return {
-    seasons: result.map(({ id, name, createdAt, memberIds }) => ({
-      id, name, createdAt, memberCount: (memberIds || []).length
-    }))
-  };
+export const listSeasons = onCall({ cors: true, invoker: 'public' }, async request => {
+  try {
+    const account = await requireAccount(request);
+    await ensureMainSeason();
+    const snapshot = await seasons.get();
+    const result = snapshot.docs
+      .map(document => ({ id: document.id, ...document.data() }))
+      .filter(season => account.role === 'commissioner'
+        || (Array.isArray(season.memberIds) && season.memberIds.includes(account.id)))
+      .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    return {
+      seasons: result.map(season => ({
+        id: season.id,
+        name: typeof season.name === 'string' ? season.name : 'Unnamed season',
+        createdAt: typeof season.createdAt === 'number' ? season.createdAt : null,
+        memberCount: Array.isArray(season.memberIds) ? season.memberIds.length : 0
+      }))
+    };
+  } catch (error) {
+    console.error('listSeasons failed.', error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError('internal', 'Could not load seasons. Check the Cloud Function logs for details.');
+  }
 });
 
-export const createSeason = onCall({ cors: true }, async request => {
-  const commissioner = await requireAccount(request, true);
-  const name = seasonName(request.data?.name);
-  if (name.length < 2) fail('invalid-argument', 'Season name must be 2-60 characters.');
-  const seasonRef = seasons.doc();
-  const league = emptyLeague(commissioner);
-  league.id = seasonRef.id;
-  await db.runTransaction(async transaction => {
-    transaction.create(seasonRef, {
-      name,
-      createdAt: Date.now(),
-      memberIds: [commissioner.id]
+export const createSeason = onCall({ cors: true, invoker: 'public' }, async request => {
+  try {
+    const commissioner = await requireAccount(request, true);
+    const name = seasonName(request.data?.name);
+    if (name.length < 2) fail('invalid-argument', 'Season name must be 2-60 characters.');
+    const seasonRef = seasons.doc();
+    const league = emptyLeague(commissioner);
+    league.id = seasonRef.id;
+    await db.runTransaction(async transaction => {
+      transaction.create(seasonRef, {
+        name,
+        createdAt: Date.now(),
+        memberIds: [commissioner.id]
+      });
+      transaction.create(leagues.doc(seasonRef.id), league);
     });
-    transaction.create(leagues.doc(seasonRef.id), league);
-  });
-  return { season: { id: seasonRef.id, name } };
+    return { season: { id: seasonRef.id, name } };
+  } catch (error) {
+    console.error('createSeason failed.', error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError('internal', 'Could not create season. Check the Cloud Function logs for details.');
+  }
 });
 
-export const deleteSeason = onCall({ cors: true }, async request => {
+export const deleteSeason = onCall({ cors: true, invoker: 'public' }, async request => {
   await requireAccount(request, true);
   const seasonId = String(request.data?.seasonId || '');
   if (!validSeasonId(seasonId)) fail('invalid-argument', 'Season ID is invalid.');
@@ -320,7 +337,7 @@ export const deleteSeason = onCall({ cors: true }, async request => {
   return { ok: true };
 });
 
-export const setSeasonMember = onCall({ cors: true }, async request => {
+export const setSeasonMember = onCall({ cors: true, invoker: 'public' }, async request => {
   await requireAccount(request, true);
   const seasonId = String(request.data?.seasonId || '');
   const playerId = String(request.data?.playerId || '');
@@ -358,7 +375,7 @@ export const setSeasonMember = onCall({ cors: true }, async request => {
   return { ok: true };
 });
 
-export const fetchPlayers = onCall({ cors: true }, async request => {
+export const fetchPlayers = onCall({ cors: true, invoker: 'public' }, async request => {
   await requireAccount(request, true);
   const snapshot = await accounts.get();
   return {
@@ -366,7 +383,7 @@ export const fetchPlayers = onCall({ cors: true }, async request => {
   };
 });
 
-export const updatePlayer = onCall({ cors: true }, async request => {
+export const updatePlayer = onCall({ cors: true, invoker: 'public' }, async request => {
   await requireAccount(request, true);
   const id = String(request.data?.id || '');
   const updates = request.data?.updates;
@@ -392,7 +409,7 @@ export const updatePlayer = onCall({ cors: true }, async request => {
   return { player: publicAccount(player) };
 });
 
-export const updateLeague = onCall({ cors: true }, async request => {
+export const updateLeague = onCall({ cors: true, invoker: 'public' }, async request => {
   const account = await requireAccount(request);
   const seasonId = String(request.data?.seasonId || 'main');
   if (!validSeasonId(seasonId)) fail('invalid-argument', 'Season ID is invalid.');

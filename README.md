@@ -47,6 +47,10 @@ The league starts with a `Season 1` containing the existing league data. The com
 
 When deploying a version that adds or changes season functionality, deploy the rules, callable functions, and site together with `firebase deploy --only firestore:rules,functions,hosting`. The season-delete operation is a callable Cloud Function, so deploying Hosting alone will not enable it.
 
+If a season operation reports an internal error, inspect the callable function logs with `firebase functions:log --only listSeasons,createSeason`. The same logs are available in Google Cloud Console under **Logging > Logs Explorer**, filtering for the `listSeasons` or `createSeason` Cloud Run function.
+
+Callable Functions are configured for public Cloud Run invocation (`invoker: 'public'`) so Firebase clients can reach the endpoint without Google IAM credentials. This does not make league data public: every callable checks Firebase Authentication and validates the account or commissioner role before accessing data. If deployment cannot grant public invocation because of a Google Cloud organization policy, an administrator must allow the `allUsers` Cloud Run Invoker grant for these functions.
+
 To go back to local development, set `BACKEND` to `'local'` in `site-config.js`, then run the local server below. Keep the Firebase project configuration in the file if you intend to deploy the Firebase version again.
 
 ## Run Locally
