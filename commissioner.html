@@ -270,7 +270,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, createPlayer, createSeason, fetchPlayers, getCurrentSeasonId, onUserChange, setSeasonMember, signOut, subscribeLeague, updateLeague, updatePlayer } from './league-api.js';
+  import { appendValue, createPlayer, createSeason, deleteSeason, fetchPlayers, fetchSeasons, getCurrentSeasonId, onUserChange, setSeasonMember, signOut, subscribeLeague, updateLeague, updatePlayer } from './league-api.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -949,6 +949,7 @@ function escapeHtml(s){
           '<div class="settings-field"><label for="seasonName">Season name</label><input id="seasonName" maxlength="60" required></div>' +
           '<button class="btn btn-primary" type="submit" id="createSeasonBtn">Create Season</button>' +
         '</form>' +
+        '<ul class="member-manage-list" id="seasonList" style="margin-top:14px;"></ul>' +
         '<p class="settings-status" id="seasonStatus"></p>' +
       '</div>' +
 
@@ -1149,6 +1150,61 @@ function escapeHtml(s){
     });
     const seasonForm = document.getElementById('seasonForm');
     const seasonStatus = document.getElementById('seasonStatus');
+    const seasonList = document.getElementById('seasonList');
+    async function renderSeasons(){
+      try{
+        const seasons = await fetchSeasons();
+        const activeSeasonId = getCurrentSeasonId();
+        seasonList.innerHTML = '';
+        seasons.forEach(season => {
+          const item = document.createElement('li');
+          item.className = 'member-manage-item';
+          const details = document.createElement('span');
+          details.className = 'member-manage-name';
+          const link = document.createElement('a');
+          link.href = 'commissioner.html?id=' + encodeURIComponent(season.id);
+          link.textContent = season.name + (season.id === activeSeasonId ? ' (current)' : '');
+          link.style.color = 'inherit';
+          const created = Number(season.createdAt);
+          const createdText = Number.isFinite(created) && created > 0
+            ? new Date(created).toLocaleDateString()
+            : 'date unavailable';
+          details.append(link, document.createTextNode(' — ' + season.memberCount + ' player account(s), created ' + createdText));
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'btn btn-sm btn-danger';
+          remove.textContent = 'Delete';
+          remove.disabled = seasons.length <= 1;
+          remove.title = remove.disabled ? 'At least one season must remain.' : 'Permanently delete this season.';
+          remove.addEventListener('click', async () => {
+            if(!confirm('Permanently delete "' + season.name + '" and all of its league data? Shared player accounts and PINs will not be deleted. This cannot be undone.')) return;
+            remove.disabled = true;
+            try{
+              await deleteSeason(season.id);
+              const remaining = await fetchSeasons();
+              seasonStatus.textContent = 'Season deleted.';
+              if(season.id === activeSeasonId){
+                const nextSeasonId = remaining[0].id;
+                localStorage.setItem('madLeagueSeasonId', nextSeasonId);
+                const target = new URL(window.location.href);
+                target.searchParams.set('id', nextSeasonId);
+                window.location.assign(target.href);
+                return;
+              }
+              await renderSeasons();
+            }catch(error){
+              seasonStatus.textContent = error.message;
+              remove.disabled = false;
+            }
+          });
+          item.append(details, remove);
+          seasonList.appendChild(item);
+        });
+        if(!seasons.length) seasonStatus.textContent = 'No seasons are available.';
+      }catch(error){
+        seasonStatus.textContent = 'Could not load seasons: ' + error.message;
+      }
+    }
     seasonForm.addEventListener('submit', async event => {
       event.preventDefault();
       const button = document.getElementById('createSeasonBtn');
@@ -1163,6 +1219,7 @@ function escapeHtml(s){
         button.disabled = false;
       }
     });
+    renderSeasons();
     renderPlayerAccounts();
 
     document.querySelectorAll('.member-remove-btn').forEach(btn => {

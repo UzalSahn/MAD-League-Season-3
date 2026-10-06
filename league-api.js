@@ -378,6 +378,11 @@ export async function createSeason(name) {
   return request('/api/seasons', { method: 'POST', body: JSON.stringify({ name }) });
 }
 
+export async function deleteSeason(seasonId) {
+  if (isFirebase()) return firebaseCall('deleteSeason', { seasonId });
+  return request('/api/seasons/' + encodeURIComponent(seasonId), { method: 'DELETE' });
+}
+
 export async function setSeasonMember(seasonId, playerId, included) {
   if (isFirebase()) return firebaseCall('setSeasonMember', { seasonId, playerId, included });
   return request('/api/seasons/' + encodeURIComponent(seasonId) + '/members/' + encodeURIComponent(playerId), {

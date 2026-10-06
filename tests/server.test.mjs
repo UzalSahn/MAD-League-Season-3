@@ -147,6 +147,14 @@ test('commissioner provisions designated player sessions', async () => {
     assert.equal(removedSeason.response.status, 200);
     const deniedAfterRemoval = await call('/api/league?id=' + seasonId, { token: playerToken });
     assert.equal(deniedAfterRemoval.response.status, 403);
+    const deniedPlayerDelete = await call('/api/seasons/' + seasonId, { method: 'DELETE', token: playerToken });
+    assert.equal(deniedPlayerDelete.response.status, 403);
+    const deletedMain = await call('/api/seasons/main', { method: 'DELETE', token: commissionerToken });
+    assert.equal(deletedMain.response.status, 200);
+    const remainingSeasons = await call('/api/seasons', { token: commissionerToken });
+    assert.deepEqual(remainingSeasons.data.seasons.map(season => season.id), [seasonId]);
+    const deniedLastSeasonDelete = await call('/api/seasons/' + seasonId, { method: 'DELETE', token: commissionerToken });
+    assert.equal(deniedLastSeasonDelete.response.status, 409);
     const stillSharedAccount = await call('/api/session', { method: 'POST', body: { name: 'Trainer One', pin: '2468' } });
     assert.equal(stillSharedAccount.response.status, 200);
     assert.equal(stillSharedAccount.data.user.uid, playerId);

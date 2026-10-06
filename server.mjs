@@ -288,7 +288,7 @@ const server = createServer(async (request, response) => {
       const seasons = Object.values(store.seasons)
         .filter(season => account.role === 'commissioner' || season.memberIds.includes(account.id))
         .sort((a, b) => a.createdAt - b.createdAt)
-        .map(({ id, name, createdAt }) => ({ id, name, createdAt }));
+        .map(({ id, name, createdAt, memberIds }) => ({ id, name, createdAt, memberCount: memberIds.length }));
       return send(response, 200, { seasons });
     }
     if (url.pathname === '/api/seasons' && request.method === 'POST') {
@@ -303,6 +303,20 @@ const server = createServer(async (request, response) => {
       store.revision++;
       await persistStore();
       return send(response, 201, { season: { id, name } });
+    }
+    const seasonRoute = url.pathname.match(/^\/api\/seasons\/([^/]+)$/);
+    if (seasonRoute && request.method === 'DELETE') {
+      if (account.role !== 'commissioner') return send(response, 403, { error: 'Commissioner access required.' });
+      const seasonId = decodeURIComponent(seasonRoute[1]);
+      if (!store.seasons[seasonId] || !store.leagues[seasonId]) return send(response, 404, { error: 'Season not found.' });
+      if (Object.keys(store.seasons).length <= 1) return send(response, 409, { error: 'The last season cannot be deleted.' });
+      for (const listener of listeners.get(seasonId) || []) listener.response.end();
+      listeners.delete(seasonId);
+      delete store.seasons[seasonId];
+      delete store.leagues[seasonId];
+      store.revision++;
+      await persistStore();
+      return send(response, 200, { ok: true });
     }
     const seasonMemberRoute = url.pathname.match(/^\/api\/seasons\/([^/]+)\/members\/([^/]+)$/);
     if (seasonMemberRoute && request.method === 'PATCH') {

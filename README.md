@@ -43,7 +43,9 @@ Firebase Hosting serves the static pages. Firestore stores the league and accoun
 
    Functions use Node.js 22. The first deployment initializes no league records; the commissioner account and empty league are created on the commissioner's first successful sign-in.
 
-The league starts with a `Season 1` containing the existing league data. The commissioner can create blank seasons from **Commissioner > Seasons**, then select player accounts for each season under **Designated Player Accounts**. Accounts and PINs are global and remain usable across seasons; players only see seasons they have been assigned to. Signed-in users can switch among their available seasons with the selector in the navigation bar. Existing Firestore `leagues/main` data and its members are retained and registered as Season 1 on sign-in.
+The league starts with a `Season 1` containing the existing league data. The commissioner can create blank seasons from **Commissioner > Seasons**, then select player accounts for each season under **Designated Player Accounts**. The season overview shows its player count and creation date. Commissioners can permanently delete a season there; all league data for that season is removed, but global player accounts and PINs remain. At least one season must remain. Accounts and PINs are global and remain usable across seasons; players only see seasons they have been assigned to. Signed-in users can switch among their available seasons with the selector in the navigation bar. Existing Firestore `leagues/main` data and its members are retained and registered as Season 1 on sign-in.
+
+When deploying a version that adds or changes season functionality, deploy the rules, callable functions, and site together with `firebase deploy --only firestore:rules,functions,hosting`. The season-delete operation is a callable Cloud Function, so deploying Hosting alone will not enable it.
 
 To go back to local development, set `BACKEND` to `'local'` in `site-config.js`, then run the local server below. Keep the Firebase project configuration in the file if you intend to deploy the Firebase version again.
 

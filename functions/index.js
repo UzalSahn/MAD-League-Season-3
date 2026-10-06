@@ -275,7 +275,11 @@ export const listSeasons = onCall({ cors: true }, async request => {
     .map(document => ({ id: document.id, ...document.data() }))
     .filter(season => account.role === 'commissioner' || (season.memberIds || []).includes(account.id))
     .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-  return { seasons: result.map(({ id, name, createdAt }) => ({ id, name, createdAt })) };
+  return {
+    seasons: result.map(({ id, name, createdAt, memberIds }) => ({
+      id, name, createdAt, memberCount: (memberIds || []).length
+    }))
+  };
 });
 
 export const createSeason = onCall({ cors: true }, async request => {
@@ -294,6 +298,26 @@ export const createSeason = onCall({ cors: true }, async request => {
     transaction.create(leagues.doc(seasonRef.id), league);
   });
   return { season: { id: seasonRef.id, name } };
+});
+
+export const deleteSeason = onCall({ cors: true }, async request => {
+  await requireAccount(request, true);
+  const seasonId = String(request.data?.seasonId || '');
+  if (!validSeasonId(seasonId)) fail('invalid-argument', 'Season ID is invalid.');
+  const seasonRef = seasons.doc(seasonId);
+  const leagueRef = leagues.doc(seasonId);
+  await db.runTransaction(async transaction => {
+    const [seasonSnapshot, leagueSnapshot, allSeasons] = await Promise.all([
+      transaction.get(seasonRef),
+      transaction.get(leagueRef),
+      transaction.get(seasons)
+    ]);
+    if (!seasonSnapshot.exists || !leagueSnapshot.exists) fail('not-found', 'Season not found.');
+    if (allSeasons.size <= 1) fail('failed-precondition', 'The last season cannot be deleted.');
+    transaction.delete(seasonRef);
+    transaction.delete(leagueRef);
+  });
+  return { ok: true };
 });
 
 export const setSeasonMember = onCall({ cors: true }, async request => {
