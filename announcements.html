@@ -269,7 +269,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { appendValue, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
 
 // ---------- sprites ----------
   const PLACEHOLDER_SPRITE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -326,7 +326,7 @@
 
   const content = document.getElementById('content');
   const params = new URLSearchParams(window.location.search);
-  const leagueId = 'main';
+  const leagueId = getCurrentSeasonId();
 
   ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
     const el = document.getElementById(id);

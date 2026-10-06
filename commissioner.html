@@ -270,7 +270,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, createPlayer, fetchPlayers, onUserChange, signOut, subscribeLeague, updateLeague, updatePlayer } from './league-api.js';
+  import { appendValue, createPlayer, createSeason, fetchPlayers, getCurrentSeasonId, onUserChange, setSeasonMember, signOut, subscribeLeague, updateLeague, updatePlayer } from './league-api.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -294,7 +294,7 @@ function escapeHtml(s){
 
   const content = document.getElementById('content');
   const params = new URLSearchParams(window.location.search);
-  const leagueId = 'main';
+  const leagueId = getCurrentSeasonId();
 
   ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
     const el = document.getElementById(id);
@@ -527,10 +527,10 @@ function escapeHtml(s){
     if(league.draft){ alert('The draft has already started — members can no longer be removed.'); return; }
     const m = (league.members || {})[uid];
     const name = m ? (m.teamName || m.displayName || 'this trainer') : 'this trainer';
-    if(!confirm('Are you sure you want to disable ' + name + '\'s player account?')) return;
+    if(!confirm('Are you sure you want to remove ' + name + ' from this season?')) return;
     const entry = { type: 'league', message: 'Commissioner' + ' removed ' + name + ' from the league', timestamp: Date.now() };
     try{
-      await updatePlayer(uid, { enabled: false });
+      await setSeasonMember(league.id, uid, false);
       await updateLeague({ announcements: appendValue(entry) });
     }catch(err){ alert('Could not remove member: ' + err.message); }
   }
@@ -942,9 +942,19 @@ function escapeHtml(s){
         '<h1>League Settings</h1>' +
       '</div>' +
 
+      '<div class="panel" id="seasons">' +
+        '<h2>Seasons</h2>' +
+        '<p class="settings-note" style="margin:0 0 14px;">Create a blank season. Player accounts and PINs stay shared; choose its participants below.</p>' +
+        '<form id="seasonForm" style="display:flex;align-items:end;gap:10px;flex-wrap:wrap;">' +
+          '<div class="settings-field"><label for="seasonName">Season name</label><input id="seasonName" maxlength="60" required></div>' +
+          '<button class="btn btn-primary" type="submit" id="createSeasonBtn">Create Season</button>' +
+        '</form>' +
+        '<p class="settings-status" id="seasonStatus"></p>' +
+      '</div>' +
+
       '<div class="panel">' +
         '<h2>Designated Player Accounts</h2>' +
-        '<p class="settings-note" style="margin:0 0 14px;">Create a name and PIN for each player. Share each PIN privately.</p>' +
+        '<p class="settings-note" style="margin:0 0 14px;">Create globally shared name and PIN accounts, then select who participates in this season. Share each PIN privately.</p>' +
         '<form id="playerAccountForm" style="display:flex;align-items:end;gap:10px;flex-wrap:wrap;">' +
           '<div class="settings-field"><label for="playerAccountName">Player name</label><input id="playerAccountName" maxlength="40" required></div>' +
           '<div class="settings-field"><label for="playerAccountPin">PIN (4-12 digits)</label><input id="playerAccountPin" type="password" inputmode="numeric" pattern="[0-9]{4,12}" maxlength="12" required></div>' +
@@ -1076,6 +1086,28 @@ function escapeHtml(s){
         players.filter(player => player.role !== 'commissioner').forEach(player => {
           const item = document.createElement('li');
           item.className = 'member-manage-item';
+          const memberLabel = document.createElement('label');
+          memberLabel.style.cssText = 'display:flex;align-items:center;gap:8px;min-width:180px;';
+          const memberToggle = document.createElement('input');
+          memberToggle.type = 'checkbox';
+          memberToggle.checked = !!(league.members || {})[player.uid];
+          memberToggle.disabled = draftLocked;
+          memberToggle.setAttribute('aria-label', 'Include ' + player.displayName + ' in this season');
+          memberToggle.addEventListener('change', async () => {
+            memberToggle.disabled = true;
+            try{
+              await setSeasonMember(league.id, player.uid, memberToggle.checked);
+              playerAccountStatus.textContent = memberToggle.checked ? 'Player added to this season.' : 'Player removed from this season.';
+            }catch(error){
+              memberToggle.checked = !memberToggle.checked;
+              playerAccountStatus.textContent = error.message;
+            }finally{
+              memberToggle.disabled = draftLocked;
+            }
+          });
+          const memberText = document.createElement('span');
+          memberText.textContent = 'In this season';
+          memberLabel.append(memberToggle, memberText);
           const name = document.createElement('span');
           name.className = 'member-manage-name';
           name.textContent = player.displayName + (player.enabled ? '' : ' (disabled)');
@@ -1097,7 +1129,7 @@ function escapeHtml(s){
             try{ await updatePlayer(player.uid, { enabled: !player.enabled }); await renderPlayerAccounts(); }
             catch(error){ playerAccountStatus.textContent = error.message; }
           });
-          item.append(name, reset, toggle);
+          item.append(memberLabel, name, reset, toggle);
           playerAccountList.appendChild(item);
         });
       }catch(error){ playerAccountStatus.textContent = error.message; }
@@ -1114,6 +1146,22 @@ function escapeHtml(s){
         await renderPlayerAccounts();
       }catch(error){ playerAccountStatus.textContent = error.message; }
       createPlayerBtn.disabled = false;
+    });
+    const seasonForm = document.getElementById('seasonForm');
+    const seasonStatus = document.getElementById('seasonStatus');
+    seasonForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = document.getElementById('createSeasonBtn');
+      button.disabled = true;
+      try{
+        const result = await createSeason(document.getElementById('seasonName').value.trim());
+        const target = new URL(window.location.href);
+        target.searchParams.set('id', result.season.id);
+        window.location.assign(target.href);
+      }catch(error){
+        seasonStatus.textContent = error.message;
+        button.disabled = false;
+      }
     });
     renderPlayerAccounts();
 

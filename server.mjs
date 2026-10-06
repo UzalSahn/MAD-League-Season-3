@@ -11,7 +11,7 @@ const storePath = path.join(dataDir, 'league.sqlite');
 const port = Number(process.env.PORT || 3000);
 const sessions = new Map();
 const loginAttempts = new Map();
-const listeners = new Set();
+const listeners = new Map();
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_BODY_BYTES = 2 * 1024 * 1024;
 const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || '').split(',').map(origin => origin.trim()).filter(Boolean));
@@ -47,9 +47,9 @@ function publicAccount(account) {
   return { uid: account.id, displayName: account.name, role: account.role };
 }
 
-function createEmptyLeague(commissioner) {
+function createEmptyLeague(commissioner, id = 'main') {
   return {
-    id: 'main',
+    id,
     name: process.env.LEAGUE_NAME || 'MAD League',
     commissionerUid: commissioner.id,
     members: {
@@ -72,7 +72,12 @@ async function initializeStore() {
   const existing = database.prepare('SELECT payload FROM league_state WHERE id = 1').get();
   if (existing) {
     store = JSON.parse(existing.payload);
-    if (!store || !Array.isArray(store.accounts) || !store.league) throw new Error('Invalid league store.');
+    if (!store || !Array.isArray(store.accounts) || (!store.league && !store.leagues?.main)) throw new Error('Invalid league store.');
+    if (!store.leagues) store.leagues = { main: store.league };
+    if (!store.seasons) store.seasons = {
+      main: { id: 'main', name: 'Season 1', createdAt: Date.now(), memberIds: Object.keys(store.leagues.main.members || {}) }
+    };
+    delete store.league;
     return;
   }
 
@@ -82,7 +87,15 @@ async function initializeStore() {
     throw new Error('First run requires COMMISSIONER_NAME and a 4-12 digit COMMISSIONER_PIN.');
   }
   const commissioner = createAccount(commissionerName, commissionerPin, 'commissioner');
-  store = { accounts: [commissioner], league: createEmptyLeague(commissioner), revision: 1 };
+  const league = createEmptyLeague(commissioner);
+  store = {
+    accounts: [commissioner],
+    leagues: { main: league },
+    seasons: {
+      main: { id: 'main', name: 'Season 1', createdAt: Date.now(), memberIds: Object.keys(league.members) }
+    },
+    revision: 1
+  };
   await persistStore();
 }
 
@@ -151,12 +164,31 @@ function readBody(request) {
   });
 }
 
-function sendLeagueEvent(response) {
-  response.write(`event: league\ndata: ${JSON.stringify({ revision: store.revision, league: store.league })}\n\n`);
+function sendLeagueEvent(response, seasonId) {
+  response.write(`event: league\ndata: ${JSON.stringify({ revision: store.revision, league: store.leagues[seasonId] })}\n\n`);
 }
 
-function broadcastLeague() {
-  for (const response of listeners) sendLeagueEvent(response);
+function broadcastLeague(seasonId) {
+  const seasonListeners = listeners.get(seasonId);
+  if (!seasonListeners) return;
+  for (const listener of seasonListeners) {
+    const account = store.accounts.find(item => item.id === listener.accountId && item.enabled);
+    if (!account || (account.role !== 'commissioner' && !store.leagues[seasonId].members?.[account.id])) {
+      listener.response.end();
+      seasonListeners.delete(listener);
+    } else {
+      sendLeagueEvent(listener.response, seasonId);
+    }
+  }
+}
+
+function getSeasonLeague(seasonId, account) {
+  const league = store.leagues[seasonId];
+  if (!league) throw Object.assign(new Error('Season not found.'), { status: 404 });
+  if (account.role !== 'commissioner' && !league.members?.[account.id]) {
+    throw Object.assign(new Error('You are not a member of this season.'), { status: 403 });
+  }
+  return league;
 }
 
 function setPath(target, field, value) {
@@ -252,18 +284,75 @@ const server = createServer(async (request, response) => {
     if (!url.pathname.startsWith('/api/')) return serveStatic(request, response, url.pathname);
     if (!account) return send(response, 401, { error: 'Sign in to continue.' });
 
+    if (url.pathname === '/api/seasons' && request.method === 'GET') {
+      const seasons = Object.values(store.seasons)
+        .filter(season => account.role === 'commissioner' || season.memberIds.includes(account.id))
+        .sort((a, b) => a.createdAt - b.createdAt)
+        .map(({ id, name, createdAt }) => ({ id, name, createdAt }));
+      return send(response, 200, { seasons });
+    }
+    if (url.pathname === '/api/seasons' && request.method === 'POST') {
+      if (account.role !== 'commissioner') return send(response, 403, { error: 'Commissioner access required.' });
+      const body = await readBody(request);
+      const name = normalizedName(body.name).slice(0, 60);
+      if (name.length < 2) return send(response, 400, { error: 'Season name must be 2-60 characters.' });
+      const id = randomUUID();
+      const league = createEmptyLeague(account, id);
+      store.leagues[id] = league;
+      store.seasons[id] = { id, name, createdAt: Date.now(), memberIds: Object.keys(league.members) };
+      store.revision++;
+      await persistStore();
+      return send(response, 201, { season: { id, name } });
+    }
+    const seasonMemberRoute = url.pathname.match(/^\/api\/seasons\/([^/]+)\/members\/([^/]+)$/);
+    if (seasonMemberRoute && request.method === 'PATCH') {
+      if (account.role !== 'commissioner') return send(response, 403, { error: 'Commissioner access required.' });
+      const seasonId = decodeURIComponent(seasonMemberRoute[1]);
+      const playerId = decodeURIComponent(seasonMemberRoute[2]);
+      const season = store.seasons[seasonId];
+      const league = store.leagues[seasonId];
+      const player = store.accounts.find(item => item.id === playerId && item.role !== 'commissioner');
+      if (!season || !league) return send(response, 404, { error: 'Season not found.' });
+      if (!player) return send(response, 404, { error: 'Player not found.' });
+      const body = await readBody(request);
+      if (typeof body.included !== 'boolean') return send(response, 400, { error: 'Season membership must be true or false.' });
+      const { included } = body;
+      if (Boolean(league.members?.[player.id]) !== included) {
+        if (league.draft) return send(response, 409, { error: 'Season membership cannot be changed after the draft starts.' });
+        if (included) {
+          const maxTeams = Number(league.settings && league.settings.maxTeams) || Infinity;
+          if (Object.keys(league.members || {}).length >= maxTeams) return send(response, 409, { error: 'Maximum team accounts reached.' });
+          league.members ||= {};
+          league.members[player.id] = { displayName: player.name, joinedAt: Date.now() };
+        } else {
+          delete league.members[player.id];
+        }
+        season.memberIds = Object.keys(league.members || {});
+        store.revision++;
+        await persistStore();
+        broadcastLeague(seasonId);
+      }
+      return send(response, 200, { ok: true });
+    }
+
     if (url.pathname === '/api/league' && request.method === 'GET') {
-      return send(response, 200, { league: store.league, revision: store.revision });
+      const seasonId = url.searchParams.get('id') || 'main';
+      const league = getSeasonLeague(seasonId, account);
+      return send(response, 200, { league, revision: store.revision });
     }
     if (url.pathname === '/api/league/events' && request.method === 'GET') {
+      const seasonId = url.searchParams.get('id') || 'main';
+      getSeasonLeague(seasonId, account);
       response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
       response.write(': connected\n\n');
-      listeners.add(response);
-      sendLeagueEvent(response);
+      if (!listeners.has(seasonId)) listeners.set(seasonId, new Set());
+      const listener = { response, accountId: account.id };
+      listeners.get(seasonId).add(listener);
+      sendLeagueEvent(response, seasonId);
       const heartbeat = setInterval(() => response.write(': keep-alive\n\n'), 25000);
       response.on('close', () => {
         clearInterval(heartbeat);
-        listeners.delete(response);
+        listeners.get(seasonId)?.delete(listener);
       });
       return;
     }
@@ -271,6 +360,8 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request);
       const updates = body.updates;
       if (!updates || typeof updates !== 'object' || Array.isArray(updates)) return send(response, 400, { error: 'Updates must be an object.' });
+      const seasonId = url.searchParams.get('id') || 'main';
+      const league = getSeasonLeague(seasonId, account);
       for (const [field, value] of Object.entries(updates)) {
         const topLevel = field.split('.')[0];
         if (account.role !== 'commissioner' && ['settings', 'logo', 'commissionerUid', 'seasonComplete', 'championUid'].includes(topLevel)) {
@@ -280,15 +371,15 @@ const server = createServer(async (request, response) => {
           return send(response, 403, { error: 'You can only edit your own player profile.' });
         }
         if (value && typeof value === 'object' && value.__appendToLeague === true) {
-          const current = field.split('.').reduce((target, part) => target && target[part], store.league);
-          setPath(store.league, field, (Array.isArray(current) ? current : []).concat([value.value]));
+          const current = field.split('.').reduce((target, part) => target && target[part], league);
+          setPath(league, field, (Array.isArray(current) ? current : []).concat([value.value]));
         } else {
-          setPath(store.league, field, value);
+          setPath(league, field, value);
         }
       }
       store.revision++;
       await persistStore();
-      broadcastLeague();
+      broadcastLeague(seasonId);
       return send(response, 200, { revision: store.revision });
     }
     if (url.pathname === '/api/players' && request.method === 'GET') {
@@ -303,14 +394,17 @@ const server = createServer(async (request, response) => {
       if (name.length < 2 || name.length > 40) return send(response, 400, { error: 'Name must be 2-40 characters.' });
       if (!/^\d{4,12}$/.test(pin)) return send(response, 400, { error: 'PIN must contain 4-12 digits.' });
       if (store.accounts.some(item => item.nameKey === nameKey(name))) return send(response, 409, { error: 'That name already has an account.' });
-      const maxTeams = Number(store.league.settings && store.league.settings.maxTeams) || Infinity;
-      if (Object.keys(store.league.members || {}).length >= maxTeams) return send(response, 409, { error: 'Maximum team accounts reached.' });
+      const seasonId = url.searchParams.get('id') || 'main';
+      const league = getSeasonLeague(seasonId, account);
+      const maxTeams = Number(league.settings && league.settings.maxTeams) || Infinity;
+      if (Object.keys(league.members || {}).length >= maxTeams) return send(response, 409, { error: 'Maximum team accounts reached.' });
       const player = createAccount(name, pin);
       store.accounts.push(player);
-      store.league.members[player.id] = { displayName: player.name, joinedAt: Date.now() };
+      league.members[player.id] = { displayName: player.name, joinedAt: Date.now() };
+      store.seasons[seasonId].memberIds = Object.keys(league.members || {});
       store.revision++;
       await persistStore();
-      broadcastLeague();
+      broadcastLeague(seasonId);
       return send(response, 201, { player: { ...publicAccount(player), enabled: true } });
     }
     if (url.pathname.startsWith('/api/players/') && request.method === 'PATCH') {
@@ -319,21 +413,7 @@ const server = createServer(async (request, response) => {
       const body = await readBody(request);
       const player = store.accounts.find(item => item.id === playerId && item.role !== 'commissioner');
       if (!player) return send(response, 404, { error: 'Player not found.' });
-      if (body.enabled !== undefined && Boolean(body.enabled) !== player.enabled && store.league.draft) {
-        return send(response, 409, { error: 'Player accounts cannot be changed after the draft starts.' });
-      }
-      if (body.enabled === false) {
-        player.enabled = false;
-        delete store.league.members[player.id];
-      }
-      if (body.enabled === true) {
-        const maxTeams = Number(store.league.settings && store.league.settings.maxTeams) || Infinity;
-        if (!player.enabled && Object.keys(store.league.members || {}).length >= maxTeams) {
-          return send(response, 409, { error: 'Maximum team accounts reached.' });
-        }
-        player.enabled = true;
-        store.league.members[player.id] ||= { displayName: player.name, joinedAt: Date.now() };
-      }
+      if (body.enabled !== undefined) player.enabled = Boolean(body.enabled);
       if (body.pin !== undefined) {
         if (!/^\d{4,12}$/.test(String(body.pin))) return send(response, 400, { error: 'PIN must contain 4-12 digits.' });
         player.pinSalt = randomBytes(16).toString('hex');
@@ -341,7 +421,7 @@ const server = createServer(async (request, response) => {
       }
       store.revision++;
       await persistStore();
-      broadcastLeague();
+      Object.keys(store.leagues).forEach(broadcastLeague);
       return send(response, 200, { player: { ...publicAccount(player), enabled: player.enabled } });
     }
     return send(response, 404, { error: 'Not found.' });

@@ -96,6 +96,7 @@ test('commissioner provisions designated player sessions', async () => {
       method: 'POST', body: { name: 'Trainer One', pin: '2468' }, token: commissionerToken
     });
     assert.equal(created.response.status, 201);
+    const playerId = created.data.player.uid;
     const duplicate = await call('/api/players', {
       method: 'POST', body: { name: 'trainer one', pin: '8642' }, token: commissionerToken
     });
@@ -104,12 +105,51 @@ test('commissioner provisions designated player sessions', async () => {
     const playerLogin = await call('/api/session', { method: 'POST', body: { name: 'Trainer One', pin: '2468' } });
     assert.equal(playerLogin.response.status, 200);
     const playerToken = playerLogin.data.token;
+    assert.equal(playerLogin.data.user.uid, playerId);
     const deniedPlayerManagement = await call('/api/players', { token: playerToken });
     assert.equal(deniedPlayerManagement.response.status, 403);
     const deniedSettingsChange = await call('/api/league', {
       method: 'PATCH', body: { updates: { settings: { maxTeams: 100 } } }, token: playerToken
     });
     assert.equal(deniedSettingsChange.response.status, 403);
+
+    const createdSeason = await call('/api/seasons', {
+      method: 'POST', body: { name: 'Season Two' }, token: commissionerToken
+    });
+    assert.equal(createdSeason.response.status, 201);
+    const seasonId = createdSeason.data.season.id;
+    const commissionerSeasons = await call('/api/seasons', { token: commissionerToken });
+    assert.deepEqual(commissionerSeasons.data.seasons.map(season => season.name), ['Season 1', 'Season Two']);
+    const freshLeague = await call('/api/league?id=' + seasonId, { token: commissionerToken });
+    assert.equal(freshLeague.response.status, 200);
+    assert.equal(freshLeague.data.league.id, seasonId);
+    assert.deepEqual(Object.keys(freshLeague.data.league.members), [login.data.user.uid]);
+
+    const deniedSeasonRead = await call('/api/league?id=' + seasonId, { token: playerToken });
+    assert.equal(deniedSeasonRead.response.status, 403);
+    const joinedSeason = await call(`/api/seasons/${seasonId}/members/${playerId}`, {
+      method: 'PATCH', body: { included: true }, token: commissionerToken
+    });
+    assert.equal(joinedSeason.response.status, 200);
+    const playerSeasons = await call('/api/seasons', { token: playerToken });
+    assert.deepEqual(playerSeasons.data.seasons.map(season => season.id), ['main', seasonId]);
+    const grantedSeasonRead = await call('/api/league?id=' + seasonId, { token: playerToken });
+    assert.equal(grantedSeasonRead.response.status, 200);
+    await call('/api/league?id=' + seasonId, {
+      method: 'PATCH', body: { updates: { name: 'Season Two League' } }, token: commissionerToken
+    });
+    const unchangedMain = await call('/api/league', { token: commissionerToken });
+    assert.equal(unchangedMain.data.league.name, 'MAD League');
+
+    const removedSeason = await call(`/api/seasons/${seasonId}/members/${playerId}`, {
+      method: 'PATCH', body: { included: false }, token: commissionerToken
+    });
+    assert.equal(removedSeason.response.status, 200);
+    const deniedAfterRemoval = await call('/api/league?id=' + seasonId, { token: playerToken });
+    assert.equal(deniedAfterRemoval.response.status, 403);
+    const stillSharedAccount = await call('/api/session', { method: 'POST', body: { name: 'Trainer One', pin: '2468' } });
+    assert.equal(stillSharedAccount.response.status, 200);
+    assert.equal(stillSharedAccount.data.user.uid, playerId);
   } finally {
     if (child.exitCode === null) {
       child.kill();

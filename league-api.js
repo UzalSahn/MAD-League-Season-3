@@ -1,6 +1,7 @@
 import { API_BASE_URL, BACKEND, FIREBASE_CONFIG } from './site-config.js';
 
 const SESSION_KEY = 'madLeagueSessionToken';
+const SEASON_KEY = 'madLeagueSeasonId';
 const API_ROOT = API_BASE_URL.replace(/\/+$/, '');
 const FIREBASE_VERSION = '10.12.2';
 let firebaseClientPromise;
@@ -65,6 +66,15 @@ function apiUrl(path) {
   return API_ROOT + path;
 }
 
+export function getCurrentSeasonId() {
+  const querySeasonId = new URLSearchParams(window.location.search).get('id');
+  return querySeasonId || localStorage.getItem(SEASON_KEY) || 'main';
+}
+
+function seasonApiUrl(path) {
+  return apiUrl(path) + (path.includes('?') ? '&' : '?') + 'id=' + encodeURIComponent(getCurrentSeasonId());
+}
+
 function sessionHeaders() {
   const token = sessionStorage.getItem(SESSION_KEY);
   return token ? { authorization: 'Bearer ' + token } : {};
@@ -124,8 +134,9 @@ export async function signOut() {
 }
 
 export async function updateLeague(updates) {
-  if (isFirebase()) return firebaseCall('updateLeague', { updates });
-  return request('/api/league', { method: 'PATCH', body: JSON.stringify({ updates }) });
+  const seasonId = getCurrentSeasonId();
+  if (isFirebase()) return firebaseCall('updateLeague', { seasonId, updates });
+  return request(seasonApiUrl('/api/league'), { method: 'PATCH', body: JSON.stringify({ updates }) });
 }
 
 export function appendValue(value) {
@@ -133,23 +144,25 @@ export function appendValue(value) {
 }
 
 export async function fetchLeague() {
+  const seasonId = getCurrentSeasonId();
   if (isFirebase()) {
     const client = await firebaseClient();
-    const snapshot = await client.getDoc(client.doc(client.db, 'leagues', 'main'));
+    const snapshot = await client.getDoc(client.doc(client.db, 'leagues', seasonId));
     if (!snapshot.exists()) throw new Error('The league has not been initialized.');
     return snapshot.data();
   }
-  return (await request('/api/league')).league;
+  return (await request(seasonApiUrl('/api/league'))).league;
 }
 
 export function subscribeLeague(onChange, onError = () => {}) {
+  const seasonId = getCurrentSeasonId();
   if (isFirebase()) {
     let active = true;
     let unsubscribe = () => {};
     firebaseClient().then(client => {
       if (!active) return;
       unsubscribe = client.onSnapshot(
-        client.doc(client.db, 'leagues', 'main'),
+        client.doc(client.db, 'leagues', seasonId),
         snapshot => {
           if (!snapshot.exists()) {
             onError(new Error('The league has not been initialized.'));
@@ -157,7 +170,10 @@ export function subscribeLeague(onChange, onError = () => {}) {
           }
           onChange(snapshot);
         },
-        onError
+        error => {
+          onError(error);
+          if (error.code === 'permission-denied') refreshSeasonAccess();
+        }
       );
     }).catch(onError);
     return () => {
@@ -172,7 +188,7 @@ export function subscribeLeague(onChange, onError = () => {}) {
   async function connect() {
     while (active) {
       try {
-        const response = await fetch(apiUrl('/api/league/events'), {
+        const response = await fetch(seasonApiUrl('/api/league/events'), {
           mode: 'cors',
           credentials: 'omit',
           headers: sessionHeaders(),
@@ -181,7 +197,9 @@ export function subscribeLeague(onChange, onError = () => {}) {
         });
         if (!response.ok) {
           const result = await response.json().catch(() => ({}));
-          throw new Error(result.error || 'Could not connect to league updates.');
+          const error = new Error(result.error || 'Could not connect to league updates.');
+          error.status = response.status;
+          throw error;
         }
         if (!response.body) throw new Error('Live updates are not supported by this browser.');
 
@@ -207,6 +225,7 @@ export function subscribeLeague(onChange, onError = () => {}) {
       } catch (error) {
         if (!active || error.name === 'AbortError') return;
         onError(error);
+        if ([401, 403, 404].includes(error.status)) refreshSeasonAccess();
       }
       if (active) {
         await new Promise(resolve => setTimeout(resolve, retryDelay));
@@ -222,6 +241,15 @@ export function subscribeLeague(onChange, onError = () => {}) {
   };
 }
 
+function refreshSeasonAccess() {
+  getCurrentUser()
+    .then(user => {
+      if (!user) window.dispatchEvent(new Event('league-session-change'));
+      else return syncSeasonSwitcher(user);
+    })
+    .catch(error => console.error('Could not refresh season access.', error));
+}
+
 export function onUserChange(callback) {
   let active = true;
   if (isFirebase()) {
@@ -230,7 +258,10 @@ export function onUserChange(callback) {
       if (!active) return;
       unsubscribe = client.onAuthStateChanged(client.auth, user => {
         firebaseUser(user).then(account => {
-          if (active) callback(account);
+          if (active) {
+            callback(account);
+            syncSeasonSwitcher(account).catch(error => console.error('Could not load available seasons.', error));
+          }
         }).catch(error => {
           if (active) {
             console.error('Could not read Firebase sign-in details.', error);
@@ -253,7 +284,12 @@ export function onUserChange(callback) {
     };
   }
   const refresh = () => {
-    getCurrentUser().then(user => { if (active) callback(user); })
+    getCurrentUser().then(user => {
+      if (active) {
+        callback(user);
+        syncSeasonSwitcher(user).catch(error => console.error('Could not load available seasons.', error));
+      }
+    })
       .catch(() => { if (active) callback(null); });
   };
   window.addEventListener('league-session-change', refresh);
@@ -264,9 +300,62 @@ export function onUserChange(callback) {
   };
 }
 
+async function syncSeasonSwitcher(user) {
+  const container = document.getElementById('navSignedIn');
+  if (!container) return;
+  let selector = document.getElementById('navSeasonSelect');
+  if (!user) {
+    selector?.remove();
+    return;
+  }
+  if (!selector) {
+    selector = document.createElement('select');
+    selector.id = 'navSeasonSelect';
+    selector.setAttribute('aria-label', 'Select season');
+    selector.style.cssText = 'max-width:150px;margin:0 8px;padding:6px 8px;background:#1b2228;color:inherit;border:1px solid #59636b;border-radius:4px;';
+    const userEmail = document.getElementById('navUserEmail');
+    container.insertBefore(selector, userEmail || container.firstChild);
+    selector.addEventListener('change', () => {
+      localStorage.setItem(SEASON_KEY, selector.value);
+      const url = new URL(window.location.href);
+      url.searchParams.set('id', selector.value);
+      window.location.assign(url.href);
+    });
+  }
+  const seasons = await fetchSeasons();
+  if (!seasons.length) {
+    selector.hidden = true;
+    return;
+  }
+  const currentSeasonId = getCurrentSeasonId();
+  const selection = seasons.some(season => season.id === currentSeasonId) ? currentSeasonId : seasons[0].id;
+  selector.innerHTML = seasons.map(season =>
+    '<option value="' + escapeAttribute(season.id) + '">' + escapeHtml(season.name) + '</option>'
+  ).join('');
+  selector.value = selection;
+  selector.hidden = false;
+  localStorage.setItem(SEASON_KEY, selection);
+  if (selection !== currentSeasonId) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('id', selection);
+    window.location.replace(url.href);
+  }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, character =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]
+  );
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
+
 export async function createPlayer(name, pin) {
-  if (isFirebase()) return firebaseCall('createPlayer', { name, pin });
-  return request('/api/players', { method: 'POST', body: JSON.stringify({ name, pin }) });
+  const seasonId = getCurrentSeasonId();
+  if (isFirebase()) return firebaseCall('createPlayer', { name, pin, seasonId });
+  return request(seasonApiUrl('/api/players'), { method: 'POST', body: JSON.stringify({ name, pin }) });
 }
 
 export async function fetchPlayers() {
@@ -277,4 +366,22 @@ export async function fetchPlayers() {
 export async function updatePlayer(id, updates) {
   if (isFirebase()) return firebaseCall('updatePlayer', { id, updates });
   return request('/api/players/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(updates) });
+}
+
+export async function fetchSeasons() {
+  if (isFirebase()) return (await firebaseCall('listSeasons')).seasons;
+  return (await request('/api/seasons')).seasons;
+}
+
+export async function createSeason(name) {
+  if (isFirebase()) return firebaseCall('createSeason', { name });
+  return request('/api/seasons', { method: 'POST', body: JSON.stringify({ name }) });
+}
+
+export async function setSeasonMember(seasonId, playerId, included) {
+  if (isFirebase()) return firebaseCall('setSeasonMember', { seasonId, playerId, included });
+  return request('/api/seasons/' + encodeURIComponent(seasonId) + '/members/' + encodeURIComponent(playerId), {
+    method: 'PATCH',
+    body: JSON.stringify({ included })
+  });
 }

@@ -8,8 +8,20 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.role == request.auth.token.role;
     }
 
+    function canReadSeason(leagueId) {
+      return activeAccount()
+        && (request.auth.token.role == 'commissioner'
+          || (exists(/databases/$(database)/documents/seasons/$(leagueId))
+            && request.auth.uid in get(/databases/$(database)/documents/seasons/$(leagueId)).data.memberIds));
+    }
+
     match /leagues/{leagueId} {
-      allow read: if activeAccount();
+      allow read: if canReadSeason(leagueId);
+      allow write: if false;
+    }
+
+    match /seasons/{seasonId} {
+      allow read: if canReadSeason(seasonId);
       allow write: if false;
     }
 

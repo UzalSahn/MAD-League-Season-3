@@ -43,6 +43,8 @@ Firebase Hosting serves the static pages. Firestore stores the league and accoun
 
    Functions use Node.js 22. The first deployment initializes no league records; the commissioner account and empty league are created on the commissioner's first successful sign-in.
 
+The league starts with a `Season 1` containing the existing league data. The commissioner can create blank seasons from **Commissioner > Seasons**, then select player accounts for each season under **Designated Player Accounts**. Accounts and PINs are global and remain usable across seasons; players only see seasons they have been assigned to. Signed-in users can switch among their available seasons with the selector in the navigation bar. Existing Firestore `leagues/main` data and its members are retained and registered as Season 1 on sign-in.
+
 To go back to local development, set `BACKEND` to `'local'` in `site-config.js`, then run the local server below. Keep the Firebase project configuration in the file if you intend to deploy the Firebase version again.
 
 ## Run Locally
@@ -56,7 +58,7 @@ $env:COMMISSIONER_PIN = "482915"
 npm start
 ```
 
-Choose a private 4-12 digit PIN rather than reusing the example. Open `http://localhost:3000`. The first commissioner can create player accounts from the Commissioner page. By default the SQLite database is saved at `../mad-league-data/league.sqlite`.
+Choose a private 4-12 digit PIN rather than reusing the example. Open `http://localhost:3000`. The first commissioner can create player accounts and seasons from the Commissioner page. Existing single-league SQLite data is migrated in place to Season 1 on startup, preserving its accounts and league state. By default the SQLite database is saved at `../mad-league-data/league.sqlite`.
 
 Run the integration tests with `npm test`.
 

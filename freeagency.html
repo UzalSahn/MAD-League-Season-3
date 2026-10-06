@@ -354,7 +354,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { appendValue, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -493,7 +493,7 @@ function escapeHtml(s){
 
   const content = document.getElementById('content');
   const params = new URLSearchParams(window.location.search);
-  const leagueId = 'main';
+  const leagueId = getCurrentSeasonId();
 
   ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
     const el = document.getElementById(id);

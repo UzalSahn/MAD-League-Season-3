@@ -11,7 +11,8 @@ const db = getFirestore();
 const auth = getAuth();
 const commissionerNameSecret = defineSecret('COMMISSIONER_NAME');
 const commissionerPinSecret = defineSecret('COMMISSIONER_PIN');
-const leagueRef = db.collection('leagues').doc('main');
+const leagues = db.collection('leagues');
+const seasons = db.collection('seasons');
 const accounts = db.collection('accounts');
 const names = db.collection('accountNames');
 
@@ -69,6 +70,37 @@ function emptyLeague(commissioner) {
   };
 }
 
+function seasonName(value) {
+  return normalizedName(value).slice(0, 60);
+}
+
+function validSeasonId(id) {
+  return typeof id === 'string' && id.length > 0 && !id.includes('/');
+}
+
+async function ensureMainSeason() {
+  await db.runTransaction(async transaction => {
+    const seasonRef = seasons.doc('main');
+    const [seasonSnapshot, leagueSnapshot] = await Promise.all([
+      transaction.get(seasonRef),
+      transaction.get(leagues.doc('main'))
+    ]);
+    if (seasonSnapshot.exists || !leagueSnapshot.exists) return;
+    const league = leagueSnapshot.data();
+    transaction.create(seasonRef, {
+      name: 'Season 1',
+      createdAt: Date.now(),
+      memberIds: Object.keys(league.members || {})
+    });
+  });
+}
+
+function requireSeasonMember(league, account) {
+  if (account.role !== 'commissioner' && !league.members?.[account.id]) {
+    fail('permission-denied', 'You are not a member of this season.');
+  }
+}
+
 function fail(code, message) {
   throw new HttpsError(code, message);
 }
@@ -119,7 +151,7 @@ async function createInitialCommissioner(name, pin) {
   await db.runTransaction(async transaction => {
     const [existingName, existingLeague] = await Promise.all([
       transaction.get(nameRef),
-      transaction.get(leagueRef)
+      transaction.get(leagues.doc('main'))
     ]);
     if (existingName.exists) return;
     if (existingLeague.exists) {
@@ -127,7 +159,12 @@ async function createInitialCommissioner(name, pin) {
     }
     transaction.create(accounts.doc(commissioner.id), commissioner);
     transaction.create(nameRef, { uid: commissioner.id });
-    transaction.create(leagueRef, emptyLeague(commissioner));
+    transaction.create(leagues.doc('main'), emptyLeague(commissioner));
+    transaction.create(seasons.doc('main'), {
+      name: 'Season 1',
+      createdAt: Date.now(),
+      memberIds: [commissioner.id]
+    });
   });
   return findAccountByName(commissioner.nameKey);
 }
@@ -181,6 +218,7 @@ export const signInWithPin = onCall({
   if (!account || !account.enabled || !verifyPin(account, pin)) {
     fail('unauthenticated', 'Name or PIN is incorrect.');
   }
+  await ensureMainSeason();
 
   const token = await auth.createCustomToken(account.id, {
     role: account.role,
@@ -190,7 +228,11 @@ export const signInWithPin = onCall({
 });
 
 export const createPlayer = onCall({ cors: true }, async request => {
-  await requireAccount(request, true);
+  const commissioner = await requireAccount(request, true);
+  const seasonId = String(request.data?.seasonId || 'main');
+  if (!validSeasonId(seasonId)) fail('invalid-argument', 'Season ID is invalid.');
+  const leagueRef = leagues.doc(seasonId);
+  const seasonRef = seasons.doc(seasonId);
   const name = normalizedName(request.data?.name);
   const pin = String(request.data?.pin || '');
   if (name.length < 2 || name.length > 40) fail('invalid-argument', 'Name must be 2-40 characters.');
@@ -200,12 +242,14 @@ export const createPlayer = onCall({ cors: true }, async request => {
   const nameRef = names.doc(nameDocumentId(player.nameKey));
   const accountRef = accounts.doc(player.id);
   await db.runTransaction(async transaction => {
-    const [existingName, leagueSnapshot] = await Promise.all([
+    const [existingName, leagueSnapshot, seasonSnapshot] = await Promise.all([
       transaction.get(nameRef),
-      transaction.get(leagueRef)
+      transaction.get(leagueRef),
+      transaction.get(seasonRef)
     ]);
     if (existingName.exists) fail('already-exists', 'That name already has an account.');
     if (!leagueSnapshot.exists) fail('failed-precondition', 'The league has not been initialized.');
+    if (!seasonSnapshot.exists) fail('not-found', 'Season not found.');
     const league = leagueSnapshot.data();
     const maxTeams = Number(league.settings?.maxTeams) || Infinity;
     if (Object.keys(league.members || {}).length >= maxTeams) {
@@ -213,11 +257,81 @@ export const createPlayer = onCall({ cors: true }, async request => {
     }
     league.members ||= {};
     league.members[player.id] = { displayName: player.name, joinedAt: Date.now() };
+    const season = seasonSnapshot.data();
+    season.memberIds = [...new Set([...(season.memberIds || []), player.id])];
     transaction.create(accountRef, player);
     transaction.create(nameRef, { uid: player.id });
     transaction.set(leagueRef, league);
+    transaction.set(seasonRef, season);
   });
   return { player: publicAccount(player) };
+});
+
+export const listSeasons = onCall({ cors: true }, async request => {
+  const account = await requireAccount(request);
+  await ensureMainSeason();
+  const snapshot = await seasons.get();
+  const result = snapshot.docs
+    .map(document => ({ id: document.id, ...document.data() }))
+    .filter(season => account.role === 'commissioner' || (season.memberIds || []).includes(account.id))
+    .sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+  return { seasons: result.map(({ id, name, createdAt }) => ({ id, name, createdAt })) };
+});
+
+export const createSeason = onCall({ cors: true }, async request => {
+  const commissioner = await requireAccount(request, true);
+  const name = seasonName(request.data?.name);
+  if (name.length < 2) fail('invalid-argument', 'Season name must be 2-60 characters.');
+  const seasonRef = seasons.doc();
+  const league = emptyLeague(commissioner);
+  league.id = seasonRef.id;
+  await db.runTransaction(async transaction => {
+    transaction.create(seasonRef, {
+      name,
+      createdAt: Date.now(),
+      memberIds: [commissioner.id]
+    });
+    transaction.create(leagues.doc(seasonRef.id), league);
+  });
+  return { season: { id: seasonRef.id, name } };
+});
+
+export const setSeasonMember = onCall({ cors: true }, async request => {
+  await requireAccount(request, true);
+  const seasonId = String(request.data?.seasonId || '');
+  const playerId = String(request.data?.playerId || '');
+  if (!validSeasonId(seasonId) || !playerId || typeof request.data?.included !== 'boolean') {
+    fail('invalid-argument', 'Season, player, and membership state are required.');
+  }
+  const included = request.data.included;
+  const leagueRef = leagues.doc(seasonId);
+  const seasonRef = seasons.doc(seasonId);
+  const accountRef = accounts.doc(playerId);
+  await db.runTransaction(async transaction => {
+    const [leagueSnapshot, seasonSnapshot, accountSnapshot] = await Promise.all([
+      transaction.get(leagueRef),
+      transaction.get(seasonRef),
+      transaction.get(accountRef)
+    ]);
+    if (!leagueSnapshot.exists || !seasonSnapshot.exists) fail('not-found', 'Season not found.');
+    if (!accountSnapshot.exists || accountSnapshot.get('role') === 'commissioner') fail('not-found', 'Player not found.');
+    const league = leagueSnapshot.data();
+    const season = seasonSnapshot.data();
+    if (Boolean(league.members?.[playerId]) === included) return;
+    if (league.draft) fail('failed-precondition', 'Season membership cannot be changed after the draft starts.');
+    if (included) {
+      const maxTeams = Number(league.settings?.maxTeams) || Infinity;
+      if (Object.keys(league.members || {}).length >= maxTeams) fail('resource-exhausted', 'Maximum team accounts reached.');
+      league.members ||= {};
+      league.members[playerId] = { displayName: accountSnapshot.get('name'), joinedAt: Date.now() };
+    } else {
+      delete league.members[playerId];
+    }
+    season.memberIds = Object.keys(league.members || {});
+    transaction.set(leagueRef, league);
+    transaction.set(seasonRef, season);
+  });
+  return { ok: true };
 });
 
 export const fetchPlayers = onCall({ cors: true }, async request => {
@@ -238,51 +352,34 @@ export const updatePlayer = onCall({ cors: true }, async request => {
   const accountRef = accounts.doc(id);
   let player;
   await db.runTransaction(async transaction => {
-    const [accountSnapshot, leagueSnapshot] = await Promise.all([
-      transaction.get(accountRef),
-      transaction.get(leagueRef)
-    ]);
+    const accountSnapshot = await transaction.get(accountRef);
     if (!accountSnapshot.exists || accountSnapshot.get('role') === 'commissioner') {
       fail('not-found', 'Player not found.');
     }
-    if (!leagueSnapshot.exists) fail('failed-precondition', 'The league has not been initialized.');
     player = accountSnapshot.data();
-    const league = leagueSnapshot.data();
-    if (updates.enabled !== undefined && Boolean(updates.enabled) !== player.enabled && league.draft) {
-      fail('failed-precondition', 'Player accounts cannot be changed after the draft starts.');
-    }
-    if (updates.enabled === false) {
-      player.enabled = false;
-      delete league.members?.[player.id];
-    }
-    if (updates.enabled === true) {
-      const maxTeams = Number(league.settings?.maxTeams) || Infinity;
-      if (!player.enabled && Object.keys(league.members || {}).length >= maxTeams) {
-        fail('resource-exhausted', 'Maximum team accounts reached.');
-      }
-      player.enabled = true;
-      league.members ||= {};
-      league.members[player.id] ||= { displayName: player.name, joinedAt: Date.now() };
-    }
+    if (updates.enabled !== undefined) player.enabled = Boolean(updates.enabled);
     if (updates.pin !== undefined) {
       if (!validPin(updates.pin)) fail('invalid-argument', 'PIN must contain 4-12 digits.');
       player.pinSalt = randomBytes(16).toString('hex');
       player.pinHash = hashPin(updates.pin, player.pinSalt);
     }
     transaction.set(accountRef, player);
-    transaction.set(leagueRef, league);
   });
   return { player: publicAccount(player) };
 });
 
 export const updateLeague = onCall({ cors: true }, async request => {
   const account = await requireAccount(request);
+  const seasonId = String(request.data?.seasonId || 'main');
+  if (!validSeasonId(seasonId)) fail('invalid-argument', 'Season ID is invalid.');
+  const leagueRef = leagues.doc(seasonId);
   const updates = request.data?.updates;
   checkUpdates(updates, account);
   await db.runTransaction(async transaction => {
     const snapshot = await transaction.get(leagueRef);
     if (!snapshot.exists) fail('failed-precondition', 'The league has not been initialized.');
     const league = snapshot.data();
+    requireSeasonMember(league, account);
     for (const [field, value] of Object.entries(updates)) {
       if (value && typeof value === 'object' && value.__appendToLeague === true) {
         const current = currentAtPath(league, field);
