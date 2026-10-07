@@ -238,6 +238,23 @@ function stampCompletedScheduleWeeks(league, updates) {
   }
 }
 
+function validateScheduleRetraction(league, updates) {
+  const currentSchedule = league.schedule;
+  const nextSchedule = updates.schedule;
+  if (!currentSchedule || currentSchedule.progression !== 'commissioner' || !nextSchedule || typeof nextSchedule !== 'object') return;
+  const currentWeeks = currentSchedule.weeks;
+  const nextWeeks = nextSchedule.weeks;
+  if (!Array.isArray(currentWeeks) || !Array.isArray(nextWeeks) || nextWeeks.length >= currentWeeks.length) return;
+  if (currentWeeks.length - nextWeeks.length !== 1 || nextSchedule.progression !== 'commissioner'
+      || nextSchedule.totalWeeks !== currentSchedule.totalWeeks) {
+    fail('failed-precondition', 'Only the latest announced week can be undone.');
+  }
+  const removedWeekIndex = currentWeeks.length - 1;
+  if (Object.keys(currentSchedule.results || {}).some(key => key.startsWith(removedWeekIndex + '_'))) {
+    fail('failed-precondition', 'A week with result data cannot be undone.');
+  }
+}
+
 export const signInWithPin = onCall({
   secrets: [commissionerNameSecret, commissionerPinSecret],
   cors: true,
@@ -456,6 +473,7 @@ export const updateLeague = onCall({ cors: true, invoker: 'public' }, async requ
     if (!snapshot.exists) fail('failed-precondition', 'The league has not been initialized.');
     const league = snapshot.data();
     requireSeasonMember(league, account);
+    if (account.role === 'commissioner') validateScheduleRetraction(league, updates);
     for (const [field, value] of Object.entries(updates)) {
       if (value && typeof value === 'object' && value.__appendToLeague === true) {
         const current = currentAtPath(league, field);

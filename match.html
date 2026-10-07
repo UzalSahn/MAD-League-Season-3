@@ -924,6 +924,11 @@ function escapeHtml(s){
     });
   }
 
+  function scheduleWeekHasResults(schedule, weekIdx){
+    const prefix = weekIdx + '_';
+    return Object.keys(schedule.results || {}).some(key => key.startsWith(prefix));
+  }
+
   function safeReplayUrl(value){
     if(typeof value !== 'string' || !value.trim()) return null;
     try{
@@ -1060,6 +1065,37 @@ function escapeHtml(s){
       await updateLeague({ schedule: updatedSchedule, announcements: appendValue(announcement) });
       return true;
     }catch(err){ alert('Could not generate next week: ' + err.message); return false; }
+  }
+
+  async function undoLatestWeek(league){
+    if(!currentUser || league.commissionerUid !== currentUser.uid) return false;
+    const schedule = league.schedule;
+    if(!schedule || schedule.progression !== 'commissioner' || !schedule.weeks.length) return false;
+    const weekIdx = schedule.weeks.length - 1;
+    if(scheduleWeekHasResults(schedule, weekIdx)){
+      alert('This week already has result data, so its reveal cannot be undone.');
+      return false;
+    }
+    if(!window.confirm('Undo the Week ' + (weekIdx + 1) + ' reveal? Players will no longer be able to see its matchups.')) return false;
+    const weeks = schedule.weeks.slice(0, -1);
+    const updatedSchedule = Object.assign({}, schedule, { weeks });
+    if(Array.isArray(schedule.unreleasedWeeks)){
+      updatedSchedule.unreleasedWeeks = [schedule.weeks[weekIdx]].concat(schedule.unreleasedWeeks);
+    }
+    const announcement = {
+      type: 'match',
+      message: 'The commissioner undid the Week ' + (weekIdx + 1) + ' matchup reveal.',
+      mons: [],
+      mvpId: null,
+      timestamp: Date.now()
+    };
+    try{
+      await updateLeague({ schedule: updatedSchedule, announcements: appendValue(announcement) });
+      return true;
+    }catch(err){
+      alert('Could not undo the latest week reveal: ' + err.message);
+      return false;
+    }
   }
 
   let editingKeys = {};
@@ -1689,7 +1725,20 @@ function escapeHtml(s){
     const totalWeeks = manualProgression ? league.schedule.totalWeeks : numWeeks;
     const trueWeekIdx = currentScheduleWeekIndex(league.schedule);
     if(trueWeekIdx === null){
-      content.innerHTML = '<div class="page-head"><span class="eyebrow">Match</span><h1>' + escapeHtml(league.name || 'League') + '</h1></div><div class="panel state-msg">No match weeks have been generated yet.</div>';
+      content.innerHTML =
+        '<div class="page-head"><span class="eyebrow">Match</span><h1>' + escapeHtml(league.name || 'League') + '</h1></div>' +
+        '<div class="panel state-msg">' +
+          (isCommish
+            ? 'No weeks are currently announced.' + (numWeeks < totalWeeks ? '<br><button class="btn btn-primary btn-sm" id="announceFirstWeekBtn" style="margin-top:14px;">Announce Week 1</button>' : '')
+            : 'The commissioner has not announced the next week yet.') +
+        '</div>';
+      const announceFirstWeekBtn = document.getElementById('announceFirstWeekBtn');
+      if(announceFirstWeekBtn){
+        announceFirstWeekBtn.addEventListener('click', async () => {
+          announceFirstWeekBtn.disabled = true;
+          await generateNextWeek(league);
+        });
+      }
       return;
     }
     if(viewingWeekIdx === null || viewingWeekIdx >= numWeeks) viewingWeekIdx = trueWeekIdx;
@@ -1719,6 +1768,10 @@ function escapeHtml(s){
           : '') +
         (isCommish && manualProgression && numWeeks < totalWeeks
           ? '<button class="btn btn-primary btn-sm" id="generateNextWeekBtn" style="display:block;margin:14px auto 0;">Announce Week ' + (numWeeks + 1) + '</button>'
+          : '') +
+        (isCommish && manualProgression && isTrueCurrentWeek
+          ? '<button class="btn btn-sm btn-danger" id="undoWeekBtn" style="display:block;margin:8px auto 0;"' + (scheduleWeekHasResults(league.schedule, weekIdx) ? ' disabled title="A week with result data cannot be undone."' : '') + '>Undo Week ' + (weekIdx + 1) + ' Reveal</button>' +
+            (scheduleWeekHasResults(league.schedule, weekIdx) ? '<p class="settings-note" style="text-align:center;">This week already has result data, so its reveal cannot be undone.</p>' : '')
           : '') +
         (isCommish && manualProgression && numWeeks >= totalWeeks
           ? '<p class="settings-note" style="text-align:center;">All ' + totalWeeks + ' weeks have been announced.</p>'
@@ -1753,6 +1806,17 @@ function escapeHtml(s){
         const generated = await generateNextWeek(league);
         if(!generated) viewingWeekIdx = previousWeekIdx;
         if(generateNextWeekBtn.isConnected) generateNextWeekBtn.disabled = false;
+      });
+    }
+    const undoWeekBtn = document.getElementById('undoWeekBtn');
+    if(undoWeekBtn){
+      undoWeekBtn.addEventListener('click', async () => {
+        undoWeekBtn.disabled = true;
+        const previousWeekIdx = viewingWeekIdx;
+        viewingWeekIdx = null;
+        const undone = await undoLatestWeek(league);
+        if(!undone) viewingWeekIdx = previousWeekIdx;
+        if(undoWeekBtn.isConnected) undoWeekBtn.disabled = false;
       });
     }
 

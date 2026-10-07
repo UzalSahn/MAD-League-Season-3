@@ -223,6 +223,24 @@ function stampCompletedScheduleWeeks(league, updates) {
   }
 }
 
+function scheduleRetractionError(league, updates) {
+  const currentSchedule = league.schedule;
+  const nextSchedule = updates.schedule;
+  if (!currentSchedule || currentSchedule.progression !== 'commissioner' || !nextSchedule || typeof nextSchedule !== 'object') return null;
+  const currentWeeks = currentSchedule.weeks;
+  const nextWeeks = nextSchedule.weeks;
+  if (!Array.isArray(currentWeeks) || !Array.isArray(nextWeeks) || nextWeeks.length >= currentWeeks.length) return null;
+  if (currentWeeks.length - nextWeeks.length !== 1 || nextSchedule.progression !== 'commissioner'
+      || nextSchedule.totalWeeks !== currentSchedule.totalWeeks) {
+    return 'Only the latest announced week can be undone.';
+  }
+  const removedWeekIndex = currentWeeks.length - 1;
+  if (Object.keys(currentSchedule.results || {}).some(key => key.startsWith(removedWeekIndex + '_'))) {
+    return 'A week with result data cannot be undone.';
+  }
+  return null;
+}
+
 function validPoolPointOverrides(overrides) {
   return overrides && typeof overrides === 'object' && !Array.isArray(overrides)
     && Object.keys(overrides).length <= 2000
@@ -465,6 +483,10 @@ const server = createServer(async (request, response) => {
       if (!updates || typeof updates !== 'object' || Array.isArray(updates)) return send(response, 400, { error: 'Updates must be an object.' });
       const seasonId = url.searchParams.get('id') || 'main';
       const league = getSeasonLeague(seasonId, account);
+      if (account.role === 'commissioner') {
+        const retractionError = scheduleRetractionError(league, updates);
+        if (retractionError) return send(response, 409, { error: retractionError });
+      }
       for (const [field, value] of Object.entries(updates)) {
         if (account.role !== 'commissioner' && field.split('.')[0] === 'schedule'
             && !/^schedule\.results\.\d+_\d+$/.test(field)) {
