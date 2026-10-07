@@ -37,6 +37,8 @@
   .lead,.note{font-size:13px;color:var(--cream-dim);}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px;margin-top:18px;}
   .champion{display:flex;align-items:center;justify-content:space-between;gap:16px;background:linear-gradient(110deg,rgba(255,203,5,.14),var(--panel));}
+  .champion-main{display:flex;align-items:center;gap:14px;min-width:0;}
+  .champion-sprite{width:88px;height:88px;object-fit:contain;flex-shrink:0;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4));}
   .champion-label{font:10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
   .champion-name{font:700 26px var(--display);text-transform:uppercase;}
   .champion-stat{font:11px var(--mono);color:var(--cream-dim);}
@@ -51,7 +53,7 @@
   .pokemon-variation{color:var(--cream-dim);font-weight:400;}
   .state-msg{text-align:center;padding:38px 20px;color:var(--cream-dim);font-size:14px;}
   .error{color:#FF8A8A;}
-  @media(max-width:640px){.nav-links{gap:10px}.nav-links>a{display:none}.nav-inner{padding:12px 14px}.subnav-tab{padding:13px 11px}main{padding:28px 14px 60px}.champion-name{font-size:22px}}
+  @media(max-width:640px){.nav-links{gap:10px}.nav-links>a{display:none}.nav-inner{padding:12px 14px}.subnav-tab{padding:13px 11px}main{padding:28px 14px 60px}.champion-name{font-size:22px}.champion-sprite{width:68px;height:68px}.champion{gap:10px;padding:14px}.champion-main{gap:8px}}
 </style>
 </head>
 <body>
@@ -95,6 +97,7 @@
 <script type="module">
   import { getCurrentSeasonId, onUserChange, signOut, subscribeLeague } from './league-api.js';
   import { calculatePokemonMvpRace } from './pokemon-match-stats.js';
+  import { getPokemonSpriteUrl } from './pokemon-sprites.js';
 
   function escapeHtml(value){
     return String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -145,17 +148,22 @@
     }
     const rows = calculatePokemonMvpRace(league);
     const leader = rows.find(row => row.gamesPlayed > 0);
+    const leaderSpriteUrl = leader && getPokemonSpriteUrl(leader);
     content.innerHTML =
       '<div class="eyebrow">League stats</div><h1>MVP Race</h1>' +
       '<p class="lead">Drafted Pokémon rank by kills, then games played, then kill/death differential. Regular-season and playoff games both count.</p>' +
       (leader
-        ? '<div class="panel champion"><div><div class="champion-label">Current MVP leader</div><div class="champion-name">' + escapeHtml(leader.name) + (leader.variation ? ' <span class="pokemon-variation">(' + escapeHtml(leader.variation) + ')</span>' : '') + '</div><div class="champion-stat">' + escapeHtml(leader.trainerName) + '</div></div><div class="champion-stat">' + leader.kills + ' K · ' + leader.deaths + ' D · ' + (leader.differential > 0 ? '+' : '') + leader.differential + ' diff</div></div>'
+        ? '<div class="panel champion"><div class="champion-main">' +
+            (leaderSpriteUrl ? '<img class="champion-sprite" src="' + escapeHtml(leaderSpriteUrl) + '" alt="' + escapeHtml(leader.name + (leader.variation ? ' (' + leader.variation + ')' : '')) + '">' : '') +
+            '<div><div class="champion-label">Current MVP leader</div><div class="champion-name">' + escapeHtml(leader.name) + (leader.variation ? ' <span class="pokemon-variation">(' + escapeHtml(leader.variation) + ')</span>' : '') + '</div><div class="champion-stat">' + escapeHtml(leader.trainerName) + '</div></div></div><div class="champion-stat">' + leader.kills + ' K · ' + leader.deaths + ' D · ' + (leader.differential > 0 ? '+' : '') + leader.differential + ' diff</div></div>'
         : '<div class="panel state-msg">No Pokémon game stats have been submitted yet.</div>') +
       '<div class="panel table-wrap"><table><thead><tr><th>#</th><th>Pokémon</th><th>Team</th><th>Games</th><th>Kills</th><th>Deaths</th><th>Differential</th></tr></thead><tbody>' +
       rows.map((row, index) =>
         '<tr' + (leader && row.id === leader.id ? ' class="leader"' : '') + '><td>' + (index + 1) + '</td><td>' + escapeHtml(row.name) + (row.variation ? ' <span class="pokemon-variation">(' + escapeHtml(row.variation) + ')</span>' : '') + '</td><td>' + escapeHtml(row.trainerName) + '</td><td>' + row.gamesPlayed + '</td><td>' + row.kills + '</td><td>' + row.deaths + '</td><td>' + (row.differential > 0 ? '+' : '') + row.differential + '</td></tr>'
       ).join('') +
       '</tbody></table><p class="note">Stats submitted so far. Pokémon with no submitted games remain listed with zero stats.</p></div>';
+    const leaderSprite = content.querySelector('.champion-sprite');
+    if(leaderSprite) leaderSprite.addEventListener('error', () => { leaderSprite.hidden = true; }, { once: true });
   }
 </script>
 </body>
