@@ -201,6 +201,18 @@
   .game-diff{font-family:var(--mono);font-weight:700;min-width:32px;text-align:right;color:var(--gold);}
   .game-remove-btn{background:none;border:none;color:var(--cream-dim);cursor:pointer;font-size:13px;padding:0 2px;}
   .game-remove-btn:hover{color:var(--scarlet, #EE1515);}
+  .game-replay-input,.match-replay-input{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:8px 10px;border-radius:3px;font-family:var(--body);font-size:12.5px;
+  }
+  .game-replay-input:focus,.match-replay-input:focus{border-color:var(--gold);}
+  .game-replay-input{max-width:520px;margin:4px auto 8px;display:block;}
+  .match-replay-field{margin:12px 0 4px;}
+  .match-replay-field label{display:block;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--cream-dim);margin-bottom:5px;}
+  .replay-links{display:flex;justify-content:center;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;font-size:12.5px;}
+  .replay-links-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--cream-dim);}
+  .replay-link{color:var(--gold);text-decoration:underline;text-underline-offset:3px;font-weight:600;}
+  .replay-link:hover{color:var(--cream);}
   .add-game-btn{
     display:block;margin:8px auto 0;background:none;border:1px dashed var(--line);color:var(--cream-dim);font-family:var(--mono);
     font-size:11px;padding:5px 12px;border-radius:3px;cursor:pointer;
@@ -922,6 +934,25 @@ function escapeHtml(s){
     return r.games.reduce((sum, g) => (g.a != null && g.b != null) ? sum + (g.a - g.b) : sum, 0);
   }
 
+  function safeReplayUrl(value){
+    if(typeof value !== 'string' || !value.trim()) return null;
+    try{
+      const url = new URL(value.trim());
+      if((url.protocol !== 'https:' && url.protocol !== 'http:') || url.username || url.password) return null;
+      return url.href;
+    }catch(_err){
+      return null;
+    }
+  }
+
+  function normalizeReplayUrl(value, label){
+    const trimmed = String(value || '').trim();
+    if(!trimmed) return null;
+    const url = safeReplayUrl(trimmed);
+    if(!url) throw new Error(label + ' must be a valid http or https URL.');
+    return url;
+  }
+
   function shuffle(arr){
     const a = arr.slice();
     for(let i = a.length - 1; i > 0; i--){
@@ -963,6 +994,7 @@ function escapeHtml(s){
     function draw(){
       container.innerHTML = '';
       games.forEach((g, gIdx) => {
+        const gameWrap = document.createElement('div');
         const row = document.createElement('div');
         row.className = 'game-row';
         const label = document.createElement('span'); label.className = 'game-label'; label.textContent = 'Game ' + (gIdx+1);
@@ -987,7 +1019,19 @@ function escapeHtml(s){
           rm.addEventListener('click', () => { if(games.length>1){ games.splice(gIdx,1); draw(); } });
           row.appendChild(rm);
         }
-        container.appendChild(row);
+        gameWrap.appendChild(row);
+        if(canEdit){
+          const replayInput = document.createElement('input');
+          replayInput.type = 'url';
+          replayInput.maxLength = 2048;
+          replayInput.className = 'game-replay-input';
+          replayInput.placeholder = 'Optional Game ' + (gIdx + 1) + ' replay URL';
+          replayInput.setAttribute('aria-label', 'Game ' + (gIdx + 1) + ' replay URL');
+          replayInput.value = g.replayUrl || '';
+          replayInput.addEventListener('input', () => { g.replayUrl = replayInput.value; });
+          gameWrap.appendChild(replayInput);
+        }
+        container.appendChild(gameWrap);
       });
       if(canEdit){
         const addBtn = document.createElement('button'); addBtn.type='button'; addBtn.className='add-game-btn'; addBtn.textContent='+ Add game';
@@ -1206,6 +1250,21 @@ function escapeHtml(s){
       renderWinnerHighlight();
       card.appendChild(mvpContainer);
 
+      const replayField = document.createElement('div');
+      replayField.className = 'match-replay-field';
+      const replayLabel = document.createElement('label');
+      replayLabel.textContent = 'Full match replay (optional)';
+      const replayInput = document.createElement('input');
+      replayInput.type = 'url';
+      replayInput.maxLength = 2048;
+      replayInput.className = 'match-replay-input';
+      replayInput.placeholder = 'https://...';
+      replayInput.setAttribute('aria-label', 'Full match replay URL');
+      replayInput.value = (existing && existing.replayUrl) || '';
+      replayField.appendChild(replayLabel);
+      replayField.appendChild(replayInput);
+      card.appendChild(replayField);
+
       const gamesContainer = document.createElement('div');
       gamesContainer.className = 'games-editor';
       card.appendChild(gamesContainer);
@@ -1220,10 +1279,17 @@ function escapeHtml(s){
           const winner = pendingWinner[matchKey];
           if(!winner){ alert('Pick a winner first.'); return; }
           const loser = winner === match.a ? match.b : match.a;
-          const games = gamesCtrl.getGames().filter(g => g.a != null && g.b != null);
-          const wasOverride = !!(existing && existing.locked);
-          const result = { winner, loser, games, locked: true, lockedBy: currentUser.uid, mvp: pendingMvpByMatch[matchKey] || null };
           try{
+            const replayUrl = normalizeReplayUrl(replayInput.value, 'Full match replay');
+            const games = gamesCtrl.getGames().map((game, gameIdx) => {
+              const gameReplayUrl = normalizeReplayUrl(game.replayUrl, 'Game ' + (gameIdx + 1) + ' replay');
+              if(gameReplayUrl && (game.a == null || game.b == null)){
+                throw new Error('Enter both Pokémon-left-alive counts for Game ' + (gameIdx + 1) + ' before adding its replay.');
+              }
+              return { a: game.a, b: game.b, replayUrl: gameReplayUrl };
+            }).filter(game => game.a != null && game.b != null);
+            const wasOverride = !!(existing && existing.locked);
+            const result = { winner, loser, games, replayUrl, locked: true, lockedBy: currentUser.uid, mvp: pendingMvpByMatch[matchKey] || null };
             await saveResult(result, wasOverride);
             delete editingKeys[matchKey];
           }catch(err){ alert('Could not save result: ' + err.message); }
@@ -1240,8 +1306,9 @@ function escapeHtml(s){
             const winner = pendingWinner[matchKey];
             if(!winner){ alert('Pick a winner first.'); return; }
             const loser = winner === match.a ? match.b : match.a;
-            const result = { winner, loser, games: [], locked: true, lockedBy: currentUser.uid, forfeit: true, mvp: pendingMvpByMatch[matchKey] || null };
             try{
+              const replayUrl = normalizeReplayUrl(replayInput.value, 'Full match replay');
+              const result = { winner, loser, games: [], replayUrl, locked: true, lockedBy: currentUser.uid, forfeit: true, mvp: pendingMvpByMatch[matchKey] || null };
               await saveResult(result, false, true);
               delete editingKeys[matchKey];
             }catch(err){ alert('Could not save result: ' + err.message); }
@@ -1286,6 +1353,32 @@ function escapeHtml(s){
         gamesContainer.className = 'games-editor';
         card.appendChild(gamesContainer);
         renderGamesEditor(gamesContainer, existing, matchKey, false, null);
+      }
+      const replayLinks = [];
+      const fullReplayUrl = safeReplayUrl(existing.replayUrl);
+      if(fullReplayUrl) replayLinks.push({ label: 'Full match replay', url: fullReplayUrl });
+      (existing.games || []).forEach((game, gameIdx) => {
+        const gameReplayUrl = safeReplayUrl(game.replayUrl);
+        if(gameReplayUrl) replayLinks.push({ label: 'Game ' + (gameIdx + 1) + ' replay', url: gameReplayUrl });
+      });
+      if(replayLinks.length){
+        const replayList = document.createElement('div');
+        replayList.className = 'replay-links';
+        const label = document.createElement('span');
+        label.className = 'replay-links-label';
+        label.textContent = 'Replays';
+        replayList.appendChild(label);
+        replayLinks.forEach((replay, replayIdx) => {
+          if(replayIdx) replayList.appendChild(document.createTextNode('·'));
+          const link = document.createElement('a');
+          link.className = 'replay-link';
+          link.href = replay.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.textContent = replay.label;
+          replayList.appendChild(link);
+        });
+        card.appendChild(replayList);
       }
       const lockTag = document.createElement('div');
       lockTag.className = 'settings-note';
