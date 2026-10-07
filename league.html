@@ -266,7 +266,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { appendValue, currentScheduleWeekIndex, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -309,10 +309,9 @@ function escapeHtml(s){
       for(let r = 0; r < league.playoffBracket.rounds.length; r++){
         if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ matchToken = 'p' + r; break; }
       }
-    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
-      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
-      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
-      matchToken = 'w' + idx;
+    } else {
+      const idx = currentScheduleWeekIndex(league.schedule);
+      if(idx !== null) matchToken = 'w' + idx;
     }
     const matchUnseen = matchToken !== null && matchToken !== (me && me.matchSeenToken);
     glowTab('subnavMatch', matchUnseen);
@@ -327,13 +326,6 @@ function escapeHtml(s){
   }
 
 
-  function currentWeekIndexFor(startTs, numWeeks){
-    if(numWeeks <= 0) return 0;
-    const diffDays = Math.floor((Date.now() - startTs) / 86400000);
-    const idx = Math.floor(diffDays / 7);
-    return Math.min(Math.max(idx, 0), numWeeks - 1);
-  }
-
   function computeActionItems(league, uid){
     if(!uid) return [];
     const items = [];
@@ -345,8 +337,8 @@ function escapeHtml(s){
     });
 
     if(league.schedule && league.draft){
-      const weekIdx = currentWeekIndexFor(league.schedule.startDate, league.schedule.weeks.length);
-      const round = league.schedule.weeks[weekIdx];
+      const weekIdx = currentScheduleWeekIndex(league.schedule);
+      const round = weekIdx === null ? null : league.schedule.weeks[weekIdx];
       if(round){
         round.matches.forEach((m, mIdx) => {
           if((m.a === uid || m.b === uid) && m.a !== 'BYE' && m.b !== 'BYE'){

@@ -270,7 +270,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, createPlayer, createSeason, deleteSeason, fetchPlayers, fetchSeasons, getCurrentSeasonId, onUserChange, setSeasonMember, signOut, subscribeLeague, updateLeague, updatePlayer } from './league-api.js';
+  import { appendValue, createPlayer, createSeason, currentScheduleWeekIndex, deleteSeason, fetchPlayers, fetchSeasons, getCurrentSeasonId, onUserChange, setSeasonMember, signOut, subscribeLeague, updateLeague, updatePlayer } from './league-api.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -326,10 +326,9 @@ function escapeHtml(s){
       for(let r = 0; r < league.playoffBracket.rounds.length; r++){
         if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ matchToken = 'p' + r; break; }
       }
-    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
-      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
-      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
-      matchToken = 'w' + idx;
+    } else {
+      const idx = currentScheduleWeekIndex(league.schedule);
+      if(idx !== null) matchToken = 'w' + idx;
     }
     const matchUnseen = matchToken !== null && matchToken !== (me && me.matchSeenToken);
     glowTab('subnavMatch', matchUnseen);

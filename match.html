@@ -440,7 +440,7 @@
 </main>
 
 <script type="module">
-  import { appendValue, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { appendValue, currentScheduleWeekIndex, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -523,10 +523,9 @@ function escapeHtml(s){
       for(let r = 0; r < league.playoffBracket.rounds.length; r++){
         if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ matchToken = 'p' + r; break; }
       }
-    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
-      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
-      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
-      matchToken = 'w' + idx;
+    } else {
+      const idx = currentScheduleWeekIndex(league.schedule);
+      if(idx !== null) matchToken = 'w' + idx;
     }
     const matchUnseen = matchToken !== null && matchToken !== (me && me.matchSeenToken);
     glowTab('subnavMatch', matchUnseen);
@@ -583,30 +582,13 @@ function escapeHtml(s){
     return updateLeague({ announcements: appendValue(entry) }).catch(() => {});
   }
 
-  // ---------- date helpers (Monday-Sunday weeks) ----------
-  function parseLocalDate(ts){ const d = new Date(ts); d.setHours(0,0,0,0); return d; }
-  function upcomingOrTodayMonday(){
-    const now = new Date();
-    const day = now.getDay();
-    const daysBack = day === 0 ? 6 : (day - 1);
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - daysBack);
-    monday.setHours(0,0,0,0);
-    return monday.getTime();
-  }
+  // ---------- date helpers ----------
   function weekDateRange(startTs, weekIdx){
     const start = new Date(startTs + weekIdx * 7 * 86400000);
     const end = new Date(start.getTime() + 6 * 86400000);
     const fmt = d => (d.getMonth()+1) + '/' + d.getDate();
     return fmt(start) + ' – ' + fmt(end);
   }
-  function currentWeekIndex(startTs, numWeeks){
-    if(numWeeks <= 0) return 0;
-    const diffDays = Math.floor((Date.now() - startTs) / 86400000);
-    const idx = Math.floor(diffDays / 7);
-    return Math.min(Math.max(idx, 0), numWeeks - 1);
-  }
-
   function buildRoundRobin(uids, double){
     const list = uids.slice();
     if(list.length % 2 !== 0) list.push('BYE');
@@ -934,6 +916,14 @@ function escapeHtml(s){
     return r.games.reduce((sum, g) => (g.a != null && g.b != null) ? sum + (g.a - g.b) : sum, 0);
   }
 
+  function isScheduleWeekComplete(schedule, weekIdx, round){
+    return round.matches.every((match, matchIdx) => {
+      if(match.a === 'BYE' || match.b === 'BYE') return true;
+      const result = (schedule.results || {})[weekIdx + '_' + matchIdx];
+      return !!(result && result.locked);
+    });
+  }
+
   function safeReplayUrl(value){
     if(typeof value !== 'string' || !value.trim()) return null;
     try{
@@ -962,15 +952,114 @@ function escapeHtml(s){
     return a;
   }
 
-  async function generateSchedule(league, double, startTs){
-    const uids = shuffle(league.draft.trainers.map(t => t.uid));
-    const weeks = buildRoundRobin(uids, double);
-    const schedule = { startDate: startTs || upcomingOrTodayMonday(), weeks, results: {} };
-    const startLabel = new Date(schedule.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  function announcedWeek(round, timestamp){
+    const hasResultsToEnter = round.matches.some(match => match.a !== 'BYE' && match.b !== 'BYE');
+    return { matches: round.matches, startDate: timestamp, endDate: hasResultsToEnter ? null : timestamp };
+  }
+
+  async function generateSchedule(league, double){
+    if(!league.draft.trainers.length){
+      alert('Add trainers to the draft before generating a match schedule.');
+      return;
+    }
+    const rotationOrder = shuffle(league.draft.trainers.map(t => t.uid));
+    const rounds = buildRoundRobin(rotationOrder, double);
+    const startDate = Date.now();
+    const schedule = {
+      progression: 'commissioner',
+      startDate,
+      totalWeeks: rounds.length,
+      double,
+      rotationOrder,
+      weeks: [announcedWeek(rounds[0], startDate)],
+      results: {}
+    };
+    const announcement = {
+      type: 'match',
+      message: 'Week 1 matchups have been announced!',
+      mons: [],
+      mvpId: null,
+      timestamp: startDate
+    };
     try{
-      await updateLeague({ schedule });
-      pushAnnouncement(league, 'match', 'Austin generated the season schedule (' + weeks.length + ' weeks, starting ' + startLabel + ')');
+      await updateLeague({ schedule, announcements: appendValue(announcement) });
     }catch(err){ alert('Could not generate schedule: ' + err.message); }
+  }
+
+  async function convertScheduleToCommissionerProgression(league){
+    const schedule = league.schedule;
+    if(!schedule || schedule.progression === 'commissioner') return false;
+    const totalWeeks = schedule.weeks.length;
+    if(totalWeeks === 0){
+      alert('The existing schedule has no weeks to convert.');
+      return false;
+    }
+    const currentWeekIdx = currentScheduleWeekIndex(schedule) || 0;
+    const now = Date.now();
+    const scheduleStartDate = Number(schedule.startDate) || now;
+    const resultWeekIdxs = Object.keys(schedule.results || {}).map(key => {
+      const match = key.match(/^(\d+)_\d+$/);
+      return match ? Number(match[1]) : -1;
+    });
+    const announcedWeekIdxs = Object.keys(league.weeksAnnounced || {}).filter(key => /^\d+$/.test(key) && league.weeksAnnounced[key]).map(Number);
+    const releasedCount = Math.min(totalWeeks, Math.max(currentWeekIdx, ...resultWeekIdxs, ...announcedWeekIdxs) + 1);
+    const weeks = schedule.weeks.slice(0, releasedCount).map((week, idx) => Object.assign({}, week, {
+      startDate: idx === releasedCount - 1 ? now : (week.startDate || (scheduleStartDate + idx * 7 * 86400000)),
+      endDate: week.endDate || null
+    }));
+    const updatedSchedule = Object.assign({}, schedule, {
+      progression: 'commissioner',
+      totalWeeks,
+      weeks,
+      unreleasedWeeks: schedule.weeks.slice(releasedCount).map(week => Object.assign({}, week)),
+      startDate: scheduleStartDate
+    });
+    const announcement = {
+      type: 'match',
+      message: 'Match weeks are now commissioner-controlled. Week ' + releasedCount + ' is active; the next week will be announced when the commissioner is ready.',
+      mons: [],
+      mvpId: null,
+      timestamp: now
+    };
+    try{
+      await updateLeague({ schedule: updatedSchedule, announcements: appendValue(announcement) });
+      return true;
+    }catch(err){ alert('Could not switch to commissioner-controlled weeks: ' + err.message); return false; }
+  }
+
+  async function generateNextWeek(league){
+    if(!currentUser || league.commissionerUid !== currentUser.uid) return false;
+    const schedule = league.schedule;
+    if(!schedule || schedule.progression !== 'commissioner' || schedule.weeks.length >= schedule.totalWeeks) return false;
+    let nextRound;
+    let unreleasedWeeks = schedule.unreleasedWeeks;
+    if(Array.isArray(unreleasedWeeks)){
+      nextRound = unreleasedWeeks[0];
+      unreleasedWeeks = unreleasedWeeks.slice(1);
+    } else {
+      nextRound = buildRoundRobin(schedule.rotationOrder, schedule.double)[schedule.weeks.length];
+    }
+    if(!nextRound){
+      alert('Could not generate the next week from the saved schedule.');
+      return false;
+    }
+    const weekNumber = schedule.weeks.length + 1;
+    const startDate = Date.now();
+    const updatedSchedule = Object.assign({}, schedule, {
+      weeks: schedule.weeks.concat([announcedWeek(nextRound, startDate)])
+    });
+    if(Array.isArray(schedule.unreleasedWeeks)) updatedSchedule.unreleasedWeeks = unreleasedWeeks;
+    const announcement = {
+      type: 'match',
+      message: 'Week ' + weekNumber + ' matchups have been announced!',
+      mons: [],
+      mvpId: null,
+      timestamp: startDate
+    };
+    try{
+      await updateLeague({ schedule: updatedSchedule, announcements: appendValue(announcement) });
+      return true;
+    }catch(err){ alert('Could not generate next week: ' + err.message); return false; }
   }
 
   let editingKeys = {};
@@ -1025,7 +1114,7 @@ function escapeHtml(s){
           replayInput.type = 'url';
           replayInput.maxLength = 2048;
           replayInput.className = 'game-replay-input';
-          replayInput.placeholder = 'Optional Game ' + (gIdx + 1) + ' replay URL';
+          replayInput.placeholder = 'Optional Game ' + (gIdx + 1) + ' replay URL (use if played on Showdown)';
           replayInput.setAttribute('aria-label', 'Game ' + (gIdx + 1) + ' replay URL');
           replayInput.value = g.replayUrl || '';
           replayInput.addEventListener('input', () => { g.replayUrl = replayInput.value; });
@@ -1058,7 +1147,7 @@ function escapeHtml(s){
 
     const nameA = trainerName(league, match.a), nameB = trainerName(league, match.b);
     const isParty = myUid === match.a || myUid === match.b;
-    const canEditPermission = editable && (isParty || isCommish);
+    const canEditPermission = (editable && isParty) || isCommish;
     const isEditingOverride = editingKeys[matchKey];
     const showEditor = existing && existing.locked ? (isCommish && isEditingOverride) : canEditPermission;
 
@@ -1253,7 +1342,7 @@ function escapeHtml(s){
       const replayField = document.createElement('div');
       replayField.className = 'match-replay-field';
       const replayLabel = document.createElement('label');
-      replayLabel.textContent = 'Full match replay (optional)';
+      replayLabel.textContent = 'Full match replay (optional - use this if played on Champions)';
       const replayInput = document.createElement('input');
       replayInput.type = 'url';
       replayInput.maxLength = 2048;
@@ -1508,10 +1597,9 @@ function escapeHtml(s){
       for(let r = 0; r < league.playoffBracket.rounds.length; r++){
         if(league.playoffBracket.rounds[r].matches.some(m => m.a && m.b && !m.locked)){ token = 'p' + r; break; }
       }
-    } else if(league.schedule && league.schedule.weeks && league.schedule.weeks.length){
-      const diffDays = Math.floor((Date.now() - league.schedule.startDate) / 86400000);
-      const idx = Math.min(Math.max(Math.floor(diffDays / 7), 0), league.schedule.weeks.length - 1);
-      token = 'w' + idx;
+    } else {
+      const idx = currentScheduleWeekIndex(league.schedule);
+      if(idx !== null) token = 'w' + idx;
     }
     if(token === null) return;
     const idx2 = league.draft.trainers.findIndex(t => t.uid === currentUser.uid);
@@ -1586,38 +1674,35 @@ function escapeHtml(s){
       content.innerHTML =
         '<div class="page-head"><span class="eyebrow">Match</span><h1>' + escapeHtml(league.name || 'League') + '</h1></div>' +
         (isCommish
-          ? '<div class="panel"><h2 style="margin-bottom:12px;">Generate Season Schedule</h2><p class="settings-note" style="margin-bottom:14px;">Weeks run Monday–Sunday. Pick any date and it\'ll snap to the Monday of that week.</p>' +
-              '<div class="field-inline" style="margin-bottom:16px;"><label for="seasonStartInput">Season starts</label><input type="date" id="seasonStartInput"></div>' +
+          ? '<div class="panel"><h2 style="margin-bottom:12px;">Generate Match Schedule</h2><p class="settings-note" style="margin-bottom:14px;">Only the first week is announced now. Generate each following week whenever you\'re ready; players can\'t access future matchups.</p>' +
               '<div style="display:flex;gap:10px;"><button class="btn btn-primary btn-sm" id="genSingleBtn">Single Round Robin</button><button class="btn btn-sm" id="genDoubleBtn">Double Round Robin</button></div></div>'
           : '<div class="panel state-msg">The commissioner hasn\'t generated a schedule yet.</div>');
       if(isCommish){
-        const startInput = document.getElementById('seasonStartInput');
-        const defaultDate = new Date(upcomingOrTodayMonday());
-        startInput.value = defaultDate.getFullYear() + '-' + String(defaultDate.getMonth()+1).padStart(2,'0') + '-' + String(defaultDate.getDate()).padStart(2,'0');
-        function chosenStartTs(){
-          const parts = startInput.value.split('-').map(Number);
-          const chosen = new Date(parts[0], parts[1]-1, parts[2]);
-          const day = chosen.getDay();
-          const daysBack = day === 0 ? 6 : (day - 1);
-          chosen.setDate(chosen.getDate() - daysBack);
-          chosen.setHours(0,0,0,0);
-          return chosen.getTime();
-        }
-        document.getElementById('genSingleBtn').addEventListener('click', () => generateSchedule(league, false, chosenStartTs()));
-        document.getElementById('genDoubleBtn').addEventListener('click', () => generateSchedule(league, true, chosenStartTs()));
+        document.getElementById('genSingleBtn').addEventListener('click', () => generateSchedule(league, false));
+        document.getElementById('genDoubleBtn').addEventListener('click', () => generateSchedule(league, true));
       }
       return;
     }
 
+    const manualProgression = league.schedule.progression === 'commissioner';
     const numWeeks = league.schedule.weeks.length;
-    const trueWeekIdx = currentWeekIndex(league.schedule.startDate, numWeeks);
+    const totalWeeks = manualProgression ? league.schedule.totalWeeks : numWeeks;
+    const trueWeekIdx = currentScheduleWeekIndex(league.schedule);
+    if(trueWeekIdx === null){
+      content.innerHTML = '<div class="page-head"><span class="eyebrow">Match</span><h1>' + escapeHtml(league.name || 'League') + '</h1></div><div class="panel state-msg">No match weeks have been generated yet.</div>';
+      return;
+    }
     if(viewingWeekIdx === null || viewingWeekIdx >= numWeeks) viewingWeekIdx = trueWeekIdx;
     const weekIdx = viewingWeekIdx;
     const round = league.schedule.weeks[weekIdx];
     const isTrueCurrentWeek = weekIdx === trueWeekIdx;
-    if(Date.now() >= league.schedule.startDate){
-      maybeAnnounceKickoff(league, 'week', trueWeekIdx, league.schedule.weeks[trueWeekIdx].matches);
-    }
+    if(manualProgression || Date.now() >= league.schedule.startDate) maybeAnnounceKickoff(league, 'week', trueWeekIdx, league.schedule.weeks[trueWeekIdx].matches);
+    const startedLabel = round.startDate ? new Date(round.startDate).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const endedLabel = round.endDate ? new Date(round.endDate).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    const weekComplete = isScheduleWeekComplete(league.schedule, weekIdx, round);
+    const weekPeriod = manualProgression
+      ? (startedLabel ? 'Announced ' + startedLabel + (endedLabel ? ' · completed ' + endedLabel : weekComplete ? ' · completed' : ' · in progress') : '')
+      : weekDateRange(league.schedule.startDate, weekIdx);
 
     content.innerHTML =
       '<div class="page-head">' +
@@ -1626,11 +1711,20 @@ function escapeHtml(s){
         '<h1>' + escapeHtml(league.name || 'League') + '</h1>' +
         '<div class="week-nav">' +
           '<button class="week-nav-btn" id="prevWeekBtn"' + (weekIdx === 0 ? ' disabled' : '') + '>&larr; Prev</button>' +
-          '<span class="week-nav-label">Week ' + (weekIdx+1) + ' of ' + numWeeks + (isTrueCurrentWeek ? ' <span class="week-nav-current">(Current)</span>' : '') + '<br>' + weekDateRange(league.schedule.startDate, weekIdx) + '</span>' +
+          '<span class="week-nav-label">Week ' + (weekIdx+1) + ' of ' + totalWeeks + (isTrueCurrentWeek ? ' <span class="week-nav-current">(Current)</span>' : '') + (weekPeriod ? '<br>' + escapeHtml(weekPeriod) : '') + '</span>' +
           '<button class="week-nav-btn" id="nextWeekBtn"' + (weekIdx === numWeeks - 1 ? ' disabled' : '') + '>Next &rarr;</button>' +
         '</div>' +
+        (isCommish && !manualProgression
+          ? '<p class="settings-note" style="text-align:center;margin-top:12px;">Switch this schedule to commissioner-controlled week releases while keeping its matchups and results.</p><button class="btn btn-sm" id="convertScheduleBtn" style="display:block;margin:8px auto 0;">Use Commissioner-Controlled Weeks</button>'
+          : '') +
+        (isCommish && manualProgression && numWeeks < totalWeeks
+          ? '<button class="btn btn-primary btn-sm" id="generateNextWeekBtn" style="display:block;margin:14px auto 0;">Announce Week ' + (numWeeks + 1) + '</button>'
+          : '') +
+        (isCommish && manualProgression && numWeeks >= totalWeeks
+          ? '<p class="settings-note" style="text-align:center;">All ' + totalWeeks + ' weeks have been announced.</p>'
+          : '') +
       '</div>' +
-      (!isTrueCurrentWeek ? '<p class="settings-note" style="margin:-10px 0 16px;">You\'re viewing a different week — only the current week\'s matches can have results entered.</p>' : '') +
+      (!isTrueCurrentWeek ? '<p class="settings-note" style="margin:-10px 0 16px;">You\'re viewing a previous week. Players can only enter results for the current week; the commissioner can fill in missing results or correct locked results.</p>' : '') +
       '<div id="matchesWrap"></div>';
 
     document.getElementById('prevWeekBtn').addEventListener('click', () => {
@@ -1639,6 +1733,28 @@ function escapeHtml(s){
     document.getElementById('nextWeekBtn').addEventListener('click', () => {
       if(viewingWeekIdx < numWeeks - 1){ viewingWeekIdx++; renderMatch(currentLeague); }
     });
+    const convertScheduleBtn = document.getElementById('convertScheduleBtn');
+    if(convertScheduleBtn){
+      convertScheduleBtn.addEventListener('click', async () => {
+        convertScheduleBtn.disabled = true;
+        const previousWeekIdx = viewingWeekIdx;
+        viewingWeekIdx = null;
+        const converted = await convertScheduleToCommissionerProgression(league);
+        if(!converted) viewingWeekIdx = previousWeekIdx;
+        if(convertScheduleBtn.isConnected) convertScheduleBtn.disabled = false;
+      });
+    }
+    const generateNextWeekBtn = document.getElementById('generateNextWeekBtn');
+    if(generateNextWeekBtn){
+      generateNextWeekBtn.addEventListener('click', async () => {
+        generateNextWeekBtn.disabled = true;
+        const previousWeekIdx = viewingWeekIdx;
+        viewingWeekIdx = null;
+        const generated = await generateNextWeek(league);
+        if(!generated) viewingWeekIdx = previousWeekIdx;
+        if(generateNextWeekBtn.isConnected) generateNextWeekBtn.disabled = false;
+      });
+    }
 
     const wrap = document.getElementById('matchesWrap');
     round.matches.forEach((match, matchIdx) => {

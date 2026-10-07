@@ -71,6 +71,15 @@ export function getCurrentSeasonId() {
   return querySeasonId || localStorage.getItem(SEASON_KEY) || 'main';
 }
 
+export function currentScheduleWeekIndex(schedule) {
+  if (!schedule || !Array.isArray(schedule.weeks) || schedule.weeks.length === 0) return null;
+  if (schedule.progression === 'commissioner') return schedule.weeks.length - 1;
+  const startDate = Number(schedule.startDate);
+  if (!Number.isFinite(startDate)) return 0;
+  const elapsedDays = Math.floor((Date.now() - startDate) / 86400000);
+  return Math.min(Math.max(Math.floor(elapsedDays / 7), 0), schedule.weeks.length - 1);
+}
+
 function seasonApiUrl(path) {
   return apiUrl(path) + (path.includes('?') ? '&' : '?') + 'id=' + encodeURIComponent(getCurrentSeasonId());
 }

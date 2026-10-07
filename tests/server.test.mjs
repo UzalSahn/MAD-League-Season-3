@@ -144,6 +144,32 @@ test('commissioner provisions designated player sessions', async () => {
     assert.equal(playerLogin.response.status, 200);
     const playerToken = playerLogin.data.token;
     assert.equal(playerLogin.data.user.uid, playerId);
+    const commissionerSchedule = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { schedule: { weeks: [{ matches: [{ a: playerId, b: 'opponent' }, { a: 'trainer-two', b: 'opponent-two' }], startDate: Date.now(), endDate: null }], results: {} } } },
+      token: commissionerToken
+    });
+    assert.equal(commissionerSchedule.response.status, 200);
+    const deniedPlayerScheduleChange = await call('/api/league', {
+      method: 'PATCH', body: { updates: { schedule: { progression: 'commissioner', weeks: [] } } }, token: playerToken
+    });
+    assert.equal(deniedPlayerScheduleChange.response.status, 403);
+    const playerMatchResult = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { 'schedule.results.0_0': { winner: playerId, locked: true } } },
+      token: playerToken
+    });
+    assert.equal(playerMatchResult.response.status, 200);
+    const inProgressSchedule = await call('/api/league', { token: commissionerToken });
+    assert.equal(inProgressSchedule.data.league.schedule.weeks[0].endDate, null);
+    const finalMatchResult = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { 'schedule.results.0_1': { winner: 'trainer-two', locked: true } } },
+      token: playerToken
+    });
+    assert.equal(finalMatchResult.response.status, 200);
+    const completedSchedule = await call('/api/league', { token: commissionerToken });
+    assert.ok(completedSchedule.data.league.schedule.weeks[0].endDate);
     const deniedPlayerChampionWrite = await call('/api/champions', {
       method: 'POST',
       body: { champion: { id: championId, season: 'Tampered Season', winner: 'Tampered', roster: [] } },

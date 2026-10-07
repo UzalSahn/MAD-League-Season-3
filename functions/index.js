@@ -195,6 +195,10 @@ function checkUpdates(updates, account) {
         && ['settings', 'logo', 'commissionerUid', 'seasonComplete', 'championUid'].includes(topLevel)) {
       fail('permission-denied', 'Commissioner access required for this change.');
     }
+    if (account.role !== 'commissioner' && topLevel === 'schedule'
+        && !/^schedule\.results\.\d+_\d+$/.test(field)) {
+      fail('permission-denied', 'Commissioner access required to change the match schedule.');
+    }
     if (account.role !== 'commissioner' && topLevel === 'members' && parts[1] !== account.id) {
       fail('permission-denied', 'You can only edit your own player profile.');
     }
@@ -214,6 +218,24 @@ function setPath(target, field, value) {
 
 function currentAtPath(target, field) {
   return field.split('.').reduce((value, part) => value && value[part], target);
+}
+
+function stampCompletedScheduleWeeks(league, updates) {
+  const updatedWeeks = new Set();
+  for (const [field, value] of Object.entries(updates)) {
+    const match = field.match(/^schedule\.results\.(\d+)_(\d+)$/);
+    if (match && value && value.locked) updatedWeeks.add(Number(match[1]));
+  }
+  for (const weekIndex of updatedWeeks) {
+    const week = league.schedule?.weeks?.[weekIndex];
+    if (!week || week.endDate || !Array.isArray(week.matches)) continue;
+    const complete = week.matches.every((match, matchIndex) => {
+      if (match.a === 'BYE' || match.b === 'BYE') return true;
+      const result = league.schedule.results?.[weekIndex + '_' + matchIndex];
+      return !!(result && result.locked);
+    });
+    if (complete) week.endDate = Date.now();
+  }
 }
 
 export const signInWithPin = onCall({
@@ -442,6 +464,7 @@ export const updateLeague = onCall({ cors: true, invoker: 'public' }, async requ
         setPath(league, field, value);
       }
     }
+    stampCompletedScheduleWeeks(league, updates);
     transaction.set(leagueRef, league);
   });
   return { ok: true };

@@ -205,6 +205,24 @@ function setPath(target, field, value) {
   cursor[parts.at(-1)] = value;
 }
 
+function stampCompletedScheduleWeeks(league, updates) {
+  const updatedWeeks = new Set();
+  for (const [field, value] of Object.entries(updates)) {
+    const match = field.match(/^schedule\.results\.(\d+)_(\d+)$/);
+    if (match && value && value.locked) updatedWeeks.add(Number(match[1]));
+  }
+  for (const weekIndex of updatedWeeks) {
+    const week = league.schedule?.weeks?.[weekIndex];
+    if (!week || week.endDate || !Array.isArray(week.matches)) continue;
+    const complete = week.matches.every((match, matchIndex) => {
+      if (match.a === 'BYE' || match.b === 'BYE') return true;
+      const result = league.schedule.results?.[weekIndex + '_' + matchIndex];
+      return !!(result && result.locked);
+    });
+    if (complete) week.endDate = Date.now();
+  }
+}
+
 function validPoolPointOverrides(overrides) {
   return overrides && typeof overrides === 'object' && !Array.isArray(overrides)
     && Object.keys(overrides).length <= 2000
@@ -448,6 +466,10 @@ const server = createServer(async (request, response) => {
       const seasonId = url.searchParams.get('id') || 'main';
       const league = getSeasonLeague(seasonId, account);
       for (const [field, value] of Object.entries(updates)) {
+        if (account.role !== 'commissioner' && field.split('.')[0] === 'schedule'
+            && !/^schedule\.results\.\d+_\d+$/.test(field)) {
+          return send(response, 403, { error: 'Commissioner access required to change the match schedule.' });
+        }
         if (field.split('.')[0] === 'poolPointOverrides'
             && (account.role !== 'commissioner' || field !== 'poolPointOverrides' || !validPoolPointOverrides(value))) {
           return send(response, account.role !== 'commissioner' ? 403 : 400, {
@@ -470,6 +492,7 @@ const server = createServer(async (request, response) => {
           setPath(league, field, value);
         }
       }
+      stampCompletedScheduleWeeks(league, updates);
       store.revision++;
       await persistStore();
       broadcastLeague(seasonId);
