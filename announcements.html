@@ -256,6 +256,7 @@
     <a href="freeagency.html" id="subnavFA" class="subnav-tab">Free Agency</a>
     <a href="trades.html" id="subnavTrades" class="subnav-tab">Trades</a>
     <a href="standing.html" id="subnavStanding" class="subnav-tab">Standing</a>
+    <a href="mvp-race.html" id="subnavMvp" class="subnav-tab">MVP Race</a>
     <a href="announcements.html" id="subnavAnnouncements" class="subnav-tab active">Announcements</a>
     <a href="draft.html" id="subnavDraft" class="subnav-tab">Draft Room</a>
     <a href="commissioner.html" id="subnavCommish" class="subnav-tab" style="display:none;">Commissioner</a>
@@ -328,7 +329,7 @@
   const params = new URLSearchParams(window.location.search);
   const leagueId = getCurrentSeasonId();
 
-  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
+  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavMvp','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
     const el = document.getElementById(id);
     if(el && leagueId) el.href = el.getAttribute('href') + '?id=' + leagueId;
   });

@@ -213,6 +213,16 @@
   .replay-links-label{font-family:var(--mono);font-size:10px;text-transform:uppercase;color:var(--cream-dim);}
   .replay-link{color:var(--gold);text-decoration:underline;text-underline-offset:3px;font-weight:600;}
   .replay-link:hover{color:var(--cream);}
+  .pokemon-match-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin:10px 0;}
+  .pokemon-game-stats{background:var(--ink-soft);border:1px solid var(--line);border-radius:4px;padding:10px;}
+  .pokemon-game-stats-title{font-family:var(--mono);font-size:11px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;}
+  .pokemon-stats-team{border:1px solid var(--line);border-radius:4px;padding:8px;margin:8px 0 0;min-width:0;}
+  .pokemon-stats-team legend{font-size:12px;font-weight:700;padding:0 4px;}
+  .pokemon-stats-count{font-size:10px;color:var(--cream-dim);margin-bottom:6px;}
+  .pokemon-stats-row{display:grid;grid-template-columns:minmax(0,1fr) 46px 46px;align-items:center;gap:6px;padding:3px 0;font-size:11px;}
+  .pokemon-stats-pick{display:flex;align-items:center;gap:6px;min-width:0;}
+  .pokemon-stats-pick input{accent-color:var(--gold);margin:0;}
+  .pokemon-stats-row input[type="number"]{width:46px;background:var(--panel);border:1px solid var(--line);color:var(--cream);padding:4px;border-radius:3px;font-family:var(--mono);font-size:11px;text-align:center;}
   .add-game-btn{
     display:block;margin:8px auto 0;background:none;border:1px dashed var(--line);color:var(--cream-dim);font-family:var(--mono);
     font-size:11px;padding:5px 12px;border-radius:3px;cursor:pointer;
@@ -375,6 +385,7 @@
     <a href="freeagency.html" id="subnavFA" class="subnav-tab">Free Agency</a>
     <a href="trades.html" id="subnavTrades" class="subnav-tab">Trades</a>
     <a href="standing.html" id="subnavStanding" class="subnav-tab">Standing</a>
+    <a href="mvp-race.html" id="subnavMvp" class="subnav-tab">MVP Race</a>
     <a href="announcements.html" id="subnavAnnouncements" class="subnav-tab">Announcements</a>
     <a href="draft.html" id="subnavDraft" class="subnav-tab">Draft Room</a>
     <a href="commissioner.html" id="subnavCommish" class="subnav-tab" style="display:none;">Commissioner</a>
@@ -442,6 +453,7 @@
 <script type="module">
   import { appendValue, currentScheduleWeekIndex, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
   import { advancePlayoffWinner } from './playoff-bracket.js';
+  import { renderPokemonStats } from './pokemon-match-stats.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -494,7 +506,7 @@ function escapeHtml(s){
   const params = new URLSearchParams(window.location.search);
   const leagueId = getCurrentSeasonId();
 
-  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
+  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavMvp','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
     const el = document.getElementById(id);
     if(el && leagueId) el.href = el.getAttribute('href') + '?id=' + leagueId;
   });
@@ -1107,9 +1119,46 @@ function escapeHtml(s){
   });
   let pendingMvpByMatch = {};
 
-  function renderGamesEditor(container, existing, matchKey, canEdit, onSave){
+  function renderGamesEditor(container, existing, matchKey, canEdit, statsContext){
     const games = (existing && existing.games && existing.games.length) ? JSON.parse(JSON.stringify(existing.games)) : [{ a: null, b: null }];
+    const canSavePokemonStats = statsContext && (statsContext.isCommissioner
+      || statsContext.trainers.some(trainer => trainer.uid === statsContext.currentUid));
     let totalRowEl = null;
+    let statsEditor = null;
+    let statsContainer = null;
+    let statsSaveBtn = null;
+    let statsGameIndices = [];
+
+    function drawPokemonStats(){
+      if(!statsContext || !statsContainer) return;
+      statsGameIndices = games.reduce((indices, game, index) => {
+        if(game.a != null && game.b != null) indices.push(index);
+        return indices;
+      }, []);
+      statsContainer.innerHTML = '';
+      statsEditor = statsGameIndices.length ? renderPokemonStats(
+        statsContainer,
+        statsGameIndices.map(index => games[index]),
+        statsContext.trainers,
+        statsContext.currentUid,
+        statsContext.isCommissioner
+      ) : null;
+      if(statsSaveBtn) statsSaveBtn.disabled = canEdit || !statsEditor;
+    }
+
+    function savePokemonStats(onSave){
+      if(!statsEditor) throw new Error('Enter game results before recording Pokémon stats.');
+      return statsEditor.save(async updates => {
+        const mappedUpdates = {};
+        Object.entries(updates).forEach(([uid, entries]) => {
+          mappedUpdates[uid] = entries.map(entry => ({
+            gameIdx: statsGameIndices[entry.gameIdx],
+            stats: entry.stats
+          }));
+        });
+        await onSave(mappedUpdates);
+      });
+    }
 
     function updateTotal(){
       if(!totalRowEl) return;
@@ -1136,6 +1185,7 @@ function escapeHtml(s){
           g.b = bInput.value === '' ? null : parseInt(bInput.value,10);
           updateDiff();
           updateTotal();
+          drawPokemonStats();
         }
         aInput.disabled = !canEdit; bInput.disabled = !canEdit;
         aInput.addEventListener('change', commit); bInput.addEventListener('change', commit);
@@ -1159,6 +1209,29 @@ function escapeHtml(s){
         }
         container.appendChild(gameWrap);
       });
+      statsEditor = null;
+      statsContainer = null;
+      statsSaveBtn = null;
+      if(statsContext){
+        statsContainer = document.createElement('div');
+        container.appendChild(statsContainer);
+        if(canSavePokemonStats && statsContext.onSave){
+          statsSaveBtn = document.createElement('button');
+          statsSaveBtn.type = 'button';
+          statsSaveBtn.className = 'btn btn-sm';
+          statsSaveBtn.textContent = 'Save Pokémon Stats';
+          statsSaveBtn.style.display = 'block';
+          statsSaveBtn.style.margin = '12px auto 0';
+          statsSaveBtn.addEventListener('click', async () => {
+            try{
+              await savePokemonStats(statsContext.onSave);
+              alert('Pokémon stats saved.');
+            }catch(err){ alert('Could not save Pokémon stats: ' + err.message); }
+          });
+          container.appendChild(statsSaveBtn);
+        }
+        drawPokemonStats();
+      }
       if(canEdit){
         const addBtn = document.createElement('button'); addBtn.type='button'; addBtn.className='add-game-btn'; addBtn.textContent='+ Add game';
         addBtn.addEventListener('click', () => { games.push({a:null,b:null}); draw(); });
@@ -1169,10 +1242,16 @@ function escapeHtml(s){
       updateTotal();
     }
     draw();
-    return { getGames: () => games };
+    return {
+      getGames: () => games,
+      getPokemonStats: () => statsEditor ? {
+        validate: uid => statsEditor.validate(uid),
+        save: onSave => savePokemonStats(onSave)
+      } : null
+    };
   }
 
-  function renderMatchCard(league, matchKey, match, existing, saveResult, editable, isCommish, myUid){
+  function renderMatchCard(league, matchKey, match, existing, saveResult, editable, isCommish, myUid, pokemonStatsPath){
     const card = document.createElement('div');
     card.className = 'panel match-panel';
 
@@ -1183,10 +1262,28 @@ function escapeHtml(s){
     }
 
     const nameA = trainerName(league, match.a), nameB = trainerName(league, match.b);
+    const trainerA = league.draft.trainers.find(t => t.uid === match.a);
+    const trainerB = league.draft.trainers.find(t => t.uid === match.b);
     const isParty = myUid === match.a || myUid === match.b;
     const canEditPermission = (editable && isParty) || isCommish;
     const isEditingOverride = editingKeys[matchKey];
     const showEditor = existing && existing.locked ? (isCommish && isEditingOverride) : canEditPermission;
+    let savedGameIndexByEditorIndex = null;
+    const pokemonStatsContext = {
+      trainers: [trainerA, trainerB].filter(Boolean),
+      currentUid: myUid,
+      isCommissioner: isCommish,
+      onSave: async updates => {
+        const fields = {};
+        Object.entries(updates).forEach(([uid, entries]) => entries.forEach(entry => {
+          const gameIdx = savedGameIndexByEditorIndex
+            ? savedGameIndexByEditorIndex[entry.gameIdx]
+            : entry.gameIdx;
+          if(gameIdx != null) fields[pokemonStatsPath(gameIdx, uid)] = entry.stats;
+        }));
+        if(Object.keys(fields).length) await updateLeague(fields);
+      }
+    };
 
     const head = document.createElement('div');
     head.className = 'match-vs-head';
@@ -1394,7 +1491,7 @@ function escapeHtml(s){
       const gamesContainer = document.createElement('div');
       gamesContainer.className = 'games-editor';
       card.appendChild(gamesContainer);
-      const gamesCtrl = renderGamesEditor(gamesContainer, existing, matchKey, true, null);
+      const gamesCtrl = renderGamesEditor(gamesContainer, existing, matchKey, true, pokemonStatsContext);
 
       if(canEditPermission || showEditor){
         const saveBtn = document.createElement('button');
@@ -1412,11 +1509,22 @@ function escapeHtml(s){
               if(gameReplayUrl && (game.a == null || game.b == null)){
                 throw new Error('Enter both Pokémon-left-alive counts for Game ' + (gameIdx + 1) + ' before adding its replay.');
               }
+              if(game.pokemonStats && Object.values(game.pokemonStats).some(stats => stats.length) && (game.a == null || game.b == null)){
+                throw new Error('Enter both Pokémon-left-alive counts for Game ' + (gameIdx + 1) + ' before adding Pokémon stats.');
+              }
               return { a: game.a, b: game.b, replayUrl: gameReplayUrl };
             }).filter(game => game.a != null && game.b != null);
+            savedGameIndexByEditorIndex = [];
+            let savedGameIndex = 0;
+            gamesCtrl.getGames().forEach((game, gameIdx) => {
+              savedGameIndexByEditorIndex[gameIdx] = game.a != null && game.b != null ? savedGameIndex++ : null;
+            });
             const wasOverride = !!(existing && existing.locked);
             const result = { winner, loser, games, replayUrl, locked: true, lockedBy: currentUser.uid, mvp: pendingMvpByMatch[matchKey] || null };
+            const pokemonStats = gamesCtrl.getPokemonStats();
+            if(pokemonStats && myUid && (myUid === match.a || myUid === match.b)) pokemonStats.validate(myUid);
             await saveResult(result, wasOverride);
+            if(pokemonStats) await pokemonStats.save(pokemonStatsContext.onSave);
             delete editingKeys[matchKey];
           }catch(err){ alert('Could not save result: ' + err.message); }
         });
@@ -1478,7 +1586,7 @@ function escapeHtml(s){
         const gamesContainer = document.createElement('div');
         gamesContainer.className = 'games-editor';
         card.appendChild(gamesContainer);
-        renderGamesEditor(gamesContainer, existing, matchKey, false, null);
+        renderGamesEditor(gamesContainer, existing, matchKey, false, pokemonStatsContext);
       }
       const replayLinks = [];
       const fullReplayUrl = safeReplayUrl(existing.replayUrl);
@@ -1689,7 +1797,10 @@ function escapeHtml(s){
           const existing = match.locked ? match : null;
           const nameA = trainerName(league, match.a), nameB = trainerName(league, match.b);
           const saveResult = makePlayoffSaveResult(league, active.roundIdx, matchIdx, nameA, nameB);
-          wrap.appendChild(renderMatchCard(league, matchKey, match, existing, saveResult, true, isCommish, myUid));
+          wrap.appendChild(renderMatchCard(
+            league, matchKey, match, existing, saveResult, true, isCommish, myUid,
+            (gameIdx, uid) => 'playoffBracket.rounds.' + active.roundIdx + '.matches.' + matchIdx + '.games.' + gameIdx + '.pokemonStats.' + uid
+          ));
         });
         return;
       }
@@ -1841,7 +1952,10 @@ function escapeHtml(s){
           sendDiscordGeneral('🏆 **' + trainerName(league, result.winner) + '** defeated **' + trainerName(league, result.loser) + '**' + diffNote + (mvpMon ? (' — MVP: **' + mvpMon.name + '**') : ''), discordMatchEmbed(league.draft.trainers.find(t=>t.uid===result.winner), mvpMon));
         }
       };
-      wrap.appendChild(renderMatchCard(league, matchKey, match, existing, saveResult, isTrueCurrentWeek, isCommish, myUid));
+      wrap.appendChild(renderMatchCard(
+        league, matchKey, match, existing, saveResult, isTrueCurrentWeek, isCommish, myUid,
+        (gameIdx, uid) => 'schedule.results.' + matchKey + '.games.' + gameIdx + '.pokemonStats.' + uid
+      ));
     });
   }
 

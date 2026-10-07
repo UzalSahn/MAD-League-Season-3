@@ -241,6 +241,101 @@ function scheduleRetractionError(league, updates) {
   return null;
 }
 
+function pokemonStatsPatchContext(league, field, stats, account) {
+  const regular = field.match(/^schedule\.results\.(\d+)_(\d+)\.games\.(\d+)\.pokemonStats\.([A-Za-z0-9_-]+)$/);
+  const playoff = field.match(/^playoffBracket\.rounds\.(\d+)\.matches\.(\d+)\.games\.(\d+)\.pokemonStats\.([A-Za-z0-9_-]+)$/);
+  const match = regular || playoff;
+  if (!match) return null;
+
+  let matchRecord, games, scope, weekIndex, matchIndex, roundIndex;
+  if (regular) {
+    [, weekIndex, matchIndex] = regular;
+    weekIndex = Number(weekIndex); matchIndex = Number(matchIndex);
+    matchRecord = league.schedule?.weeks?.[weekIndex]?.matches?.[matchIndex];
+    games = league.schedule?.results?.[weekIndex + '_' + matchIndex]?.games;
+    scope = 'schedule:' + weekIndex + '_' + matchIndex;
+  } else {
+    [, roundIndex, matchIndex] = playoff;
+    roundIndex = Number(roundIndex); matchIndex = Number(matchIndex);
+    matchRecord = league.playoffBracket?.rounds?.[roundIndex]?.matches?.[matchIndex];
+    games = matchRecord?.games;
+    scope = 'playoff:' + roundIndex + '_' + matchIndex;
+  }
+  const gameIndex = Number(match[3]);
+  const statsUid = match[4];
+  if (!matchRecord || !Array.isArray(games) || !games[gameIndex]
+      || ![matchRecord.a, matchRecord.b].includes(statsUid)) {
+    throw Object.assign(new Error('Pokémon stats do not match a saved game.'), { status: 400 });
+  }
+  if (account.role !== 'commissioner' && (account.id !== statsUid || ![matchRecord.a, matchRecord.b].includes(account.id))) {
+    throw Object.assign(new Error('You can only submit Pokémon stats for your own team.'), { status: 403 });
+  }
+  if (!Array.isArray(stats) || (stats.length !== 0 && stats.length !== 4)) {
+    throw Object.assign(new Error('Submit exactly four Pokémon per game, or an empty list to clear stats.'), { status: 400 });
+  }
+  const ids = new Set();
+  for (const stat of stats) {
+    if (!stat || !Number.isInteger(Number(stat.pokemonId)) || Number(stat.pokemonId) < 1
+        || ids.has(String(stat.pokemonId))
+        || !Number.isInteger(stat.kills) || stat.kills < 0 || stat.kills > 6
+        || !Number.isInteger(stat.deaths) || stat.deaths < 0 || stat.deaths > 1) {
+      throw Object.assign(new Error('Pokémon stats are invalid.'), { status: 400 });
+    }
+    ids.add(String(stat.pokemonId));
+  }
+  return { field, stats, games, gameIndex, statsUid, scope };
+}
+
+function validatePokemonStatsPatches(league, patches) {
+  const grouped = new Map();
+  patches.forEach(patch => {
+    const groupKey = patch.scope + ':' + patch.statsUid;
+    if (!grouped.has(groupKey)) grouped.set(groupKey, patch);
+  });
+  for (const [groupKey, firstPatch] of grouped) {
+    const [scope, matchKey, uid] = groupKey.split(':');
+    const overridden = new Map();
+    patches.filter(patch => patch.scope === scope + ':' + matchKey && patch.statsUid === uid)
+      .forEach(patch => overridden.set(patch.gameIndex, patch.stats));
+    const uniqueIds = new Set();
+    firstPatch.games.forEach((game, gameIdx) => {
+      const stats = overridden.has(gameIdx) ? overridden.get(gameIdx) : ((game.pokemonStats || {})[uid] || []);
+      stats.forEach(stat => uniqueIds.add(String(stat.pokemonId)));
+    });
+    if (uniqueIds.size > 6) {
+      throw Object.assign(new Error('No more than six unique Pokémon can be selected across a match.'), { status: 400 });
+    }
+  }
+}
+
+function preserveExistingPokemonStats(league, field, value) {
+  if (!value || typeof value !== 'object') return value;
+  const regular = field.match(/^schedule\.results\.(\d+)_(\d+)$/);
+  if (regular && Array.isArray(value.games)) {
+    const previous = league.schedule?.results?.[regular[1] + '_' + regular[2]]?.games || [];
+    return Object.assign({}, value, {
+      games: value.games.map((game, index) => Object.assign({}, game, {
+        pokemonStats: Object.assign({}, previous[index] && previous[index].pokemonStats || {}, game.pokemonStats || {})
+      }))
+    });
+  }
+  if (field === 'playoffBracket' && Array.isArray(value.rounds)) {
+    return Object.assign({}, value, {
+      rounds: value.rounds.map((round, roundIndex) => Object.assign({}, round, {
+        matches: (round.matches || []).map((match, matchIndex) => {
+          const previousGames = league.playoffBracket?.rounds?.[roundIndex]?.matches?.[matchIndex]?.games || [];
+          return Object.assign({}, match, {
+            games: (match.games || []).map((game, gameIndex) => Object.assign({}, game, {
+              pokemonStats: Object.assign({}, previousGames[gameIndex] && previousGames[gameIndex].pokemonStats || {}, game.pokemonStats || {})
+            }))
+          });
+        })
+      }))
+    });
+  }
+  return value;
+}
+
 function validPoolPointOverrides(overrides) {
   return overrides && typeof overrides === 'object' && !Array.isArray(overrides)
     && Object.keys(overrides).length <= 2000
@@ -483,13 +578,16 @@ const server = createServer(async (request, response) => {
       if (!updates || typeof updates !== 'object' || Array.isArray(updates)) return send(response, 400, { error: 'Updates must be an object.' });
       const seasonId = url.searchParams.get('id') || 'main';
       const league = getSeasonLeague(seasonId, account);
+      const pokemonStatsPatches = [];
       if (account.role === 'commissioner') {
         const retractionError = scheduleRetractionError(league, updates);
         if (retractionError) return send(response, 409, { error: retractionError });
       }
       for (const [field, value] of Object.entries(updates)) {
-        if (account.role !== 'commissioner' && field.split('.')[0] === 'schedule'
-            && !/^schedule\.results\.\d+_\d+$/.test(field)) {
+        const statsPatch = pokemonStatsPatchContext(league, field, value, account);
+        if (statsPatch) pokemonStatsPatches.push(statsPatch);
+        else if (account.role !== 'commissioner' && field.split('.')[0] === 'schedule'
+            && !(/^schedule\.results\.\d+_\d+$/.test(field))) {
           return send(response, 403, { error: 'Commissioner access required to change the match schedule.' });
         }
         if (field.split('.')[0] === 'poolPointOverrides'
@@ -499,6 +597,7 @@ const server = createServer(async (request, response) => {
           });
         }
       }
+      validatePokemonStatsPatches(league, pokemonStatsPatches);
       for (const [field, value] of Object.entries(updates)) {
         const topLevel = field.split('.')[0];
         if (account.role !== 'commissioner' && ['settings', 'logo', 'commissionerUid', 'seasonComplete', 'championUid'].includes(topLevel)) {
@@ -511,7 +610,7 @@ const server = createServer(async (request, response) => {
           const current = field.split('.').reduce((target, part) => target && target[part], league);
           setPath(league, field, (Array.isArray(current) ? current : []).concat([value.value]));
         } else {
-          setPath(league, field, value);
+          setPath(league, field, preserveExistingPokemonStats(league, field, value));
         }
       }
       stampCompletedScheduleWeeks(league, updates);

@@ -176,10 +176,67 @@ test('commissioner provisions designated player sessions', async () => {
     assert.equal(deniedPlayerScheduleChange.response.status, 403);
     const playerMatchResult = await call('/api/league', {
       method: 'PATCH',
-      body: { updates: { 'schedule.results.0_0': { winner: playerId, locked: true } } },
+      body: { updates: { 'schedule.results.0_0': { winner: playerId, locked: true, games: [{ a: 2, b: 0 }, { a: 1, b: 0 }] } } },
       token: playerToken
     });
     assert.equal(playerMatchResult.response.status, 200);
+    const firstGameStats = [1, 2, 3, 4].map(pokemonId => ({ pokemonId, kills: 1, deaths: 0 }));
+    const savedFirstGameStats = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { ['schedule.results.0_0.games.0.pokemonStats.' + playerId]: firstGameStats } },
+      token: playerToken
+    });
+    assert.equal(savedFirstGameStats.response.status, 200);
+    const deniedOpponentStats = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { 'schedule.results.0_0.games.0.pokemonStats.opponent': firstGameStats } },
+      token: playerToken
+    });
+    assert.equal(deniedOpponentStats.response.status, 403);
+    const tooFewPokemonStats = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { ['schedule.results.0_0.games.0.pokemonStats.' + playerId]: firstGameStats.slice(0, 3) } },
+      token: playerToken
+    });
+    assert.equal(tooFewPokemonStats.response.status, 400);
+    const invalidKillCount = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { ['schedule.results.0_0.games.0.pokemonStats.' + playerId]: firstGameStats.map((stat, index) => ({ ...stat, kills: index ? stat.kills : 7 })) } },
+      token: playerToken
+    });
+    assert.equal(invalidKillCount.response.status, 400);
+    const overLimitPokemonStats = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { ['schedule.results.0_0.games.1.pokemonStats.' + playerId]: [5, 6, 7, 8].map(pokemonId => ({ pokemonId, kills: 0, deaths: 0 })) } },
+      token: playerToken
+    });
+    assert.equal(overLimitPokemonStats.response.status, 400);
+    const sixUniquePokemonStats = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { ['schedule.results.0_0.games.1.pokemonStats.' + playerId]: [1, 2, 5, 6].map(pokemonId => ({ pokemonId, kills: 0, deaths: 0 })) } },
+      token: playerToken
+    });
+    assert.equal(sixUniquePokemonStats.response.status, 200);
+    const correctedMatchResult = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { 'schedule.results.0_0': { winner: playerId, locked: true, games: [{ a: 1, b: 0 }, { a: 0, b: 1 }] } } },
+      token: playerToken
+    });
+    assert.equal(correctedMatchResult.response.status, 200);
+    const commissionerCorrectedMatchResult = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { 'schedule.results.0_0': { winner: playerId, locked: true, games: [{ a: 2, b: 0 }, { a: 1, b: 0 }] } } },
+      token: commissionerToken
+    });
+    assert.equal(commissionerCorrectedMatchResult.response.status, 200);
+    const preservedStats = await call('/api/league', { token: commissionerToken });
+    assert.deepEqual(preservedStats.data.league.schedule.results['0_0'].games[0].pokemonStats[playerId], firstGameStats);
+    const commissionerStatsOverride = await call('/api/league', {
+      method: 'PATCH',
+      body: { updates: { ['schedule.results.0_0.games.0.pokemonStats.' + playerId]: firstGameStats.map((stat, index) => ({ ...stat, kills: index ? stat.kills : 3 })) } },
+      token: commissionerToken
+    });
+    assert.equal(commissionerStatsOverride.response.status, 200);
     const inProgressSchedule = await call('/api/league', { token: commissionerToken });
     assert.equal(inProgressSchedule.data.league.schedule.weeks[0].endDate, null);
     const finalMatchResult = await call('/api/league', {

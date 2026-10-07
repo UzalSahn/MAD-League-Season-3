@@ -326,6 +326,7 @@
     <a href="freeagency.html" id="subnavFA" class="subnav-tab">Free Agency</a>
     <a href="trades.html" id="subnavTrades" class="subnav-tab">Trades</a>
     <a href="standing.html" id="subnavStanding" class="subnav-tab active">Standing</a>
+    <a href="mvp-race.html" id="subnavMvp" class="subnav-tab">MVP Race</a>
     <a href="announcements.html" id="subnavAnnouncements" class="subnav-tab">Announcements</a>
     <a href="draft.html" id="subnavDraft" class="subnav-tab">Draft Room</a>
     <a href="commissioner.html" id="subnavCommish" class="subnav-tab" style="display:none;">Commissioner</a>
@@ -359,6 +360,7 @@
 <script type="module">
   import { appendValue, currentScheduleWeekIndex, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
   import { advancePlayoffWinner, createPlayoffBracket } from './playoff-bracket.js';
+  import { renderPokemonStats } from './pokemon-match-stats.js';
 
 // ---------- sprites ----------
   const PLACEHOLDER_SPRITE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -391,7 +393,7 @@
   const params = new URLSearchParams(window.location.search);
   const leagueId = getCurrentSeasonId();
 
-  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
+  ['subnavMatch','subnavTeam','subnavFA','subnavTrades','subnavStanding','subnavMvp','subnavAnnouncements','subnavDraft','subnavCommish'].forEach(id => {
     const el = document.getElementById(id);
     if(el && leagueId) el.href = el.getAttribute('href') + '?id=' + leagueId;
   });
@@ -720,8 +722,46 @@
   let bracketPendingWinner = {};
   let bracketEditingKeys = {};
 
-  function renderGamesEditor(container, existing, key, canEdit){
+  function renderGamesEditor(container, existing, key, canEdit, statsContext){
     const games = (existing && existing.games && existing.games.length) ? JSON.parse(JSON.stringify(existing.games)) : [{a:null,b:null}];
+    const canSavePokemonStats = statsContext && (statsContext.isCommissioner
+      || statsContext.trainers.some(trainer => trainer.uid === statsContext.currentUid));
+    let statsEditor = null;
+    let statsContainer = null;
+    let statsSaveBtn = null;
+    let statsGameIndices = [];
+
+    function drawPokemonStats(){
+      if(!statsContext || !statsContainer) return;
+      statsGameIndices = games.reduce((indices, game, index) => {
+        if(game.a != null && game.b != null) indices.push(index);
+        return indices;
+      }, []);
+      statsContainer.innerHTML = '';
+      statsEditor = statsGameIndices.length ? renderPokemonStats(
+        statsContainer,
+        statsGameIndices.map(index => games[index]),
+        statsContext.trainers,
+        statsContext.currentUid,
+        statsContext.isCommissioner
+      ) : null;
+      if(statsSaveBtn) statsSaveBtn.disabled = canEdit || !statsEditor;
+    }
+
+    function savePokemonStats(onSave){
+      if(!statsEditor) throw new Error('Enter game results before recording Pokémon stats.');
+      return statsEditor.save(async updates => {
+        const mappedUpdates = {};
+        Object.entries(updates).forEach(([uid, entries]) => {
+          mappedUpdates[uid] = entries.map(entry => ({
+            gameIdx: statsGameIndices[entry.gameIdx],
+            stats: entry.stats
+          }));
+        });
+        await onSave(mappedUpdates);
+      });
+    }
+
     function draw(){
       container.innerHTML = '';
       games.forEach((g, gIdx) => {
@@ -734,7 +774,7 @@
         const diff = document.createElement('span'); diff.className='game-diff';
         function updateDiff(){ diff.textContent = (g.a!=null&&g.b!=null) ? ((g.a-g.b)>0?'+':'')+(g.a-g.b) : '—'; }
         updateDiff();
-        function commit(){ g.a = aInput.value===''?null:parseInt(aInput.value,10); g.b = bInput.value===''?null:parseInt(bInput.value,10); updateDiff(); }
+        function commit(){ g.a = aInput.value===''?null:parseInt(aInput.value,10); g.b = bInput.value===''?null:parseInt(bInput.value,10); updateDiff(); drawPokemonStats(); }
         aInput.disabled = !canEdit; bInput.disabled = !canEdit;
         aInput.addEventListener('change', commit); bInput.addEventListener('change', commit);
         row.appendChild(aInput); row.appendChild(vs); row.appendChild(bInput); row.appendChild(diff);
@@ -745,6 +785,29 @@
         }
         container.appendChild(row);
       });
+      statsEditor = null;
+      statsContainer = null;
+      statsSaveBtn = null;
+      if(statsContext){
+          statsContainer = document.createElement('div');
+          container.appendChild(statsContainer);
+          if(canSavePokemonStats && statsContext.onSave){
+            statsSaveBtn = document.createElement('button');
+            statsSaveBtn.type = 'button';
+            statsSaveBtn.className = 'btn btn-sm';
+            statsSaveBtn.textContent = 'Save Pokémon Stats';
+            statsSaveBtn.style.display = 'block';
+            statsSaveBtn.style.margin = '12px auto 0';
+            statsSaveBtn.addEventListener('click', async () => {
+              try{
+                await savePokemonStats(statsContext.onSave);
+                alert('Pokémon stats saved.');
+              }catch(err){ alert('Could not save Pokémon stats: ' + err.message); }
+            });
+            container.appendChild(statsSaveBtn);
+          }
+          drawPokemonStats();
+      }
       if(canEdit){
         const addBtn = document.createElement('button'); addBtn.type='button'; addBtn.className='add-game-btn'; addBtn.textContent='+ Add game';
         addBtn.addEventListener('click', () => { games.push({a:null,b:null}); draw(); });
@@ -756,7 +819,13 @@
       container.appendChild(totalRow);
     }
     draw();
-    return { getGames: () => games };
+    return {
+      getGames: () => games,
+      getPokemonStats: () => statsEditor ? {
+        validate: uid => statsEditor.validate(uid),
+        save: onSave => savePokemonStats(onSave)
+      } : null
+    };
   }
 
   function renderBracketMatchCard(league, roundIdx, matchIdx, match, isCommish, myUid){
@@ -774,9 +843,27 @@
     }
 
     const nameA = trainerNameOf(match.a), nameB = trainerNameOf(match.b);
+    const trainerA = league.draft.trainers.find(trainer => trainer.uid === match.a);
+    const trainerB = league.draft.trainers.find(trainer => trainer.uid === match.b);
     const isParty = myUid === match.a || myUid === match.b;
     const canEditPermission = !match.locked && (isParty || isCommish);
     const showEditor = match.locked ? (isCommish && bracketEditingKeys[key]) : canEditPermission;
+    let savedGameIndexByEditorIndex = null;
+    const statsContext = {
+      trainers: [trainerA, trainerB].filter(Boolean),
+      currentUid: myUid,
+      isCommissioner: isCommish,
+      onSave: async updates => {
+        const fields = {};
+        Object.entries(updates).forEach(([uid, entries]) => entries.forEach(entry => {
+          const gameIdx = savedGameIndexByEditorIndex
+            ? savedGameIndexByEditorIndex[entry.gameIdx]
+            : entry.gameIdx;
+          if(gameIdx != null) fields['playoffBracket.rounds.' + roundIdx + '.matches.' + matchIdx + '.games.' + gameIdx + '.pokemonStats.' + uid] = entry.stats;
+        }));
+        if(Object.keys(fields).length) await updateLeague(fields);
+      }
+    };
 
     const head = document.createElement('div'); head.className = 'match-vs-head';
     head.innerHTML =
@@ -799,16 +886,27 @@
 
       const gamesContainer = document.createElement('div'); gamesContainer.className = 'games-editor';
       card.appendChild(gamesContainer);
-      const gamesCtrl = renderGamesEditor(gamesContainer, match, key, true);
+      const gamesCtrl = renderGamesEditor(gamesContainer, match, key, true, statsContext);
 
       const saveBtn = document.createElement('button'); saveBtn.className='btn btn-primary btn-sm'; saveBtn.style.marginTop='12px';
       saveBtn.textContent = match.locked ? 'Save Correction' : 'Lock In Result';
       saveBtn.addEventListener('click', async () => {
         const winner = bracketPendingWinner[key];
         if(!winner){ alert('Pick a winner first.'); return; }
-        const games = gamesCtrl.getGames().filter(g => g.a!=null && g.b!=null);
-        await saveBracketResult(roundIdx, matchIdx, winner, games);
-        delete bracketEditingKeys[key];
+        const editorGames = gamesCtrl.getGames();
+        savedGameIndexByEditorIndex = [];
+        let savedGameIndex = 0;
+        editorGames.forEach((game, gameIdx) => {
+          savedGameIndexByEditorIndex[gameIdx] = game.a != null && game.b != null ? savedGameIndex++ : null;
+        });
+        const games = editorGames.filter(g => g.a!=null && g.b!=null).map(game => ({ a: game.a, b: game.b }));
+        const pokemonStats = gamesCtrl.getPokemonStats();
+        try{
+          if(pokemonStats && myUid && (myUid === match.a || myUid === match.b)) pokemonStats.validate(myUid);
+          await saveBracketResult(roundIdx, matchIdx, winner, games);
+          if(pokemonStats) await pokemonStats.save(statsContext.onSave);
+          delete bracketEditingKeys[key];
+        }catch(err){ alert('Could not save playoff result: ' + err.message); }
       });
       card.appendChild(saveBtn);
 
@@ -831,7 +929,7 @@
       if(!match.forfeit){
         const gamesContainer = document.createElement('div'); gamesContainer.className='games-editor';
         card.appendChild(gamesContainer);
-        renderGamesEditor(gamesContainer, match, key, false);
+        renderGamesEditor(gamesContainer, match, key, false, statsContext);
       }
       const lockTag = document.createElement('div'); lockTag.className='settings-note'; lockTag.textContent='🔒 Result locked in';
       card.appendChild(lockTag);
