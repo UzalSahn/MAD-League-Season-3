@@ -441,6 +441,7 @@
 
 <script type="module">
   import { appendValue, currentScheduleWeekIndex, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { advancePlayoffWinner } from './playoff-bracket.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1595,12 +1596,15 @@ function escapeHtml(s){
       const match = bracket.rounds[roundIdx].matches[matchIdx];
       match.winner = result.winner; match.games = result.games; match.locked = true;
       match.forfeit = !!result.forfeit; match.mvp = result.mvp || null;
-      if(bracket.rounds[roundIdx+1]){
-        const nextMatch = bracket.rounds[roundIdx+1].matches[Math.floor(matchIdx/2)];
-        if(nextMatch) nextMatch[matchIdx % 2 === 0 ? 'a' : 'b'] = result.winner;
-      }
+      match.winnerSeed = bracket.seeds && bracket.seeds[result.winner] || null;
+      const invalidatedLaterRounds = advancePlayoffWinner(bracket, roundIdx, matchIdx);
       const isChampion = roundIdx === bracket.rounds.length - 1;
       const updates = { playoffBracket: bracket };
+      if(invalidatedLaterRounds){
+        updates.seasonComplete = false;
+        updates.championUid = null;
+        updates.seasonCompletedAt = null;
+      }
       if(isChampion){
         updates.seasonComplete = true;
         updates.championUid = result.winner;

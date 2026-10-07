@@ -358,6 +358,7 @@
 
 <script type="module">
   import { appendValue, currentScheduleWeekIndex, getCurrentSeasonId, onUserChange, signOut, subscribeLeague, updateLeague, fetchLeague } from './league-api.js';
+  import { advancePlayoffWinner, createPlayoffBracket } from './playoff-bracket.js';
 
 // ---------- sprites ----------
   const PLACEHOLDER_SPRITE = 'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -608,13 +609,6 @@
     });
   }
 
-  const SEED_ORDER = {
-    2: [1,2],
-    4: [1,4,2,3],
-    8: [1,8,4,5,2,7,3,6],
-    16: [1,16,8,9,4,13,5,12,2,15,7,10,3,14,6,11]
-  };
-
   function formatTxLine(league, uid, tx){
     const date = new Date(tx.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     if(tx.type === 'fa_swap'){
@@ -716,45 +710,9 @@
   }
 
   async function generatePlayoffBracket(league, rows, playoffTeams){
-    if(rows.length < playoffTeams){ alert('Not enough trainers for a ' + playoffTeams + '-team bracket yet.'); return; }
-    let bracketSize = 2;
-    while(bracketSize < playoffTeams) bracketSize *= 2;
-    bracketSize = Math.min(bracketSize, 16);
-    const order = SEED_ORDER[bracketSize] || SEED_ORDER[8];
-    const seededUids = order.map(seedNum => seedNum <= playoffTeams ? rows[seedNum-1].uid : null);
-
-    const rounds = [];
-    const r1matches = [];
-    for(let i = 0; i < seededUids.length; i += 2){
-      r1matches.push({ a: seededUids[i], b: seededUids[i+1], winner: null, games: [], locked: false });
-    }
-    rounds.push({ label: 'Round 1', matches: r1matches });
-    let remaining = r1matches.length / 2;
-    const laterLabels = remaining >= 4 ? ['Quarterfinals','Semifinals','Final'] : remaining === 2 ? ['Semifinals','Final'] : ['Final'];
-    let labelIdx = 0;
-    while(remaining >= 1){
-      const matches = [];
-      for(let i = 0; i < remaining; i++) matches.push({ a: null, b: null, winner: null, games: [], locked: false });
-      rounds.push({ label: laterLabels[labelIdx], matches });
-      labelIdx++;
-      if(remaining === 1) break;
-      remaining = remaining / 2;
-    }
-    function propagate(){
-      for(let r = 0; r < rounds.length - 1; r++){
-        rounds[r].matches.forEach((m, i) => {
-          if(m.winner){
-            const nextMatch = rounds[r+1].matches[Math.floor(i/2)];
-            if(nextMatch) nextMatch[i % 2 === 0 ? 'a' : 'b'] = m.winner;
-          } else if(m.a && !m.b){ m.winner = m.a; m.locked = true; }
-          else if(m.b && !m.a){ m.winner = m.b; m.locked = true; }
-        });
-      }
-    }
-    propagate(); propagate(); propagate();
-
     try{
-      await updateLeague({ playoffBracket: { generatedAt: Date.now(), rounds } });
+      const playoffBracket = createPlayoffBracket(rows, playoffTeams);
+      await updateLeague({ playoffBracket });
       pushAnnouncement(league, 'match', 'Commissioner' + ' generated the playoff bracket');
     }catch(err){ alert('Could not generate bracket: ' + err.message); }
   }
@@ -806,6 +764,10 @@
     const card = document.createElement('div');
     card.className = 'panel match-panel';
 
+    if(match.locked && match.winner && (!match.a || !match.b)){
+      card.innerHTML = '<div class="state-msg">' + escapeHtml(trainerNameOf(match.winner)) + ' advances with a first-round bye</div>';
+      return card;
+    }
     if(!match.a || !match.b){
       card.innerHTML = '<div class="state-msg">Waiting on previous round to finish</div>';
       return card;
@@ -886,14 +848,15 @@
     const bracket = JSON.parse(JSON.stringify(currentLeague.playoffBracket));
     const match = bracket.rounds[roundIdx].matches[matchIdx];
     match.winner = winner; match.games = games; match.locked = true; match.forfeit = !!forfeit;
-    if(bracket.rounds[roundIdx+1]){
-      const nextMatch = bracket.rounds[roundIdx+1].matches[Math.floor(matchIdx/2)];
-      if(nextMatch){
-        nextMatch[matchIdx % 2 === 0 ? 'a' : 'b'] = winner;
-      }
-    }
+    match.winnerSeed = bracket.seeds && bracket.seeds[winner] || null;
+    const invalidatedLaterRounds = advancePlayoffWinner(bracket, roundIdx, matchIdx);
     const isChampion = roundIdx === bracket.rounds.length - 1;
     const updates = { playoffBracket: bracket };
+    if(invalidatedLaterRounds){
+      updates.seasonComplete = false;
+      updates.championUid = null;
+      updates.seasonCompletedAt = null;
+    }
     if(isChampion){
       updates.seasonComplete = true;
       updates.championUid = winner;
@@ -924,7 +887,11 @@
     if(!league.playoffBracket){
       wrap.innerHTML =
         '<div class="panel">' +
-          '<p class="settings-note" style="margin:0 0 16px;">A live projection based on today\'s standings \u2014 updates automatically as records change. Seeding: 1 vs ' + playoffTeams + ', 2 vs ' + (playoffTeams-1) + ', and so on.</p>' +
+          '<p class="settings-note" style="margin:0 0 16px;">A live projection based on today\'s standings \u2014 updates automatically as records change. ' +
+            (playoffTeams % 2
+              ? 'Odd-numbered fields give the top seed a first-round bye; later rounds reseed so the highest remaining seed faces the lowest remaining seed.'
+              : 'Seeding: 1 vs ' + playoffTeams + ', 2 vs ' + (playoffTeams-1) + ', and so on.') +
+          '</p>' +
           (isCommish ? '<button class="btn btn-primary btn-sm" id="genBracketBtn" style="margin-bottom:16px;">Generate Playoff Bracket (locks in current seeding)</button>' : '') +
           '<div id="bracketWrap"></div>' +
         '</div>';
@@ -970,47 +937,40 @@
       wrap.innerHTML = '<div class="state-msg">Not enough trainers for a ' + playoffTeams + '-team bracket yet.</div>';
       return;
     }
-    let bracketSize = 2;
-    while(bracketSize < playoffTeams) bracketSize *= 2;
-    bracketSize = Math.min(bracketSize, 16);
-    const order = SEED_ORDER[bracketSize] || SEED_ORDER[8];
-
-    const seededNames = order.map(seedNum => seedNum <= playoffTeams ? rows[seedNum-1].name : null);
-
+    let projection;
+    try{
+      projection = createPlayoffBracket(rows, playoffTeams);
+    }catch(err){
+      wrap.innerHTML = '<div class="state-msg">' + escapeHtml(err.message) + '</div>';
+      return;
+    }
+    const trainerName = uid => {
+      const trainer = rows.find(row => row.uid === uid);
+      return trainer ? trainer.name : 'TBD';
+    };
     const bracketEl = document.createElement('div');
     bracketEl.className = 'bracket';
-
-    const r1 = document.createElement('div');
-    r1.className = 'bracket-round';
-    r1.innerHTML = '<div class="bracket-round-label">Round 1</div>';
-    for(let i = 0; i < seededNames.length; i += 2){
-      const a = seededNames[i], b = seededNames[i+1];
-      const match = document.createElement('div');
-      match.className = 'bracket-match';
-      match.innerHTML =
-        '<div class="bracket-slot' + (!a ? ' tbd' : '') + '">' + escapeHtml(a || 'BYE') + '</div>' +
-        '<div class="bracket-slot' + (!b ? ' tbd' : '') + '">' + escapeHtml(b || 'BYE') + '</div>';
-      r1.appendChild(match);
-    }
-    bracketEl.appendChild(r1);
-
-    let remaining = seededNames.length / 2;
-    const laterLabels = remaining === 4 ? ['Quarterfinals','Semifinals','Final'] : remaining === 2 ? ['Semifinals','Final'] : ['Final'];
-    let labelIdx = laterLabels.length >= 3 ? 1 : 0;
-    while(remaining > 1){
-      remaining = remaining / 2;
+    projection.rounds.forEach((bracketRound, roundIdx) => {
       const round = document.createElement('div');
       round.className = 'bracket-round';
-      round.innerHTML = '<div class="bracket-round-label">' + laterLabels[labelIdx] + '</div>';
-      labelIdx++;
-      for(let i = 0; i < remaining; i++){
+      round.innerHTML = '<div class="bracket-round-label">' + escapeHtml(bracketRound.label) + '</div>';
+      bracketRound.matches.forEach((bracketMatch, matchIdx) => {
         const match = document.createElement('div');
         match.className = 'bracket-match';
-        match.innerHTML = '<div class="bracket-slot tbd">TBD</div><div class="bracket-slot tbd">TBD</div>';
+        const firstReseedRound = projection.oddQualifiers && roundIdx === 1;
+        const a = roundIdx === 0 ? (bracketMatch.a ? trainerName(bracketMatch.a) : 'BYE')
+          : bracketMatch.a ? trainerName(bracketMatch.a)
+          : firstReseedRound ? (matchIdx === 0 ? 'Top remaining seed' : 'Next-highest seed') : 'TBD';
+        const b = roundIdx === 0 ? (bracketMatch.b ? trainerName(bracketMatch.b) : 'BYE')
+          : bracketMatch.b ? trainerName(bracketMatch.b)
+          : firstReseedRound ? (matchIdx === 0 ? 'Lowest advancing seed' : 'Next-lowest advancing seed') : 'TBD';
+        match.innerHTML =
+          '<div class="bracket-slot' + (a === 'BYE' || a === 'TBD' ? ' tbd' : '') + '">' + escapeHtml(a) + '</div>' +
+          '<div class="bracket-slot' + (b === 'BYE' || b === 'TBD' ? ' tbd' : '') + '">' + escapeHtml(b) + '</div>';
         round.appendChild(match);
-      }
+      });
       bracketEl.appendChild(round);
-    }
+    });
 
     wrap.innerHTML = '';
     wrap.appendChild(bracketEl);
