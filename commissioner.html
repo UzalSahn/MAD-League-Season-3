@@ -66,6 +66,11 @@
     padding:10px 12px;border-radius:3px;font-family:var(--body);font-size:14px;
   }
   .settings-field input:focus{border-color:var(--gold);}
+  .settings-field select{
+    width:100%;background:var(--ink-soft);border:1px solid var(--line);color:var(--cream);
+    padding:10px 12px;border-radius:3px;font-family:var(--body);font-size:14px;
+  }
+  .settings-field select:focus{border-color:var(--gold);}
   .settings-checkbox-label{
     display:flex !important;align-items:center;gap:8px;font-family:var(--body) !important;
     text-transform:none !important;letter-spacing:0 !important;font-size:14px !important;color:var(--cream) !important;
@@ -272,6 +277,8 @@
 
 <script type="module">
   import { appendValue, createPlayer, createSeason, currentScheduleWeekIndex, deleteSeason, fetchPlayers, fetchSeasons, getCurrentSeasonId, onUserChange, setSeasonMember, signOut, subscribeLeague, updateLeague, updatePlayer } from './league-api.js';
+  import { POOL } from './pokemon-pool.js';
+  import { updateCommissionerTeamRoster } from './commissioner-team-roster.js';
 
 function escapeHtml(s){
     return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -536,6 +543,12 @@ function escapeHtml(s){
   }
 
   function txSummaryHtml(log){
+    if(log.type === 'commissioner_roster_edit'){
+      const action = log.action === 'added' ? 'added' : 'removed';
+      const direction = log.action === 'added' ? 'to' : 'from';
+      const monName = log.pokemon && (log.pokemon.name + (log.pokemon.variation ? ' (' + log.pokemon.variation + ')' : ''));
+      return '<b>Commissioner</b> ' + action + ' ' + escapeHtml(monName || 'a Pokémon') + ' ' + direction + ' <b>' + escapeHtml(log.trainerName || 'a team') + '</b>';
+    }
     if(log.type === 'fa_swap'){
       const claimNames = (log.claims||[]).map(m => m.name).join(', ') || 'nothing';
       const dropNames = (log.drops||[]).map(m => m.name).join(', ');
@@ -728,7 +741,7 @@ function escapeHtml(s){
       time.style.margin = '0';
       time.textContent = new Date(entry.timestamp).toLocaleString();
       row.appendChild(time);
-      if(!entry.reversed){
+      if(!entry.reversed && (entry.type === 'fa_swap' || entry.type === 'trade')){
         const btn = document.createElement('button');
         btn.className = 'btn btn-sm btn-danger';
         btn.textContent = 'Undo';
@@ -737,6 +750,113 @@ function escapeHtml(s){
       }
       wrap.appendChild(row);
     });
+  }
+
+  function renderCommissionerTeamRoster(league){
+    const teamSelect = document.getElementById('commishRosterTeam');
+    const pokemonSelect = document.getElementById('commishRosterPokemon');
+    const addButton = document.getElementById('commishAddPokemon');
+    const rosterList = document.getElementById('commishRosterList');
+    const status = document.getElementById('commishRosterStatus');
+    if(!teamSelect || !pokemonSelect || !addButton || !rosterList || !status || !league.draft) return;
+
+    (league.draft.trainers || []).forEach(trainer => {
+      const option = document.createElement('option');
+      option.value = trainer.uid;
+      option.textContent = trainer.name || trainer.coachName || 'Trainer';
+      teamSelect.appendChild(option);
+    });
+
+    function refresh(){
+      status.textContent = '';
+      const trainer = league.draft.trainers.find(item => item.uid === teamSelect.value);
+      const ownedIds = new Set((league.draft.trainers || []).flatMap(item => (item.roster || []).map(mon => String(mon.id))));
+      pokemonSelect.innerHTML = '';
+      POOL.filter(mon => !ownedIds.has(String(mon.id)) && !(league.draft.draftedIds || {})[String(mon.id)])
+        .forEach(mon => {
+          const option = document.createElement('option');
+          option.value = String(mon.id);
+          option.textContent = mon.name + (mon.variation ? ' (' + mon.variation + ')' : '') + ' · Tier ' + mon.tier;
+          pokemonSelect.appendChild(option);
+        });
+      addButton.disabled = pokemonSelect.options.length === 0 || !trainer;
+      rosterList.innerHTML = '';
+      if(!trainer){
+        const empty = document.createElement('li');
+        empty.className = 'settings-note';
+        empty.textContent = 'No teams are available in this draft.';
+        rosterList.appendChild(empty);
+        return;
+      }
+      const roster = trainer.roster || [];
+      if(!roster.length){
+        const empty = document.createElement('li');
+        empty.className = 'settings-note';
+        empty.textContent = 'This team has no Pokémon yet.';
+        rosterList.appendChild(empty);
+        return;
+      }
+      roster.forEach(mon => {
+        const item = document.createElement('li');
+        item.className = 'member-manage-item';
+        const name = document.createElement('span');
+        name.className = 'member-manage-name';
+        name.textContent = mon.name + (mon.variation ? ' (' + mon.variation + ')' : '') + ' · Tier ' + mon.tier;
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.className = 'btn btn-sm btn-danger';
+        removeButton.textContent = 'Remove';
+        removeButton.addEventListener('click', async () => {
+          if(!confirm('Remove ' + mon.name + (mon.variation ? ' (' + mon.variation + ')' : '') + ' from ' + trainer.name + '? It will become available to other teams.')) return;
+          removeButton.disabled = true;
+          try{
+            const updatedDraft = updateCommissionerTeamRoster(league.draft, trainer.uid, 'remove', mon);
+            const log = {
+              id: pendingMoveId(),
+              type: 'commissioner_roster_edit',
+              action: 'removed',
+              timestamp: Date.now(),
+              trainerUid: trainer.uid,
+              trainerName: trainer.name,
+              pokemon: mon
+            };
+            await updateLeague({ draft: updatedDraft, transactionLog: (league.transactionLog || []).concat([log]) });
+            status.textContent = 'Removed ' + mon.name + ' from ' + trainer.name + '.';
+          }catch(error){
+            status.textContent = 'Could not remove Pokémon: ' + error.message;
+            removeButton.disabled = false;
+          }
+        });
+        item.append(name, removeButton);
+        rosterList.appendChild(item);
+      });
+    }
+
+    teamSelect.addEventListener('change', refresh);
+    addButton.addEventListener('click', async () => {
+      const trainer = league.draft.trainers.find(item => item.uid === teamSelect.value);
+      const mon = POOL.find(item => String(item.id) === pokemonSelect.value);
+      if(!trainer || !mon) return;
+      addButton.disabled = true;
+      try{
+        const updatedDraft = updateCommissionerTeamRoster(league.draft, trainer.uid, 'add', mon);
+        const log = {
+          id: pendingMoveId(),
+          type: 'commissioner_roster_edit',
+          action: 'added',
+          timestamp: Date.now(),
+          trainerUid: trainer.uid,
+          trainerName: trainer.name,
+          pokemon: mon
+        };
+        await updateLeague({ draft: updatedDraft, transactionLog: (league.transactionLog || []).concat([log]) });
+        status.textContent = 'Added ' + mon.name + (mon.variation ? ' (' + mon.variation + ')' : '') + ' to ' + trainer.name + '.';
+      }catch(error){
+        status.textContent = 'Could not add Pokémon: ' + error.message;
+        addButton.disabled = false;
+      }
+    });
+    refresh();
   }
 
   async function undoTransaction(league, log){
@@ -988,6 +1108,14 @@ function escapeHtml(s){
       '</div>' +
 
       '<div class="panel">' +
+        '<h2>Manual Team Rosters</h2>' +
+        '<p class="settings-note" style="margin:0 0 14px;">Add or remove Pokémon directly for testing. These commissioner edits bypass roster-size, budget, and free-agency limits; a Pokémon can still only belong to one team. Budgets are not changed.</p>' +
+        (draftLocked
+          ? '<div class="settings-grid"><div class="settings-field"><label for="commishRosterTeam">Team</label><select id="commishRosterTeam"></select></div><div class="settings-field"><label for="commishRosterPokemon">Available Pokémon</label><select id="commishRosterPokemon"></select></div></div><button class="btn btn-primary btn-sm" id="commishAddPokemon" type="button" style="margin-top:12px;">Add Pokémon to Team</button><p class="settings-status" id="commishRosterStatus" role="status"></p><ul class="member-manage-list" id="commishRosterList"></ul>'
+          : '<p class="settings-note">Team rosters become available here after the draft has been created.</p>') +
+      '</div>' +
+
+      '<div class="panel">' +
         '<h2>League Size</h2>' +
         '<div class="settings-grid">' +
           '<div class="settings-field"><label>Maximum Team Accounts</label><input type="number" id="setMaxTeams" min="' + Object.keys(league.members||{}).length + '" value="' + s.maxTeams + '"></div>' +
@@ -1229,6 +1357,7 @@ function escapeHtml(s){
     renderVetoTrades(league);
     const fixMegaZBtn = document.getElementById('fixMegaZBtn');
     if(fixMegaZBtn) fixMegaZBtn.addEventListener('click', () => fixMegaZTypes(league));
+    renderCommissionerTeamRoster(league);
     renderPendingTransactions(league);
     renderTransactionLog(league);
 

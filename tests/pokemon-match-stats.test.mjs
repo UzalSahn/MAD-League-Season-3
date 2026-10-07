@@ -7,7 +7,7 @@ test('MVP race counts regular-season and playoff appearances and applies the req
     draft: {
       history: [{ monId: 1 }, { monId: 2 }, { monId: 3 }],
       trainers: [
-        { uid: 'a', name: 'Team A', roster: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Bravo' }] },
+        { uid: 'a', name: 'Team A', roster: [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Bravo' }, { id: 5, name: 'Newcomer' }] },
         { uid: 'b', name: 'Team B', roster: [{ id: 3, name: 'Charlie' }] }
       ]
     },
@@ -47,4 +47,5 @@ test('MVP race counts regular-season and playoff appearances and applies the req
   ]);
   assert.ok(race.some(row => row.name === 'Dropped Mon' && row.gamesPlayed === 0));
   assert.ok(race.some(row => row.id === 3 && row.trainerName === 'Team B'));
+  assert.ok(race.some(row => row.id === 5 && row.trainerName === 'Team A' && row.gamesPlayed === 0));
 });

@@ -182,12 +182,17 @@ export function calculatePokemonMvpRace(league) {
       });
     }
   };
-  (league.draft && league.draft.trainers || []).forEach(trainer => (trainer.roster || []).forEach(addPokemon));
+  const currentTeamOwners = new Map();
+  (league.draft && league.draft.trainers || []).forEach(trainer => (trainer.roster || []).forEach(mon => {
+    addPokemon(mon);
+    currentTeamOwners.set(String(mon.id), trainer.uid);
+  }));
   (league.transactionLog || []).forEach(log => {
     (log.claims || []).forEach(addPokemon);
     (log.drops || []).forEach(addPokemon);
     (log.offered || []).forEach(addPokemon);
     (log.requested || []).forEach(addPokemon);
+    addPokemon(log.pokemon);
   });
   (league.draft && league.draft.history || []).forEach(pick => {
     if(pick.mon) addPokemon(pick.mon);
@@ -235,11 +240,14 @@ export function calculatePokemonMvpRace(league) {
     }));
   }
 
-  return Array.from(pokemon.values()).map(entry => ({
-    ...entry,
-    trainerName: entry.ownerUid && trainersByUid.get(entry.ownerUid) ? trainersByUid.get(entry.ownerUid).name : '—',
-    differential: entry.kills - entry.deaths
-  })).sort((a, b) =>
+  return Array.from(pokemon.values()).map(entry => {
+    const ownerUid = currentTeamOwners.get(String(entry.id)) || entry.ownerUid;
+    return {
+      ...entry,
+      trainerName: ownerUid && trainersByUid.get(ownerUid) ? trainersByUid.get(ownerUid).name : '—',
+      differential: entry.kills - entry.deaths
+    };
+  }).sort((a, b) =>
     b.kills - a.kills
     || b.gamesPlayed - a.gamesPlayed
     || b.differential - a.differential
